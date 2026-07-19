@@ -1,0 +1,49 @@
+{% extends "learn/base.html" %}
+{% block title %}Daily Review{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-1">🧠 Daily Review</h1>
+<p class="text-slate-400 mb-6">Spaced repetition resurfaces concepts right before you'd forget them.</p>
+
+{% if result %}
+<div class="mb-6 rounded-xl border p-5 {% if result.is_correct %}border-emerald-700 bg-emerald-950/40{% else %}border-red-700 bg-red-950/40{% endif %}">
+    <div class="font-bold text-lg mb-1">
+        {% if result.is_correct %}✅ Correct! +{{ result.xp_awarded }} XP{% else %}❌ Not quite — +{{ result.xp_awarded }} XP for trying{% endif %}
+    </div>
+    {% if not result.is_correct and result.correct_choice %}
+    <div class="text-sm text-slate-300 mb-2">Correct answer: <strong>{{ result.correct_choice.text }}</strong></div>
+    {% endif %}
+    {% if result.question.explanation %}
+    <p class="text-sm text-slate-400">{{ result.question.explanation }}</p>
+    {% endif %}
+    {% if result.leveled_up %}
+    <div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>
+    {% endif %}
+    {% for badge in result.new_badges %}
+    <div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>
+    {% endfor %}
+</div>
+<a href="{% url 'learn:review_queue' %}" class="inline-block bg-accent2 text-ink font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Continue reviewing &rarr;</a>
+
+{% elif empty %}
+<div class="p-5 rounded-xl bg-panel border border-slate-800 text-slate-300">
+    Nothing due for review right now. Come back later, or go learn something new.
+</div>
+{% elif next_question %}
+<div class="text-sm text-slate-500 mb-2">{{ due_total }} card{{ due_total|pluralize }} due · reviewing: <strong>{{ card.concept.title }}</strong></div>
+<form method="post" action="{% url 'learn:review_queue' %}" class="bg-panel border border-slate-800 rounded-xl p-5">
+    {% csrf_token %}
+    <input type="hidden" name="card_id" value="{{ card.id }}">
+    <input type="hidden" name="question_id" value="{{ next_question.id }}">
+    <div class="font-semibold mb-4">{{ next_question.prompt }}</div>
+    <div class="space-y-2 mb-5">
+        {% for choice in choices %}
+        <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-700 hover:border-accent2 cursor-pointer">
+            <input type="radio" name="choice_id" value="{{ choice.id }}" required class="accent-accent2">
+            <span>{{ choice.text }}</span>
+        </label>
+        {% endfor %}
+    </div>
+    <button type="submit" class="bg-accent2 text-ink font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Answer</button>
+</form>
+{% endif %}
+{% endblock %}

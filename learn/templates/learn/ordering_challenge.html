@@ -1,0 +1,72 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Ordering{% endblock %}
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<a href="{% url 'learn:concept_detail' challenge.concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ challenge.concept.title }}</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">🔢 {{ challenge.title }}</h1>
+<p class="text-slate-400 mb-6 text-sm">{{ challenge.instructions }} Drag with ⠿, or use ▲/▼ on touch. Each step in the right spot scores points; a step out of place costs you.</p>
+
+{% if result %}
+<div class="mb-6 rounded-xl border p-5 {% if result.is_perfect %}border-emerald-700 bg-emerald-950/40{% elif result.score >= 0 %}border-amber-700 bg-amber-950/30{% else %}border-red-700 bg-red-950/40{% endif %}">
+    <div class="font-bold text-lg mb-2">
+        {% if result.is_perfect %}🔢 Perfect order! +{{ result.xp_awarded }} XP{% else %}Score: {{ result.score }} pts (+{{ result.xp_awarded }} XP){% endif %}
+    </div>
+    <div class="text-sm text-slate-300">{{ result.detail.correct_count }} / {{ result.detail.total }} steps in the correct position</div>
+    {% if result.leveled_up %}<div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>{% endif %}
+    {% for badge in result.new_badges %}<div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>{% endfor %}
+</div>
+<a href="{% url 'learn:ordering_challenge' challenge.slug %}" class="inline-block mb-6 bg-accent text-white font-semibold px-4 py-2 rounded-lg hover:opacity-90">🔄 Try again</a>
+{% endif %}
+
+<ul id="order-list" class="flex flex-col gap-2 mb-6">
+    {% for step in steps %}
+    <li data-id="{{ step.id }}" class="cursor-grab select-none rounded-lg border border-slate-700 bg-panel px-4 py-3 flex items-center gap-3 hover:border-accent">
+        <span class="step-num shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-slate-800 text-xs text-slate-400 font-semibold">{{ forloop.counter }}</span>
+        <span class="text-slate-500">⠿</span>
+        <span class="flex-1">{{ step.text }}</span>
+        <button type="button" class="step-up text-slate-500 hover:text-accent px-1" title="Move up">▲</button>
+        <button type="button" class="step-down text-slate-500 hover:text-accent px-1" title="Move down">▼</button>
+    </li>
+    {% endfor %}
+</ul>
+
+<form id="submit-form" method="post" action="{% url 'learn:ordering_challenge' challenge.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="order" id="order">
+    <button type="submit" class="bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Order</button>
+</form>
+
+<script>
+(function(){
+  const list = document.getElementById('order-list');
+
+  function renumber(){
+    Array.from(list.children).forEach((li, i) => {
+      const badge = li.querySelector('.step-num');
+      if (badge) badge.textContent = i + 1;
+    });
+  }
+
+  new Sortable(list, { animation: 150, ghostClass: 'opacity-40', onEnd: renumber });
+
+  list.addEventListener('click', (e) => {
+    const li = e.target.closest('li');
+    if (!li) return;
+    if (e.target.classList.contains('step-up')) {
+      const prev = li.previousElementSibling;
+      if (prev) list.insertBefore(li, prev);
+      renumber();
+    } else if (e.target.classList.contains('step-down')) {
+      const next = li.nextElementSibling;
+      if (next) list.insertBefore(next, li);
+      renumber();
+    }
+  });
+
+  document.getElementById('submit-form').addEventListener('submit', () => {
+    const ids = Array.from(list.children).map(li => li.dataset.id);
+    document.getElementById('order').value = ids.join(',');
+  });
+})();
+</script>
+{% endblock %}

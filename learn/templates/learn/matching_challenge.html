@@ -1,0 +1,106 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Matching{% endblock %}
+{% block content %}
+<a href="{% url 'learn:concept_detail' challenge.concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ challenge.concept.title }}</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">🧩 {{ challenge.title }}</h1>
+<p class="text-slate-400 mb-6 text-sm">{{ challenge.instructions }} Correct matches score points, wrong ones cost points — so drag deliberately. Click a filled slot to clear it and try again.</p>
+
+{% if result %}
+<div class="mb-6 rounded-xl border p-5 {% if result.is_perfect %}border-emerald-700 bg-emerald-950/40{% elif result.score >= 0 %}border-amber-700 bg-amber-950/30{% else %}border-red-700 bg-red-950/40{% endif %}">
+    <div class="font-bold text-lg mb-2">
+        {% if result.is_perfect %}🧩 Perfect match! +{{ result.xp_awarded }} XP{% else %}Score: {{ result.score }} pts (+{{ result.xp_awarded }} XP){% endif %}
+    </div>
+    <div class="text-sm text-slate-300">✅ Correct: {{ result.detail.correct_terms|join:", " }}</div>
+    {% if result.detail.wrong_terms %}<div class="text-sm text-red-400">❌ Wrong: {{ result.detail.wrong_terms|join:", " }}</div>{% endif %}
+    {% if result.leveled_up %}<div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>{% endif %}
+    {% for badge in result.new_badges %}<div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>{% endfor %}
+</div>
+<a href="{% url 'learn:matching_challenge' challenge.slug %}" class="inline-block mb-6 bg-accent text-white font-semibold px-4 py-2 rounded-lg hover:opacity-90">🔄 Try again</a>
+{% endif %}
+
+<div class="grid md:grid-cols-2 gap-6">
+    <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Terms — drop a definition here</div>
+        <div class="flex flex-col gap-2">
+            {% for pair in terms %}
+            <div class="rounded-lg border border-slate-700 bg-panel p-3">
+                <div class="font-semibold text-sm mb-2">{{ pair.term }}</div>
+                <div class="drop-slot min-h-[42px] rounded border-2 border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500" data-term-id="{{ pair.id }}" title="Click to clear once filled">
+                    drop here
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Definitions</div>
+        <div id="def-pool" class="flex flex-col gap-2">
+            {% for pair in definitions %}
+            <div draggable="true" data-def-id="{{ pair.id }}" class="def-chip cursor-grab select-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm hover:border-accent2">
+                {{ pair.definition }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<form id="submit-form" method="post" action="{% url 'learn:matching_challenge' challenge.slug %}" class="mt-6">
+    {% csrf_token %}
+    <input type="hidden" name="answers" id="answers">
+    <button type="submit" class="bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Matches</button>
+</form>
+
+<style>
+  .drop-slot.filled { border-style:solid; border-color:#06b6d4; background:#0f0f1a; }
+  .drop-slot.dragover { border-color:#8b5cf6; }
+</style>
+<script>
+(function(){
+  const answers = {};  // termId -> defId
+  document.querySelectorAll('.def-chip').forEach(chip => {
+    chip.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', chip.dataset.defId);
+    });
+  });
+  document.querySelectorAll('.drop-slot').forEach(slot => {
+    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('dragover'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('dragover'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault();
+      slot.classList.remove('dragover');
+      const defId = e.dataTransfer.getData('text/plain');
+      const chip = document.querySelector('.def-chip[data-def-id="' + defId + '"]');
+      if (!chip) return;
+      // if slot already had something, put previous chip back to pool
+      if (slot.dataset.filled === '1') {
+        const prevText = slot.textContent.trim();
+        const prevId = slot.dataset.currentDefId;
+        const prevChip = document.querySelector('.pool-return[data-def-id="' + prevId + '"]');
+        if (prevChip) { prevChip.classList.remove('pool-return'); prevChip.style.display=''; }
+      }
+      slot.innerHTML = chip.textContent.trim();
+      slot.classList.add('filled');
+      slot.dataset.filled = '1';
+      slot.dataset.currentDefId = defId;
+      chip.style.display = 'none';
+      chip.classList.add('pool-return');
+      answers[slot.dataset.termId] = defId;
+    });
+    slot.addEventListener('click', () => {
+      if (slot.dataset.filled !== '1') return;
+      const defId = slot.dataset.currentDefId;
+      const chip = document.querySelector('.def-chip[data-def-id="' + defId + '"]');
+      if (chip) { chip.classList.remove('pool-return'); chip.style.display = ''; }
+      slot.innerHTML = 'drop here';
+      slot.classList.remove('filled');
+      slot.dataset.filled = '0';
+      delete slot.dataset.currentDefId;
+      delete answers[slot.dataset.termId];
+    });
+  });
+  document.getElementById('submit-form').addEventListener('submit', () => {
+    document.getElementById('answers').value = JSON.stringify(answers);
+  });
+})();
+</script>
+{% endblock %}

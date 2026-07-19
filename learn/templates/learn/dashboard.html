@@ -1,0 +1,57 @@
+{% extends "learn/base.html" %}
+{% block title %}Dashboard — SysDesign Quest{% endblock %}
+{% block content %}
+
+<div class="bg-panel rounded-xl p-6 mb-8 border border-slate-800">
+    <div class="flex items-center justify-between mb-2">
+        <div>
+            <div class="text-2xl font-bold">Level {{ profile.level }}</div>
+            <div class="text-slate-400 text-sm">{{ profile.xp }} XP total · 🔥 {{ profile.current_streak }} day streak (best {{ profile.longest_streak }})</div>
+        </div>
+        {% if due_count > 0 %}
+        <a href="{% url 'learn:review_queue' %}" class="bg-accent2 text-ink font-semibold px-4 py-2 rounded-lg hover:opacity-90">
+            🧠 {{ due_count }} review{{ due_count|pluralize }} due
+        </a>
+        {% else %}
+        <span class="text-sm text-slate-500">No reviews due — nice work</span>
+        {% endif %}
+    </div>
+    <div class="w-full bg-slate-800 rounded-full h-3 mt-3">
+        <div class="bg-gradient-to-r from-accent to-accent2 h-3 rounded-full" style="width: {{ xp_progress_pct }}%"></div>
+    </div>
+    <div class="text-xs text-slate-500 mt-1">{{ profile.xp_into_level }} / {{ profile.xp_for_next_level }} XP to level {{ profile.level|add:1 }}</div>
+</div>
+
+{% if earned_badges %}
+<div class="mb-8 flex flex-wrap gap-2">
+    {% for ub in earned_badges %}
+    <span class="bg-panel border border-slate-700 rounded-full px-3 py-1 text-sm" title="{{ ub.badge.description }}">{{ ub.badge.icon }} {{ ub.badge.name }}</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% for entry in book_data %}
+<div class="mb-8">
+    <h2 class="text-lg font-bold mb-3">{{ entry.book.title }}</h2>
+    <div class="grid gap-3 sm:grid-cols-2">
+        {% for c in entry.chapters %}
+        <a href="{% if c.unlocked %}{% url 'learn:chapter_detail' c.chapter.slug %}{% else %}#{% endif %}"
+           class="block rounded-lg border p-4 {% if c.unlocked %}border-slate-700 bg-panel hover:border-accent{% else %}border-slate-800 bg-slate-900/50 opacity-60 cursor-not-allowed{% endif %}">
+            <div class="flex justify-between items-center">
+                <span class="font-semibold">{% if not c.unlocked %}🔒{% endif %} {{ c.chapter.title }}</span>
+                <span class="text-xs text-slate-400">{{ c.mastered }}/{{ c.total }}</span>
+            </div>
+            {% if not c.unlocked %}
+            <div class="text-xs text-slate-500 mt-1">Unlocks at level {{ c.chapter.unlock_level }}</div>
+            {% else %}
+            <div class="w-full bg-slate-800 rounded-full h-2 mt-2">
+                <div class="bg-accent h-2 rounded-full" style="width: {{ c.pct }}%"></div>
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

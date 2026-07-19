@@ -1,0 +1,209 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ concept.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'learn:chapter_detail' concept.chapter.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ concept.chapter.title }}</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">{{ concept.title }}</h1>
+<p class="text-xs text-slate-500 mb-4">{{ concept.source_note }}</p>
+
+<!-- Notes -->
+<div class="bg-panel border border-slate-800 rounded-xl p-5 mb-4">
+    <p class="text-slate-300 mb-3">{{ concept.summary }}</p>
+    <button id="notes-toggle" type="button"
+        class="text-sm px-4 py-2 rounded-full border border-accent text-accent hover:bg-accent hover:text-white transition font-semibold">
+        📖 View Notes
+    </button>
+
+    <div id="notes-panel" class="hidden mt-4">
+        <div class="flex items-center justify-between gap-3 mb-4 border-t border-slate-800 pt-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500">📖 Notes &middot; {{ concept.source_note }}</div>
+            <div class="flex items-center gap-2">
+                <button id="notes-tts" type="button" title="Read notes aloud"
+                    class="text-xs px-3 py-1.5 rounded-full border border-slate-700 text-slate-300 hover:border-accent2 hover:text-accent2 transition">
+                    🔊 Read aloud
+                </button>
+                <button id="study-toggle" type="button"
+                    class="text-xs px-3 py-1.5 rounded-full border border-accent text-accent hover:bg-accent hover:text-white transition">
+                    🧠 Study mode
+                </button>
+            </div>
+        </div>
+
+        <div id="notes-full" class="leading-relaxed text-slate-200 space-y-5">
+            {% for section in concept.notes_sections %}
+            <div>
+                <h3 class="text-base font-bold text-white mb-1.5">{{ section.heading }}</h3>
+                <div class="text-slate-300">{{ section.body|linebreaks }}</div>
+                {% if section.deep_dive %}
+                <details class="mt-2 group">
+                    <summary class="cursor-pointer text-sm text-accent2 font-semibold list-none flex items-center gap-1.5 hover:opacity-80">
+                        <span class="inline-block transition-transform group-open:rotate-90">▶</span>
+                        🔍 Click to know more: {{ section.deep_dive.title }}
+                    </summary>
+                    <div class="mt-2 ml-5 pl-3 border-l-2 border-accent2/40 text-sm text-slate-300">
+                        {{ section.deep_dive.body|linebreaks }}
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="text-slate-400 text-sm">Notes for this concept haven't been written yet.</p>
+            {% endfor %}
+        </div>
+
+        {{ concept.notes_sections|json_script:"notes-sections-data" }}
+
+        <div id="notes-study" class="hidden">
+            <div class="w-full bg-slate-800 rounded-full h-2 mb-4">
+                <div id="study-progress" class="bg-gradient-to-r from-accent to-accent2 h-2 rounded-full transition-all" style="width:0%"></div>
+            </div>
+            <div id="study-card" class="min-h-[140px] flex flex-col items-center justify-center text-center bg-slate-900/60 rounded-lg p-6 border border-slate-800">
+                <div id="study-card-heading" class="text-sm font-bold text-accent2 uppercase tracking-wide mb-2"></div>
+                <div id="study-card-body" class="text-base font-medium leading-relaxed"></div>
+            </div>
+            <div class="flex items-center justify-between mt-4">
+                <button id="study-prev" type="button" class="text-sm text-slate-400 hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed">&larr; Back</button>
+                <span id="study-count" class="text-xs text-slate-500"></span>
+                <button id="study-next" type="button" class="text-sm text-accent font-semibold hover:opacity-80">Next &rarr;</button>
+            </div>
+            <div id="study-done" class="hidden mt-4 text-center text-emerald-400 font-semibold text-sm">✅ You've been through every key point — ready for the quiz!</div>
+        </div>
+    </div>
+</div>
+
+{% if mastery %}
+<div class="mb-6 text-sm text-slate-400">
+    Progress: {{ mastery.correct_count }} correct / {{ mastery.incorrect_count }} incorrect · status
+    <span class="font-semibold">{{ mastery.state }}</span>
+</div>
+{% else %}
+<div class="mb-6"></div>
+{% endif %}
+
+<script>
+(function () {
+    var notesToggle = document.getElementById('notes-toggle');
+    var notesPanel = document.getElementById('notes-panel');
+    var fullEl = document.getElementById('notes-full');
+    var studyEl = document.getElementById('notes-study');
+    var studyToggle = document.getElementById('study-toggle');
+    var ttsBtn = document.getElementById('notes-tts');
+    var cardHeadingEl = document.getElementById('study-card-heading');
+    var cardBodyEl = document.getElementById('study-card-body');
+    var progressEl = document.getElementById('study-progress');
+    var countEl = document.getElementById('study-count');
+    var prevBtn = document.getElementById('study-prev');
+    var nextBtn = document.getElementById('study-next');
+    var doneEl = document.getElementById('study-done');
+    var dataEl = document.getElementById('notes-sections-data');
+
+    // Study Mode cards come straight from the structured sections data
+    // (one card per section) rather than guessing sentence boundaries
+    // from rendered text — regex sentence-splitting broke on things like
+    // "e.g." or "62^7" and produced malformed, choppy cards.
+    var sections = [];
+    try {
+        sections = dataEl ? JSON.parse(dataEl.textContent) : [];
+    } catch (e) { sections = []; }
+
+    var idx = 0;
+    var inStudy = false;
+
+    notesToggle.addEventListener('click', function () {
+        var showing = !notesPanel.classList.contains('hidden');
+        if (showing) {
+            notesPanel.classList.add('hidden');
+            notesToggle.textContent = '📖 View Notes';
+        } else {
+            notesPanel.classList.remove('hidden');
+            notesToggle.textContent = '📖 Hide Notes';
+        }
+    });
+
+    function render() {
+        if (!sections.length) return;
+        var s = sections[idx];
+        cardHeadingEl.textContent = s.heading || '';
+        cardBodyEl.textContent = s.body || '';
+        countEl.textContent = (idx + 1) + ' / ' + sections.length;
+        progressEl.style.width = Math.round(((idx + 1) / sections.length) * 100) + '%';
+        prevBtn.disabled = idx === 0;
+        nextBtn.textContent = idx === sections.length - 1 ? 'Finish ✓' : 'Next →';
+        doneEl.classList.add('hidden');
+    }
+
+    studyToggle.addEventListener('click', function () {
+        inStudy = !inStudy;
+        if (inStudy) {
+            fullEl.classList.add('hidden');
+            studyEl.classList.remove('hidden');
+            studyToggle.textContent = '📖 Full text';
+            idx = 0;
+            render();
+        } else {
+            fullEl.classList.remove('hidden');
+            studyEl.classList.add('hidden');
+            studyToggle.textContent = '🧠 Study mode';
+        }
+    });
+
+    prevBtn.addEventListener('click', function () {
+        if (idx > 0) { idx -= 1; render(); }
+    });
+
+    nextBtn.addEventListener('click', function () {
+        if (idx < sections.length - 1) {
+            idx += 1;
+            render();
+        } else {
+            doneEl.classList.remove('hidden');
+        }
+    });
+
+    if ('speechSynthesis' in window) {
+        ttsBtn.addEventListener('click', function () {
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                ttsBtn.textContent = '🔊 Read aloud';
+                return;
+            }
+            var rawText = sections.map(function (s) {
+                return s.heading + '. ' + s.body;
+            }).join(' ');
+            var utter = new SpeechSynthesisUtterance(rawText);
+            utter.rate = 0.98;
+            utter.onend = function () { ttsBtn.textContent = '🔊 Read aloud'; };
+            ttsBtn.textContent = '⏹ Stop reading';
+            window.speechSynthesis.speak(utter);
+        });
+    } else {
+        ttsBtn.classList.add('hidden');
+    }
+})();
+</script>
+
+<div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Play to learn</div>
+<div class="grid gap-3 sm:grid-cols-2">
+    <a href="{% url 'learn:concept_quiz' concept.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent">
+        <div class="font-semibold">▶ Quiz</div>
+        <div class="text-xs text-slate-400 mt-1">{{ question_count }} question{{ question_count|pluralize }} · multiple choice</div>
+    </a>
+    {% for dc in design_challenges %}
+    <a href="{% url 'learn:design_challenge' dc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent">
+        <div class="font-semibold">🏗️ {{ dc.title }}</div>
+        <div class="text-xs text-slate-400 mt-1">Drag-and-drop architecture builder</div>
+    </a>
+    {% endfor %}
+    {% for mc in matching_challenges %}
+    <a href="{% url 'learn:matching_challenge' mc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent2">
+        <div class="font-semibold">🧩 {{ mc.title }}</div>
+        <div class="text-xs text-slate-400 mt-1">Match terms to definitions</div>
+    </a>
+    {% endfor %}
+    {% for oc in ordering_challenges %}
+    <a href="{% url 'learn:ordering_challenge' oc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent2">
+        <div class="font-semibold">🔢 {{ oc.title }}</div>
+        <div class="text-xs text-slate-400 mt-1">Put the steps in order</div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}
