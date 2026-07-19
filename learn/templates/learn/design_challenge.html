@@ -1,0 +1,203 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Architecture Builder{% endblock %}
+{% block content %}
+<a href="{% url 'learn:concept_detail' challenge.concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ challenge.concept.title }}</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">🏗️ {{ challenge.title }}</h1>
+<p class="text-slate-300 mb-1">{{ challenge.prompt }}</p>
+<p class="text-xs text-slate-500 mb-6">Drag the components you need onto the board (filter the pool if it's a lot to scan). Click two placed components to wire them together, or hit the × on a component to take it back off the board. Unnecessary components and wrong wires cost points — think before you drag.</p>
+
+{% if result %}
+<div class="mb-6 rounded-xl border p-5 {% if result.is_perfect %}border-emerald-700 bg-emerald-950/40{% elif result.score >= 0 %}border-amber-700 bg-amber-950/30{% else %}border-red-700 bg-red-950/40{% endif %}">
+    <div class="font-bold text-lg mb-2">
+        {% if result.is_perfect %}🏗️ Perfect design! +{{ result.xp_awarded }} XP{% else %}Score: {{ result.score }} pts (+{{ result.xp_awarded }} XP){% endif %}
+    </div>
+    <ul class="text-sm space-y-1 text-slate-300">
+        {% if result.detail.used_required %}<li>✅ Correct components: {{ result.detail.used_required|join:", " }}</li>{% endif %}
+        {% if result.detail.used_distractors %}<li class="text-red-400">❌ Didn't belong: {{ result.detail.used_distractors|join:", " }} (-{{ result.detail.used_distractors|length }}×10)</li>{% endif %}
+        {% if result.detail.missing_required %}<li class="text-amber-400">⚠ Missing: {{ result.detail.missing_required|join:", " }}</li>{% endif %}
+        <li>🔌 Correct wires: {{ result.detail.correct_connections }} · wrong wires: {{ result.detail.wrong_connections }} · missing wires: {{ result.detail.missing_connections }}</li>
+    </ul>
+    {% if result.leveled_up %}<div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>{% endif %}
+    {% for badge in result.new_badges %}<div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>{% endfor %}
+</div>
+<a href="{% url 'learn:design_challenge' challenge.slug %}" class="inline-block mb-6 bg-accent text-white font-semibold px-4 py-2 rounded-lg hover:opacity-90">🔄 Try again</a>
+{% endif %}
+
+<div class="grid md:grid-cols-3 gap-4">
+    <div class="md:col-span-1">
+        <div class="flex items-center justify-between mb-2">
+            <div class="text-xs uppercase tracking-wide text-slate-500">Component Pool ({{ pool|length }})</div>
+        </div>
+        <input id="pool-filter" type="text" placeholder="🔎 Filter components…"
+            class="mb-2 w-full text-sm bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-accent">
+        <div id="pool" class="flex flex-col gap-2 bg-panel border border-slate-800 rounded-xl p-3 min-h-[200px] max-h-[520px] overflow-y-auto">
+            {% for item in pool %}
+            <div draggable="true" data-id="{{ item.component_type.id }}" data-name="{{ item.component_type.name|lower }}"
+                 class="pool-item cursor-grab select-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm hover:border-accent">
+                {{ item.component_type.icon }} {{ item.component_type.name }}
+            </div>
+            {% endfor %}
+        </div>
+        <p id="pool-empty" class="hidden text-xs text-slate-500 mt-2">No components match that filter.</p>
+    </div>
+    <div class="md:col-span-2">
+        <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Board — drag here, then click two boxes to wire them</div>
+        <div id="board" class="relative bg-panel border-2 border-dashed border-slate-700 rounded-xl p-4 min-h-[320px]">
+            <svg id="wires" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+        </div>
+        <div class="flex gap-3 mt-3">
+            <button id="undo-wire" type="button" class="text-xs text-slate-400 hover:text-accent border border-slate-700 rounded px-3 py-1.5">Undo last wire</button>
+            <button id="clear-board" type="button" class="text-xs text-slate-400 hover:text-red-400 border border-slate-700 rounded px-3 py-1.5">Clear board</button>
+        </div>
+    </div>
+</div>
+
+<form id="submit-form" method="post" action="{% url 'learn:design_challenge' challenge.slug %}" class="mt-6">
+    {% csrf_token %}
+    <input type="hidden" name="placed_ids" id="placed_ids">
+    <input type="hidden" name="connections" id="connections">
+    <button type="submit" class="bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Design</button>
+</form>
+
+<style>
+  .board-item { position:absolute; cursor:pointer; user-select:none; }
+  .board-item .chip {
+    border-radius:0.5rem; border:1px solid #475569; background:#0f0f1a; padding:0.5rem 0.75rem;
+    font-size:0.875rem; white-space:nowrap;
+  }
+  .board-item.selected .chip { border-color:#8b5cf6; box-shadow:0 0 0 2px #8b5cf655; }
+  #board.dragover { border-color:#8b5cf6; }
+  .board-item .remove-x {
+    position:absolute; top:-8px; right:-8px; width:18px; height:18px; line-height:16px;
+    text-align:center; border-radius:9999px; background:#dc2626; color:#fff; font-size:11px;
+    cursor:pointer; border:2px solid #0f0f1a;
+  }
+</style>
+<script>
+(function(){
+  const board = document.getElementById('board');
+  const wiresSvg = document.getElementById('wires');
+  const pool = document.getElementById('pool');
+  let placed = {};   // id -> {el, x, y}
+  let connections = [];  // [id1, id2]
+  let selectedForWire = null;
+  let nextPos = 20;
+
+  function makeBoardItem(id, label, x, y){
+    const div = document.createElement('div');
+    div.className = 'board-item';
+    div.style.left = x + 'px';
+    div.style.top = y + 'px';
+    div.dataset.id = id;
+    div.innerHTML = '<div class="chip">' + label + '</div><div class="remove-x" title="Remove">×</div>';
+    div.querySelector('.chip').addEventListener('click', () => onSelect(id, div));
+    div.querySelector('.remove-x').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeBoardItem(id);
+    });
+    board.appendChild(div);
+    return div;
+  }
+
+  function removeBoardItem(id){
+    const entry = placed[id];
+    if (!entry) return;
+    entry.el.remove();
+    delete placed[id];
+    connections = connections.filter(([a, b]) => a !== id && b !== id);
+    if (selectedForWire === id) selectedForWire = null;
+    const poolItem = pool.querySelector('[data-id="' + id + '"]');
+    if (poolItem) poolItem.style.display = '';
+    drawWires();
+  }
+
+  function onSelect(id, el){
+    if (selectedForWire === null){
+      selectedForWire = id;
+      el.classList.add('selected');
+    } else if (selectedForWire === id){
+      el.classList.remove('selected');
+      selectedForWire = null;
+    } else {
+      connections.push([selectedForWire, id]);
+      document.querySelectorAll('.board-item.selected').forEach(e => e.classList.remove('selected'));
+      selectedForWire = null;
+      drawWires();
+    }
+  }
+
+  function drawWires(){
+    wiresSvg.innerHTML = '';
+    connections.forEach(([a, b]) => {
+      const elA = placed[a] && placed[a].el;
+      const elB = placed[b] && placed[b].el;
+      if (!elA || !elB) return;
+      const ra = elA.getBoundingClientRect(), rb = elB.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const x1 = ra.left - boardRect.left + ra.width/2, y1 = ra.top - boardRect.top + ra.height/2;
+      const x2 = rb.left - boardRect.left + rb.width/2, y2 = rb.top - boardRect.top + rb.height/2;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('stroke', '#06b6d4'); line.setAttribute('stroke-width', '2');
+      wiresSvg.appendChild(line);
+    });
+  }
+
+  document.querySelectorAll('.pool-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({id: item.dataset.id, label: item.textContent.trim()}));
+    });
+  });
+
+  board.addEventListener('dragover', e => { e.preventDefault(); board.classList.add('dragover'); });
+  board.addEventListener('dragleave', () => board.classList.remove('dragover'));
+  board.addEventListener('drop', e => {
+    e.preventDefault();
+    board.classList.remove('dragover');
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const id = parseInt(data.id, 10);
+    if (placed[id]) return;  // already placed
+    const boardRect = board.getBoundingClientRect();
+    const x = Math.max(10, Math.min(e.clientX - boardRect.left - 60, boardRect.width - 130));
+    const y = Math.max(10, Math.min(e.clientY - boardRect.top - 20, boardRect.height - 50));
+    const el = makeBoardItem(id, data.label, x, y);
+    placed[id] = {el, x, y};
+    const poolItem = pool.querySelector('[data-id="' + id + '"]');
+    if (poolItem) poolItem.style.display = 'none';
+  });
+
+  document.getElementById('undo-wire').addEventListener('click', () => {
+    connections.pop();
+    drawWires();
+  });
+  document.getElementById('clear-board').addEventListener('click', () => {
+    placed = {}; connections = []; selectedForWire = null;
+    board.querySelectorAll('.board-item').forEach(e => e.remove());
+    document.querySelectorAll('.pool-item').forEach(e => e.style.display = '');
+    drawWires();
+  });
+
+  document.getElementById('submit-form').addEventListener('submit', () => {
+    document.getElementById('placed_ids').value = Object.keys(placed).join(',');
+    document.getElementById('connections').value = connections.map(c => c[0] + '-' + c[1]).join(';');
+  });
+
+  window.addEventListener('resize', drawWires);
+
+  const filterInput = document.getElementById('pool-filter');
+  const poolEmpty = document.getElementById('pool-empty');
+  filterInput.addEventListener('input', () => {
+    const q = filterInput.value.trim().toLowerCase();
+    let visibleCount = 0;
+    document.querySelectorAll('.pool-item').forEach(item => {
+      if (placed[item.dataset.id]) return; // already placed items stay hidden regardless
+      const matches = !q || item.dataset.name.includes(q);
+      item.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    });
+    poolEmpty.classList.toggle('hidden', visibleCount !== 0 || !q);
+  });
+})();
+</script>
+{% endblock %}

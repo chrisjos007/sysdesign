@@ -1,0 +1,30 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ chapter.title }} — SysDesign Quest{% endblock %}
+{% block content %}
+<a href="{% url 'learn:dashboard' %}" class="text-sm text-slate-400 hover:text-accent">&larr; Dashboard</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">{{ chapter.title }}</h1>
+<p class="text-slate-400 mb-6">{{ chapter.summary }}</p>
+
+{% if not unlocked %}
+<div class="p-4 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
+    🔒 Locked until level {{ chapter.unlock_level }}.
+</div>
+{% else %}
+<div class="grid gap-3">
+    {% for c in concepts %}
+    <a href="{% url 'learn:concept_detail' c.concept.slug %}" class="flex items-center justify-between rounded-lg border border-slate-700 bg-panel p-4 hover:border-accent">
+        <div>
+            <div class="font-semibold">{{ c.concept.title }}</div>
+            <div class="text-xs text-slate-500">{{ c.concept.source_note }}</div>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full
+            {% if c.state == 'mastered' %}bg-emerald-900 text-emerald-300
+            {% elif c.state == 'learning' %}bg-amber-900 text-amber-300
+            {% else %}bg-slate-800 text-slate-400{% endif %}">
+            {{ c.state }}
+        </span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,134 @@
+# SysDesign Quest
+
+A gamified learning app for system design interview prep, built on five
+loaded books: *System Design Interview: An Insider's Guide* (Alex Xu),
+*Grokking the System Design Interview*, *Database Internals*, *Designing
+Data-Intensive Applications*, and the *Linux Pocket Guide*.
+
+## What's inside
+
+- 19 chapters -> 19 concept cards -> 147 quiz questions across all five
+  books. Content is split into two kinds of item: concrete "design a
+  system" items (Design a URL Shortener, Designing Twitter, etc. — each
+  guaranteed its own architecture-builder game and a 6-7 question quiz)
+  and bigger merged "domain" items that bundle several more
+  general/theoretical chapters together (e.g. Storage Engines, or all six
+  Linux command-line chapters) into one combined quiz (9-14 questions)
+  with multiple matching/ordering mini-games attached.
+- **Quizzes have a clear ending** — each concept's quiz walks through
+  every question in its bank exactly once, in shuffled order, with a
+  "Question X of N" progress bar. Finish them all and you get a "Quiz
+  Complete!" summary (score, % correct, XP earned) with buttons to retake
+  (fresh shuffle) or head back to the concept.
+- XP, levels, and daily streaks
+- Chapters unlock as you level up (later chapters require a higher level)
+- Spaced repetition (SM-2 algorithm): a Daily Review queue resurfaces
+  concepts right before you'd forget them
+- Badges for milestones (streaks, mastering a chapter/book, leveling up,
+  completing reviews, and perfect runs in each mini-game)
+- A progress map on the dashboard showing mastery per chapter
+- **Three mini-games per concept, in addition to quizzes:**
+  - **Architecture Builder** — drag components from a pool onto a canvas,
+    click two placed components to wire them together, and submit a
+    system design (e.g. "Design a URL Shortener"). Correct required parts
+    and correct wires score points; parts that don't belong and wrong or
+    missing wires cost points. A flawless design earns a bonus and the
+    "Architect" badge.
+  - **Matching** — drag definitions onto the terms they define (e.g. CAP
+    theorem, rate-limiting algorithms). Right matches score, wrong matches
+    cost you.
+  - **Ordering** — drag steps into the correct sequence (e.g. the 7-step
+    design framework, scaling a single server to millions of users).
+    Steps in the right slot score, misplaced ones cost you.
+
+All three mini-games use the same negative-scoring principle you asked
+for: guessing wrong is never free, so there's a real incentive to reason
+through the answer rather than spam every option. Every concrete
+"design a system" item (URL Shortener, Twitter, Key-Value Store, etc.) is
+guaranteed an Architecture Builder challenge; domain items instead get one
+or more Matching/Ordering games.
+- **Superuser preview toggle** — a "🔒 Unlock All Content" button appears
+  in the top nav for superusers only. Clicking it flips a per-superuser
+  flag that bypasses all chapter level-gating, so you can browse and test
+  every chapter/concept/game regardless of your actual level. Click again
+  to restore normal locking.
+- **Notes, redesigned** — each concept page shows a short one-line teaser
+  plus a "📖 View Notes" button; notes are hidden until you click it (no
+  wall of text up front). Once open, notes are structured as headed
+  sections (2-6 per concept) that explicitly cite the book/chapter they're
+  drawn from, each written as a few full paragraphs rather than a single
+  dense block. Particularly gnarly sub-topics (split brain, write skew,
+  SIGTERM vs. SIGKILL, why total order broadcast = consensus, etc.) get an
+  expandable "🔍 Click to know more" deep-dive so the main flow stays
+  readable. A "🧠 Study mode" toggle turns the same sections into a
+  one-card-at-a-time flashcard walkthrough (heading + body, Back/Next,
+  progress bar) and a "🔊 Read aloud" button reads the notes via the
+  browser's speech synthesis.
+
+## Running it locally
+
+Requires Python 3.10+.
+
+```bash
+cd sysdesign_quest
+python3 -m venv venv
+source venv/bin/activate        # on Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+python manage.py migrate
+python manage.py seed_content   # loads the book content + quiz questions
+python manage.py seed_games     # loads the architecture/matching/ordering games
+python manage.py createsuperuser   # optional, for /admin access
+
+python manage.py runserver
+```
+
+Then open http://127.0.0.1:8000/ and sign up for an account (or log in
+with the superuser you created).
+
+## Adding more content
+
+- Quiz content and notes both live in `learn/management/commands/seed_content.py`
+  — each concept's `notes=[...]` is a list of
+  `dict(heading=..., body=..., deep_dive=dict(title=..., body=...) | omitted)`
+  dicts, rendered behind the View Notes toggle and reused as Study Mode's
+  flashcards.
+- Mini-game content (architecture builder pools/wiring, matching pairs,
+  ordering steps) lives in `learn/management/commands/seed_games.py`.
+
+Both are plain Python data structures — add entries and re-run the
+matching `manage.py` command; both commands are idempotent, so re-running
+updates existing content instead of duplicating it (re-running
+`seed_content` also deletes any chapter/concept no longer listed in
+`CHAPTERS`, so a merge/rename is safe to do in place).
+
+When adding a new concrete system to design, give it its own chapter +
+concept in `seed_content.py` and make sure it gets a `DesignChallenge` in
+`seed_games.py` — every "design a system" item is expected to have a
+builder game. For more general/theoretical content that doesn't warrant
+its own item, prefer folding it into an existing (or new) merged "domain"
+chapter alongside related topics, with a combined summary/quiz and however
+many matching/ordering games make sense — a `Concept` can hold any number
+of each.
+
+### Adding a new architecture-builder challenge
+
+In `seed_games.py`, add a `ComponentType` for any new building block you
+need, then add an entry to `DESIGN_CHALLENGES` with the concept it belongs
+to, a `prompt` describing the scenario, a list of `required` component
+slugs, a list of `distractors` (wrong-for-this-scenario components that
+penalize the player if used), and the correct `connections` as
+`(from_slug, to_slug)` pairs.
+
+## Notes
+
+- Uses SQLite by default (`db.sqlite3`, created on first `migrate`) — fine
+  for single-user local use.
+- Styling is Tailwind via CDN; the ordering game also loads SortableJS
+  from cdnjs for drag-to-reorder. No build step required.
+- The architecture-builder and matching drag-and-drop use the native
+  HTML5 Drag and Drop API, which is desktop-browser only (no touchscreen
+  support).
+- To deploy somewhere with a real URL (Railway, Render, Fly.io), set
+  `DEBUG = False` and `ALLOWED_HOSTS` in `config/settings.py`, and swap
+  SQLite for Postgres.

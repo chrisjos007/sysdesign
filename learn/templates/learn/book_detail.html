@@ -1,0 +1,15 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ book.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'learn:dashboard' %}" class="text-sm text-slate-400 hover:text-accent">&larr; Dashboard</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">{{ book.title }}</h1>
+<p class="text-slate-400 mb-6">{{ book.description }}</p>
+<div class="grid gap-3">
+    {% for c in chapters %}
+    <a href="{% if c.unlocked %}{% url 'learn:chapter_detail' c.chapter.slug %}{% else %}#{% endif %}"
+       class="rounded-lg border p-4 {% if c.unlocked %}border-slate-700 bg-panel hover:border-accent{% else %}border-slate-800 opacity-60{% endif %}">
+        {% if not c.unlocked %}🔒{% endif %} {{ c.chapter.title }} — {{ c.mastered }}/{{ c.total }} mastered
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}
