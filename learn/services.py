@@ -2,9 +2,10 @@
 from django.db.models import Count
 from django.utils import timezone
 
+from .code_runner import grade_submission
 from .models import (
     Attempt, Badge, Book, Chapter, ConceptMastery,
-    DesignAttempt, MatchingAttempt, OrderingAttempt,
+    CodingAttempt, DesignAttempt, MatchingAttempt, OrderingAttempt,
     ReviewCard, UserBadge, UserProfile,
 )
 
@@ -27,6 +28,10 @@ POINTS_MATCH_WRONG = 5
 POINTS_ORDER_CORRECT = 8
 POINTS_ORDER_WRONG = 4
 
+# Coding-challenge scoring
+POINTS_TEST_PASSED = 12
+POINTS_TEST_FAILED = 3
+
 PERFECT_BONUS = 25
 
 
@@ -35,9 +40,19 @@ def get_profile(user) -> UserProfile:
     return profile
 
 
-def record_quiz_answer(user, question, selected_choice, is_review=False):
-    """Handles one quiz-question submission. Returns dict with result info."""
-    is_correct = bool(selected_choice and selected_choice.is_correct)
+def record_quiz_answer(user, question, selected_choice_ids, is_review=False):
+    """Handles one quiz-question submission. `selected_choice_ids` is an
+    iterable of Choice ids the learner picked (a single-element iterable for
+    MCQ/True-False; any number for a "select all that apply" multi-select
+    question). Grading is an exact-set match against every choice marked
+    `is_correct=True` on the question — every correct option must be picked
+    and no incorrect one — so the "one confirmed correct answer" guarantee
+    holds for single-answer questions and the analogous "every correct box
+    checked, no wrong one" guarantee holds for multi-select. Returns dict
+    with result info."""
+    selected_ids = {int(cid) for cid in selected_choice_ids if cid is not None}
+    correct_ids = set(question.choices.filter(is_correct=True).values_list('id', flat=True))
+    is_correct = bool(selected_ids) and selected_ids == correct_ids
     xp = XP_CORRECT_BASE * question.difficulty if is_correct else XP_WRONG_PARTICIPATION
 
     Attempt.objects.create(user=user, question=question, is_correct=is_correct, xp_awarded=xp)
@@ -218,6 +233,53 @@ def record_ordering_attempt(user, challenge, submitted_order_ids):
     }
 
 
+def record_coding_attempt(user, challenge, code):
+    """Grades `code` against every one of the challenge's test cases (via
+    learn.code_runner, in a subprocess sandbox — see that module's docstring
+    for what is and isn't isolated), then scores it with the same
+    never-free-to-guess-wrong principle as the other mini-games: passing
+    tests score, failing ones cost a little, and a fully-passing run earns
+    the perfect bonus."""
+    grading = grade_submission(code, challenge.test_cases.all())
+    passed, total = grading['passed_count'], grading['total_count']
+
+    score = passed * POINTS_TEST_PASSED - (total - passed) * POINTS_TEST_FAILED
+    is_perfect = bool(total > 0 and passed == total)
+    if is_perfect:
+        score += PERFECT_BONUS
+
+    xp_awarded = max(0, score)
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    # Hidden test cases stay hidden even in the result detail — only
+    # pass/fail, not stdin/expected/stdout — sample cases show the full diff
+    # so the learner has something to debug against.
+    visible_results = []
+    for r in grading['results']:
+        if r['is_sample']:
+            visible_results.append(r)
+        else:
+            visible_results.append({
+                'test_case_id': r['test_case_id'], 'is_sample': False, 'passed': r['passed'],
+                'timed_out': r['timed_out'], 'blocked_reason': r['blocked_reason'],
+            })
+
+    detail = {'passed': passed, 'total': total, 'results': visible_results}
+    CodingAttempt.objects.create(
+        user=user, challenge=challenge, code=code, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -231,7 +293,8 @@ BADGE_DEFS = [
     ('architect', 'Architect', 'Build a perfect system design — no wrong parts, no wrong wires.', '🏗️'),
     ('matchmaker', 'Matchmaker', 'Get every match correct in a matching challenge.', '🧩'),
     ('sequencer', 'Sequencer', 'Put every step in exactly the right order.', '🔢'),
-    ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, and ordering games.', '🎮'),
+    ('coder', 'Coder', 'Pass every test case on a coding challenge.', '💻'),
+    ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
 
@@ -291,10 +354,12 @@ def check_badges(user):
     has_perfect_design = DesignAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_match = MatchingAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_order = OrderingAttempt.objects.filter(user=user, is_perfect=True).exists()
+    has_perfect_coding = CodingAttempt.objects.filter(user=user, is_perfect=True).exists()
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)
-    maybe('game_master', has_perfect_design and has_perfect_match and has_perfect_order)
+    maybe('coder', has_perfect_coding)
+    maybe('game_master', has_perfect_design and has_perfect_match and has_perfect_order and has_perfect_coding)
 
     return newly_earned
 

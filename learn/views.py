@@ -9,12 +9,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import (
-    Badge, Book, Chapter, Concept, ConceptMastery, DesignChallenge, MatchingChallenge,
-    OrderingChallenge, Question, ReviewCard, UserBadge,
+    Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
+    MatchingChallenge, OrderingChallenge, Question, ReviewCard, Topic, UserBadge,
 )
 from .services import (
-    chapter_is_unlocked, due_review_cards, get_profile, record_design_attempt,
-    record_matching_attempt, record_ordering_attempt, record_quiz_answer,
+    chapter_is_unlocked, due_review_cards, get_profile, record_coding_attempt,
+    record_design_attempt, record_matching_attempt, record_ordering_attempt,
+    record_quiz_answer,
 )
 import json
 
@@ -31,34 +32,48 @@ def signup(request):
     return render(request, 'registration/signup.html', {'form': form})
 
 
+def _tiers_for_chapters(chapters, request, profile, with_pct=False):
+    """Buckets a queryset of Chapter into difficulty tiers (Beginner/
+    Intermediate/Advanced), dropping empty tiers, for topic-based display."""
+    tiers_by_level = {level: [] for level, _ in Chapter.DIFFICULTY_CHOICES}
+    for chapter in chapters:
+        total = chapter.concepts.count()
+        mastered = ConceptMastery.objects.filter(
+            user=request.user, concept__chapter=chapter,
+            state=ConceptMastery.STATE_MASTERED,
+        ).count()
+        entry = {
+            'chapter': chapter,
+            'unlocked': chapter_is_unlocked(chapter, profile),
+            'total': total,
+            'mastered': mastered,
+        }
+        if with_pct:
+            entry['pct'] = int(100 * mastered / total) if total else 0
+        tiers_by_level[chapter.difficulty].append(entry)
+    return [
+        {'label': label, 'chapters': tiers_by_level[level]}
+        for level, label in Chapter.DIFFICULTY_CHOICES
+        if tiers_by_level[level]
+    ]
+
+
 @login_required
 def dashboard(request):
     profile = get_profile(request.user)
-    books = Book.objects.prefetch_related('chapters__concepts')
-    book_data = []
-    for book in books:
-        chapters = []
-        for chapter in book.chapters.all():
-            total = chapter.concepts.count()
-            mastered = ConceptMastery.objects.filter(
-                user=request.user, concept__chapter=chapter,
-                state=ConceptMastery.STATE_MASTERED,
-            ).count()
-            chapters.append({
-                'chapter': chapter,
-                'unlocked': chapter_is_unlocked(chapter, profile),
-                'total': total,
-                'mastered': mastered,
-                'pct': int(100 * mastered / total) if total else 0,
-            })
-        book_data.append({'book': book, 'chapters': chapters})
+    topics = Topic.objects.prefetch_related('chapters__concepts')
+    topic_data = []
+    for topic in topics:
+        tiers = _tiers_for_chapters(topic.chapters.all(), request, profile, with_pct=True)
+        if tiers:
+            topic_data.append({'topic': topic, 'tiers': tiers})
 
     due_count = due_review_cards(request.user).count()
     earned_badges = UserBadge.objects.filter(user=request.user).select_related('badge')
 
     return render(request, 'learn/dashboard.html', {
         'profile': profile,
-        'book_data': book_data,
+        'topic_data': topic_data,
         'due_count': due_count,
         'earned_badges': earned_badges,
         'xp_progress_pct': int(100 * profile.xp_into_level / profile.xp_for_next_level) if profile.xp_for_next_level else 100,
@@ -66,23 +81,11 @@ def dashboard(request):
 
 
 @login_required
-def book_detail(request, book_slug):
-    book = get_object_or_404(Book, slug=book_slug)
+def topic_detail(request, topic_slug):
+    topic = get_object_or_404(Topic, slug=topic_slug)
     profile = get_profile(request.user)
-    chapters = []
-    for chapter in book.chapters.all():
-        total = chapter.concepts.count()
-        mastered = ConceptMastery.objects.filter(
-            user=request.user, concept__chapter=chapter,
-            state=ConceptMastery.STATE_MASTERED,
-        ).count()
-        chapters.append({
-            'chapter': chapter,
-            'unlocked': chapter_is_unlocked(chapter, profile),
-            'total': total,
-            'mastered': mastered,
-        })
-    return render(request, 'learn/book_detail.html', {'book': book, 'chapters': chapters})
+    tiers = _tiers_for_chapters(topic.chapters.all(), request, profile)
+    return render(request, 'learn/topic_detail.html', {'topic': topic, 'tiers': tiers})
 
 
 @login_required
@@ -117,6 +120,7 @@ def concept_detail(request, concept_slug):
         'design_challenges': concept.design_challenges.all(),
         'matching_challenges': concept.matching_challenges.all(),
         'ordering_challenges': concept.ordering_challenges.all(),
+        'coding_challenges': concept.coding_challenges.all(),
     })
 
 
@@ -142,12 +146,11 @@ def concept_quiz(request, concept_slug):
     if request.method == 'POST':
         run = request.session.get(session_key) or _new_quiz_run(concept)
         question = get_object_or_404(Question, id=request.POST.get('question_id'), concept=concept)
-        choice_id = request.POST.get('choice_id')
-        selected = question.choices.filter(id=choice_id).first() if choice_id else None
-        result = record_quiz_answer(request.user, question, selected)
+        selected_ids = [cid for cid in request.POST.getlist('choice_id') if cid.isdigit()]
+        result = record_quiz_answer(request.user, question, selected_ids)
         result['question'] = question
-        result['selected'] = selected
-        result['correct_choice'] = question.choices.filter(is_correct=True).first()
+        result['selected_choices'] = list(question.choices.filter(id__in=selected_ids))
+        result['correct_choices'] = list(question.choices.filter(is_correct=True))
 
         if question.id in run['order']:
             run['order'].remove(question.id)
@@ -189,12 +192,11 @@ def review_queue(request):
     if request.method == 'POST':
         card = get_object_or_404(ReviewCard, id=request.POST.get('card_id'), user=request.user)
         question = get_object_or_404(Question, id=request.POST.get('question_id'))
-        choice_id = request.POST.get('choice_id')
-        selected = question.choices.filter(id=choice_id).first() if choice_id else None
-        result = record_quiz_answer(request.user, question, selected)
+        selected_ids = [cid for cid in request.POST.getlist('choice_id') if cid.isdigit()]
+        result = record_quiz_answer(request.user, question, selected_ids)
         result['question'] = question
-        result['selected'] = selected
-        result['correct_choice'] = question.choices.filter(is_correct=True).first()
+        result['selected_choices'] = list(question.choices.filter(id__in=selected_ids))
+        result['correct_choices'] = list(question.choices.filter(is_correct=True))
         return render(request, 'learn/review.html', {
             'result': result, 'card': None, 'next_question': None, 'choices': [],
         })
@@ -321,4 +323,34 @@ def ordering_challenge(request, challenge_slug):
     random.shuffle(steps)
     return render(request, 'learn/ordering_challenge.html', {
         'challenge': challenge, 'steps': steps, 'result': result,
+    })
+
+
+@login_required
+def coding_challenge(request, challenge_slug):
+    challenge = get_object_or_404(CodingChallenge, slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        messages.error(request, "This chapter is still locked.")
+        return redirect('learn:dashboard')
+
+    result = None
+    submitted_code = challenge.starter_code
+    if request.method == 'POST':
+        submitted_code = request.POST.get('code', '')
+        result = record_coding_attempt(request.user, challenge, submitted_code)
+
+    # Regular learners only ever see the first 2 sample-marked cases as
+    # worked examples — everything else (extra samples included) stays
+    # hidden. Superusers get every test case (stdin + expected output, not
+    # just pass/fail) behind an explicit "view all" toggle in the template.
+    visible_examples = list(challenge.sample_test_cases[:2])
+    all_test_cases = list(challenge.test_cases.all()) if request.user.is_superuser else []
+
+    return render(request, 'learn/coding_challenge.html', {
+        'challenge': challenge,
+        'sample_test_cases': visible_examples,
+        'all_test_cases': all_test_cases,
+        'result': result,
+        'submitted_code': submitted_code,
     })

@@ -1,0 +1,134 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:learn_codingchallenge_changelist' %}">Coding challenges</a>
+    &rsaquo; Generate from scenario
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  .cc-generate textarea { width: 100%; font-family: inherit; }
+  .cc-generate pre.cc-block { white-space: pre-wrap; background: var(--darkened-bg, #f8f8f8); border: 1px solid var(--border-color, #ccc); padding: 8px; border-radius: 4px; }
+  .cc-generate table.cc-testcases { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .cc-generate table.cc-testcases td, .cc-generate table.cc-testcases th { border: 1px solid var(--border-color, #ccc); padding: 6px 8px; vertical-align: top; text-align: left; }
+  .cc-clarify { background: #fff3cd; border: 1px solid #ffe69c; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; }
+  .cc-clarify ul { margin: 8px 0 0 20px; }
+</style>
+
+<div class="cc-generate">
+<h1>Generate a coding challenge from a scenario</h1>
+<p>
+    Describe the exercise you want in plain language — the concept it belongs to, what the learner's program
+    should do, and roughly what input/output looks like. If there isn't enough here to write unambiguous test
+    cases, you'll get clarifying questions back instead of a half-guessed question — add your answers into the
+    same box below and generate again.
+</p>
+
+<form method="post" action="{% url 'admin:learn_codingchallenge_generate' %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="generate">
+    <fieldset class="module aligned">
+        <div class="form-row">
+            <div>
+                <label for="id_concept_id">Concept</label>
+                <select name="concept_id" id="id_concept_id">
+                    <option value="">— general / not tied to a specific concept —</option>
+                    {% for c in concepts %}
+                    <option value="{{ c.id }}" {% if concept_id == c.id|stringformat:"s" %}selected{% endif %}>
+                        {{ c.chapter.topic.title }} · {{ c.chapter.title }} · {{ c.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label for="id_difficulty_hint">Suggested difficulty (optional)</label>
+                <select name="difficulty_hint" id="id_difficulty_hint">
+                    <option value="">— let it decide —</option>
+                    {% for val, label in difficulty_choices %}
+                    <option value="{{ val }}" {% if difficulty_hint == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label for="id_scenario">Scenario</label>
+                <textarea name="scenario" id="id_scenario" rows="8" placeholder="e.g. A challenge based on token-bucket rate limiting: the program reads a bucket capacity, refill rate, and a list of request timestamps, and must print ALLOW or DENY for each one.">{{ scenario }}</textarea>
+            </div>
+        </div>
+    </fieldset>
+    <div class="submit-row">
+        <input type="submit" value="✨ Generate" class="default">
+    </div>
+</form>
+
+{% if clarification %}
+<div class="cc-clarify">
+    <strong>Not quite enough to generate a well-defined question yet.</strong>
+    {% if clarification.missing_items %}
+    <p>Missing: {{ clarification.missing_items|join:", " }}</p>
+    {% endif %}
+    <ul>
+        {% for q in clarification.clarifying_questions %}
+        <li>{{ q }}</li>
+        {% endfor %}
+    </ul>
+    <p>Add your answers into the scenario box above (anywhere in the text) and click Generate again.</p>
+</div>
+{% endif %}
+
+{% if draft %}
+<div class="module" style="margin-top: 24px;">
+    <h2>Preview: {{ draft.title }}</h2>
+    <h3>Prompt</h3>
+    <pre class="cc-block">{{ draft.prompt }}</pre>
+    {% if draft.constraints %}
+    <h3>Constraints</h3>
+    <pre class="cc-block">{{ draft.constraints }}</pre>
+    {% endif %}
+    <h3>Starter code</h3>
+    <pre class="cc-block">{{ draft.starter_code }}</pre>
+    <p>Difficulty: {{ draft.difficulty }}/5</p>
+
+    <h3>Test cases ({{ draft.test_cases|length }})</h3>
+    <table class="cc-testcases">
+        <thead><tr><th>#</th><th>stdin</th><th>expected output</th><th>sample?</th></tr></thead>
+        <tbody>
+        {% for tc in draft.test_cases %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><pre class="cc-block">{{ tc.stdin }}</pre></td>
+            <td><pre class="cc-block">{{ tc.expected_output }}</pre></td>
+            <td>{% if tc.is_sample %}✅ sample{% else %}hidden{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <p style="margin-top: 12px;">
+        Test cases and prompt can still be hand-edited after saving, from this challenge's normal admin change page.
+    </p>
+
+    <form method="post" action="{% url 'admin:learn_codingchallenge_generate' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save">
+        <textarea name="scenario" style="display:none">{{ scenario }}</textarea>
+        <input type="hidden" name="concept_id" value="{{ concept_id }}">
+        <input type="hidden" name="difficulty_hint" value="{{ difficulty_hint }}">
+        <textarea name="draft" style="display:none">{{ draft_json }}</textarea>
+        <div class="submit-row">
+            <input type="submit" value="💾 Save Coding Challenge" class="default">
+        </div>
+        {% if not concept_id %}
+        <p class="errornote">Pick a concept above and click Generate again before saving — a coding challenge needs one to attach to.</p>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+</div>
+{% endblock %}

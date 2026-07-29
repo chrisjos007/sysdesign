@@ -30,27 +30,36 @@
 </div>
 {% endif %}
 
-{% for entry in book_data %}
-<div class="mb-8">
-    <h2 class="text-lg font-bold mb-3">{{ entry.book.title }}</h2>
-    <div class="grid gap-3 sm:grid-cols-2">
-        {% for c in entry.chapters %}
-        <a href="{% if c.unlocked %}{% url 'learn:chapter_detail' c.chapter.slug %}{% else %}#{% endif %}"
-           class="block rounded-lg border p-4 {% if c.unlocked %}border-slate-700 bg-panel hover:border-accent{% else %}border-slate-800 bg-slate-900/50 opacity-60 cursor-not-allowed{% endif %}">
-            <div class="flex justify-between items-center">
-                <span class="font-semibold">{% if not c.unlocked %}🔒{% endif %} {{ c.chapter.title }}</span>
-                <span class="text-xs text-slate-400">{{ c.mastered }}/{{ c.total }}</span>
-            </div>
-            {% if not c.unlocked %}
-            <div class="text-xs text-slate-500 mt-1">Unlocks at level {{ c.chapter.unlock_level }}</div>
-            {% else %}
-            <div class="w-full bg-slate-800 rounded-full h-2 mt-2">
-                <div class="bg-accent h-2 rounded-full" style="width: {{ c.pct }}%"></div>
-            </div>
-            {% endif %}
-        </a>
-        {% endfor %}
+{% for entry in topic_data %}
+<div class="mb-10">
+    <a href="{% url 'learn:topic_detail' entry.topic.slug %}" class="text-lg font-bold mb-1 hover:text-accent inline-block">{{ entry.topic.title }}</a>
+    {% if entry.topic.description %}
+    <p class="text-sm text-slate-400 mb-3">{{ entry.topic.description }}</p>
+    {% endif %}
+
+    {% for tier in entry.tiers %}
+    <div class="mb-4">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">{{ tier.label }}</h3>
+        <div class="grid gap-3 sm:grid-cols-2">
+            {% for c in tier.chapters %}
+            <a href="{% if c.unlocked %}{% url 'learn:chapter_detail' c.chapter.slug %}{% else %}#{% endif %}"
+               class="block rounded-lg border p-4 {% if c.unlocked %}border-slate-700 bg-panel hover:border-accent{% else %}border-slate-800 bg-slate-900/50 opacity-60 cursor-not-allowed{% endif %}">
+                <div class="flex justify-between items-center">
+                    <span class="font-semibold">{% if not c.unlocked %}🔒{% endif %} {{ c.chapter.title }}</span>
+                    <span class="text-xs text-slate-400">{{ c.mastered }}/{{ c.total }}</span>
+                </div>
+                {% if not c.unlocked %}
+                <div class="text-xs text-slate-500 mt-1">Unlocks at level {{ c.chapter.unlock_level }}</div>
+                {% else %}
+                <div class="w-full bg-slate-800 rounded-full h-2 mt-2">
+                    <div class="bg-accent h-2 rounded-full" style="width: {{ c.pct }}%"></div>
+                </div>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
     </div>
+    {% endfor %}
 </div>
 {% endfor %}
 

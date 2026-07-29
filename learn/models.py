@@ -20,20 +20,58 @@ class Book(models.Model):
         return self.title
 
 
+class Topic(models.Model):
+    """A cross-book section that groups content by system-logic (e.g.
+    'Databases & Distributed Storage'), not by which book it came from.
+    This is the primary organizing unit for browsing — see Chapter.topic."""
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    order = models.PositiveIntegerField(default=0)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.title
+
+
 class Chapter(models.Model):
+    BEGINNER = 1
+    INTERMEDIATE = 2
+    ADVANCED = 3
+    DIFFICULTY_CHOICES = [
+        (BEGINNER, 'Beginner'),
+        (INTERMEDIATE, 'Intermediate'),
+        (ADVANCED, 'Advanced'),
+    ]
+
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='chapters')
+    topic = models.ForeignKey(
+        Topic, on_delete=models.CASCADE, related_name='chapters', null=True, blank=True,
+        help_text='Cross-book section this chapter belongs to (drives dashboard grouping). '
+                   '`book` is kept only for provenance/attribution and the book_worm badge.',
+    )
     slug = models.SlugField()
     title = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
     summary = models.TextField(blank=True)
     unlock_level = models.PositiveIntegerField(default=1)
+    difficulty = models.PositiveSmallIntegerField(
+        choices=DIFFICULTY_CHOICES, default=BEGINNER,
+        help_text='Difficulty tier used to level content within a topic section.',
+    )
 
     class Meta:
-        ordering = ['book__order', 'order', 'id']
+        ordering = ['topic__order', 'difficulty', 'order', 'id']
         unique_together = [('book', 'slug')]
 
     def __str__(self):
         return f'{self.book.title} - {self.title}'
+
+    @property
+    def difficulty_label(self) -> str:
+        return dict(self.DIFFICULTY_CHOICES).get(self.difficulty, 'Beginner')
 
 
 class Concept(models.Model):
@@ -53,7 +91,7 @@ class Concept(models.Model):
     )
 
     class Meta:
-        ordering = ['chapter__book__order', 'chapter__order', 'order', 'id']
+        ordering = ['chapter__topic__order', 'chapter__difficulty', 'chapter__order', 'order', 'id']
         unique_together = [('chapter', 'slug')]
 
     def __str__(self):
@@ -62,8 +100,13 @@ class Concept(models.Model):
 
 class Question(models.Model):
     MCQ = 'mcq'
+    MULTI_SELECT = 'multi'
     TRUE_FALSE = 'tf'
-    KIND_CHOICES = [(MCQ, 'Multiple choice'), (TRUE_FALSE, 'True / False')]
+    KIND_CHOICES = [
+        (MCQ, 'Multiple choice (single answer)'),
+        (MULTI_SELECT, 'Multiple choice (select all that apply)'),
+        (TRUE_FALSE, 'True / False'),
+    ]
 
     concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='questions')
     kind = models.CharField(max_length=8, choices=KIND_CHOICES, default=MCQ)
@@ -73,6 +116,10 @@ class Question(models.Model):
 
     def __str__(self):
         return self.prompt[:60]
+
+    @property
+    def is_multi_select(self) -> bool:
+        return self.kind == self.MULTI_SELECT
 
 
 class Choice(models.Model):
@@ -382,6 +429,69 @@ class OrderingStep(models.Model):
 class OrderingAttempt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ordering_attempts')
     challenge = models.ForeignKey(OrderingChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class CodingChallenge(models.Model):
+    """Write-a-program challenge: the learner submits Python that reads from
+    stdin and prints to stdout; submissions are graded against TestCases.
+    Generated (title/prompt/starter_code/test cases) from an admin's free-text
+    scenario via the Gemini API — see learn/llm.py — same relationship to
+    Concept as DesignChallenge/MatchingChallenge/OrderingChallenge, so it
+    shows up as just another activity card on the concept page rather than
+    a separate section."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='coding_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Full problem statement shown to the learner: task, input/output format, example.')
+    constraints = models.TextField(blank=True)
+    starter_code = models.TextField(blank=True, help_text='Python 3 stub shown in the editor before the learner edits it.')
+    difficulty = models.PositiveSmallIntegerField(default=1)
+    source_scenario = models.TextField(
+        blank=True,
+        help_text="The admin's original free-text scenario this was generated from, kept for audit/regeneration.",
+    )
+
+    class Meta:
+        ordering = ['difficulty', 'id']
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def sample_test_cases(self):
+        return self.test_cases.filter(is_sample=True)
+
+
+class TestCase(models.Model):
+    """One stdin -> expected stdout pair used to grade a CodingChallenge submission."""
+    challenge = models.ForeignKey(CodingChallenge, on_delete=models.CASCADE, related_name='test_cases')
+    stdin = models.TextField(blank=True)
+    expected_output = models.TextField(blank=True)
+    is_sample = models.BooleanField(
+        default=False,
+        help_text='Sample cases are shown to the learner up front; non-samples stay hidden and only count toward grading.',
+    )
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.challenge.title} · case {self.order}'
+
+
+class CodingAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='coding_attempts')
+    challenge = models.ForeignKey(CodingChallenge, on_delete=models.CASCADE, related_name='attempts')
+    code = models.TextField(blank=True)
     score = models.IntegerField(default=0)
     xp_awarded = models.IntegerField(default=0)
     is_perfect = models.BooleanField(default=False)

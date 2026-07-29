@@ -205,5 +205,11 @@
         <div class="text-xs text-slate-400 mt-1">Put the steps in order</div>
     </a>
     {% endfor %}
+    {% for cc in coding_challenges %}
+    <a href="{% url 'learn:coding_challenge' cc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent">
+        <div class="font-semibold">💻 {{ cc.title }}</div>
+        <div class="text-xs text-slate-400 mt-1">Write Python, pass the test cases</div>
+    </a>
+    {% endfor %}
 </div>
 {% endblock %}

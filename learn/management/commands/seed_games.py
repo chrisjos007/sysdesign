@@ -365,6 +365,46 @@ MATCHING_CHALLENGES = [
             ('scp', 'Copies files to or from a remote machine over an SSH connection.'),
         ],
     ),
+    (
+        'match-python-dict-internals', 'Python Dict Internals Vocabulary', 'python-advanced-internals',
+        [
+            ('Sparse Index Array', 'The power-of-2-sized array of small integers a dict hashes into to find a slot.'),
+            ('Dense Entries Array', 'The compact array storing (hash, key, value) triples in strict insertion order.'),
+            ('Open Addressing / Probing', 'The scheme used to find the next candidate slot when a hash collision occurs.'),
+            ('Key-Sharing Dict (PEP 412)', 'An optimization where instances of the same class share one keys array, storing only per-instance values.'),
+            ('Hash Randomization', 'Per-process salting of string/bytes hashes (SipHash) that defends against hash-flooding attacks.'),
+        ],
+    ),
+    (
+        'match-python-concurrency-tools', 'Python Concurrency Tools', 'python-advanced-internals',
+        [
+            ('subprocess', 'Launches and controls an entirely separate external program, with full OS-level isolation.'),
+            ('multiprocessing', 'Runs separate OS processes with independent memory to achieve true parallelism, bypassing the GIL.'),
+            ('threading', 'Runs multiple threads sharing one process’s memory — good for I/O-bound work, limited for CPU-bound work by the GIL.'),
+            ('GIL', 'The single mutex that lets only one thread execute Python bytecode at a time per process.'),
+            ('asyncio Event Loop', 'A single-threaded scheduler that runs coroutines cooperatively, yielding at await points.'),
+        ],
+    ),
+    (
+        'match-file-permission-vocab', 'File Permission Vocabulary', 'os-file-handling-permissions-storage',
+        [
+            ('Octal digit 7', 'read (4) + write (2) + execute (1) — full access for that class.'),
+            ('setuid', 'Special bit (weight 4) making an executable run with its owner’s privileges, not the invoking user’s.'),
+            ('setgid', 'Special bit (weight 2); on a directory, new files inside inherit that directory’s group.'),
+            ('Sticky bit', 'Special bit (weight 1) restricting deletion inside a world-writable directory to each file’s own owner.'),
+            ('umask', 'The value subtracted from the base 666/777 permissions to set defaults for newly created files/directories.'),
+        ],
+    ),
+    (
+        'match-inode-filesystem-vocab', 'Inodes & Filesystem Vocabulary', 'os-file-handling-permissions-storage',
+        [
+            ('Inode', 'The metadata record (owner, permissions, timestamps, data-block pointers) representing a file, but not its name.'),
+            ('Hard Link', 'A second directory entry pointing at the same inode, indistinguishable from the “original” name.'),
+            ('Symbolic Link', 'Its own inode whose data is just a path string to another file, resolvable across filesystems.'),
+            ('Superblock', 'Filesystem-wide metadata: block/inode counts, block size, and clean/dirty state.'),
+            ('File Descriptor', 'A small per-process integer indexing into a table that points at a system-wide open file description.'),
+        ],
+    ),
 ]
 
 ORDERING_CHALLENGES = [
@@ -491,6 +531,49 @@ ORDERING_CHALLENGES = [
             'sort',
             'uniq -c',
             'sort -rn',
+        ],
+    ),
+    (
+        'order-dict-lookup-process', 'Python Dict Lookup: Step by Step', 'python-advanced-internals',
+        [
+            'Compute hash(key)',
+            'Use the hash to select a starting slot in the sparse index array (hash & mask)',
+            'Read the dense-array index stored at that slot',
+            'Compare the stored hash, then the key itself, for a match',
+            'If it doesn’t match, follow the probe sequence to the next candidate slot',
+            'Return the value on a match, or raise KeyError on an empty slot',
+        ],
+    ),
+    (
+        'order-thread-io-gil-release', 'A Thread Releasing the GIL During I/O', 'python-advanced-internals',
+        [
+            'Thread A starts a blocking network read call',
+            'Thread A releases the GIL while waiting on the I/O',
+            'Thread B acquires the GIL and executes Python bytecode',
+            'Thread A’s I/O operation completes in the background',
+            'Thread A re-acquires the GIL',
+            'Thread A resumes executing Python bytecode',
+        ],
+    ),
+    (
+        'order-chmod-digit-calculation', 'Building a chmod Digit From r/w/x', 'os-file-handling-permissions-storage',
+        [
+            'Identify which of read, write, and execute are granted for this class',
+            'Assign the weight for each granted bit: read=4, write=2, execute=1',
+            'Sum the weights for that class into a single digit',
+            'Repeat separately for owner, group, and other',
+            'Combine the three digits in owner-group-other order as the chmod argument',
+        ],
+    ),
+    (
+        'order-file-deletion-open-fd', 'Deleting a File a Process Still Has Open', 'os-file-handling-permissions-storage',
+        [
+            '`rm` calls unlink() on the file’s directory entry',
+            'The inode’s link count is decremented and the entry disappears from `ls`',
+            'A process that already had the file open keeps reading/writing via its existing file descriptor',
+            'The data blocks stay allocated as long as any file descriptor on the file remains open',
+            'The last open file descriptor on the file is closed',
+            'The inode and its data blocks are finally freed',
         ],
     ),
 ]

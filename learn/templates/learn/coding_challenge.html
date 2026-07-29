@@ -1,0 +1,173 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Code{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+
+<a href="{% url 'learn:concept_detail' challenge.concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ challenge.concept.title }}</a>
+<h1 class="text-2xl font-bold mt-2 mb-1">💻 {{ challenge.title }}</h1>
+<p class="text-xs text-slate-500 mb-4">Difficulty {{ challenge.difficulty }}/5 · write a Python 3 program that reads from stdin and prints to stdout</p>
+
+<div class="grid gap-6 lg:grid-cols-2 items-start">
+
+    <!-- LEFT: problem description -->
+    <div class="space-y-4">
+        <div class="bg-panel border border-slate-800 rounded-xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Problem Statement</div>
+            <div id="problem-statement" class="markdown-body text-slate-200 leading-relaxed">{{ challenge.prompt }}</div>
+            {{ challenge.prompt|json_script:"problem-statement-raw" }}
+        </div>
+
+        {% if sample_test_cases %}
+        <div class="bg-panel border border-slate-800 rounded-xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-3">Examples</div>
+            <div class="space-y-3">
+                {% for tc in sample_test_cases %}
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm">
+                    <div class="font-semibold text-slate-300 mb-2">Example {{ forloop.counter }}</div>
+                    <div class="text-slate-500 text-xs mb-1">Input</div>
+                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2 mb-2">{{ tc.stdin }}</pre>
+                    <div class="text-slate-500 text-xs mb-1">Output</div>
+                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2">{{ tc.expected_output }}</pre>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if challenge.constraints %}
+        <div class="bg-panel border border-slate-800 rounded-xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Constraints</div>
+            <div class="text-sm text-slate-300 whitespace-pre-line">{{ challenge.constraints }}</div>
+        </div>
+        {% endif %}
+
+        {% if request.user.is_superuser %}
+        <div class="bg-panel border border-amber-800/50 rounded-xl p-5">
+            <div class="flex items-center justify-between gap-3">
+                <div class="text-xs uppercase tracking-wide text-amber-400">Superadmin</div>
+                <button id="all-tests-toggle" type="button"
+                    class="text-xs px-3 py-1.5 rounded-full border border-amber-600 text-amber-300 hover:bg-amber-600 hover:text-white transition font-semibold whitespace-nowrap">
+                    👁 View all test cases ({{ all_test_cases|length }})
+                </button>
+            </div>
+            <div id="all-tests-panel" class="hidden mt-3 space-y-3">
+                {% for tc in all_test_cases %}
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-semibold text-slate-300">Test case {{ forloop.counter }}</span>
+                        {% if tc.is_sample %}<span class="text-xs text-emerald-400">sample</span>{% else %}<span class="text-xs text-slate-500">hidden</span>{% endif %}
+                    </div>
+                    <div class="text-slate-500 text-xs mb-1">stdin</div>
+                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2 mb-2">{{ tc.stdin }}</pre>
+                    <div class="text-slate-500 text-xs mb-1">expected stdout</div>
+                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2">{{ tc.expected_output }}</pre>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT: code editor + submit result -->
+    <div class="space-y-4 lg:sticky lg:top-4">
+        {% if result %}
+        <div class="rounded-xl border p-5 {% if result.is_perfect %}border-emerald-700 bg-emerald-950/40{% elif result.score >= 0 %}border-amber-700 bg-amber-950/30{% else %}border-red-700 bg-red-950/40{% endif %}">
+            <div class="font-bold text-lg mb-2">
+                {% if result.is_perfect %}💻 All tests passed! +{{ result.xp_awarded }} XP{% else %}Score: {{ result.score }} pts (+{{ result.xp_awarded }} XP){% endif %}
+            </div>
+            <div class="text-sm text-slate-300 mb-3">{{ result.detail.passed }} / {{ result.detail.total }} test cases passed</div>
+            {% if result.leveled_up %}<div class="mb-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>{% endif %}
+            {% for badge in result.new_badges %}<div class="mb-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>{% endfor %}
+
+            <div class="mt-3 space-y-2">
+                {% for r in result.detail.results %}
+                <div class="rounded-lg border {% if r.passed %}border-emerald-800 bg-emerald-950/30{% else %}border-red-800 bg-red-950/20{% endif %} p-3 text-sm">
+                    {% if r.is_sample %}
+                    <div class="font-semibold mb-1">{% if r.passed %}✅{% else %}❌{% endif %} Sample test case</div>
+                    {% if r.timed_out %}
+                    <div class="text-red-300 text-xs">Timed out — check for an infinite loop.</div>
+                    {% elif r.blocked_reason %}
+                    <div class="text-red-300 text-xs">{{ r.blocked_reason }}</div>
+                    {% else %}
+                    <div class="text-slate-500 text-xs mb-1">your stdout</div>
+                    <pre class="text-slate-200 whitespace-pre-wrap">{{ r.stdout }}</pre>
+                    {% if r.stderr %}
+                    <div class="text-slate-500 text-xs mt-2 mb-1">stderr</div>
+                    <pre class="text-red-300 whitespace-pre-wrap">{{ r.stderr }}</pre>
+                    {% endif %}
+                    {% endif %}
+                    {% else %}
+                    <div class="font-semibold">{% if r.passed %}✅{% else %}❌{% endif %} Hidden test case
+                        {% if r.timed_out %}<span class="text-red-300 font-normal">— timed out</span>{% endif %}
+                    </div>
+                    {% if r.blocked_reason %}<div class="text-red-300 text-xs mt-1">{{ r.blocked_reason }}</div>{% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-panel border border-slate-800 rounded-xl p-4">
+            <form id="code-form" method="post" action="{% url 'learn:coding_challenge' challenge.slug %}">
+                {% csrf_token %}
+                <textarea id="code-editor" name="code">{{ submitted_code }}</textarea>
+                <button type="submit" class="mt-4 w-full bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">▶ Run &amp; Submit</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Problem Statement is stored as Markdown and rendered client-side.
+    // json_script safely round-trips the raw text (handles quotes/newlines)
+    // without needing a server-side Markdown dependency. If marked.js fails
+    // to load, the div keeps showing its raw-text fallback content instead
+    // of going blank.
+    var promptDataEl = document.getElementById('problem-statement-raw');
+    var problemStatementEl = document.getElementById('problem-statement');
+    if (promptDataEl && problemStatementEl && window.marked) {
+        marked.setOptions({ breaks: true, gfm: true });
+        problemStatementEl.innerHTML = marked.parse(JSON.parse(promptDataEl.textContent));
+    }
+
+    var editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+        mode: 'python',
+        theme: 'dracula',
+        lineNumbers: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        viewportMargin: Infinity,
+    });
+    editor.setSize('100%', 420);
+    // CodeMirror hides the real <textarea> and doesn't keep it in sync as
+    // you type — save() copies the editor's current content back into it
+    // right before the browser reads the form for submission.
+    document.getElementById('code-form').addEventListener('submit', function () {
+        editor.save();
+    });
+
+    var allTestsToggle = document.getElementById('all-tests-toggle');
+    var allTestsPanel = document.getElementById('all-tests-panel');
+    if (allTestsToggle && allTestsPanel) {
+        var toggleLabel = allTestsToggle.textContent.trim();
+        allTestsToggle.addEventListener('click', function () {
+            var showing = !allTestsPanel.classList.contains('hidden');
+            if (showing) {
+                allTestsPanel.classList.add('hidden');
+                allTestsToggle.textContent = toggleLabel;
+            } else {
+                allTestsPanel.classList.remove('hidden');
+                allTestsToggle.textContent = '🙈 Hide all test cases';
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

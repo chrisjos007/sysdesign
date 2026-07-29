@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from learn.models import Book, Chapter, Concept, Question, Choice
+from learn.models import Book, Chapter, Concept, Question, Choice, Topic
 from learn.services import ensure_badges_exist
 
 # ---------------------------------------------------------------------------
@@ -64,6 +64,54 @@ BOOK5 = {
     'description': 'Essential Linux commands for navigating, managing, and troubleshooting a system from the shell.',
 }
 
+BOOK6 = {
+    'slug': 'python-advanced-concepts',
+    'title': 'Python: Advanced Concepts',
+    'author': 'Compiled Reference Notes',
+    'order': 6,
+    'description': 'Dictionary internals, process/thread concurrency, and the CPython data model, one level below the docs.',
+}
+
+BOOK7 = {
+    'slug': 'os-file-handling-systems',
+    'title': 'Operating Systems: File Handling & Systems Programming',
+    'author': 'Compiled Reference Notes',
+    'order': 7,
+    'description': 'How files, permissions, processes, and storage actually work underneath the shell commands that touch them.',
+}
+
+# ---------------------------------------------------------------------------
+# Topics: the primary organizing unit for browsing (dashboard grouping).
+# Unlike Book, a Topic groups content by system-logic and deliberately spans
+# multiple books — e.g. every chapter touching replication/consensus/storage
+# internals lands in "Databases & Distributed Storage" regardless of which
+# of the 5 books it was drawn from. `book` stays on Chapter purely for
+# provenance/attribution and the book_worm badge; it no longer drives any
+# navigation or grouping.
+# ---------------------------------------------------------------------------
+
+TOPIC_FUNDAMENTALS = 'system-design-fundamentals'
+TOPIC_PATTERNS = 'distributed-systems-patterns'
+TOPIC_DATA = 'databases-distributed-storage'
+TOPIC_CASE_STUDIES = 'system-design-case-studies'
+TOPIC_OS = 'operating-systems-linux'
+TOPIC_PYTHON = 'python-internals'
+
+TOPICS = [
+    dict(slug=TOPIC_FUNDAMENTALS, title='System Design Fundamentals', order=1,
+         description='The repeatable framework, scaling basics, and estimation math every design question leans on.'),
+    dict(slug=TOPIC_PATTERNS, title='Distributed Systems Building Blocks', order=2,
+         description='Reusable infrastructure patterns — rate limiting, consistent hashing, unique ID generation — that show up across many different systems.'),
+    dict(slug=TOPIC_DATA, title='Databases & Distributed Storage', order=3,
+         description='How storage engines, replication, consensus, and consistency actually work under the hood, drawn from Database Internals, DDIA, and the key-value store chapter.'),
+    dict(slug=TOPIC_CASE_STUDIES, title='System Design Case Studies', order=4,
+         description='End-to-end designs for named, real systems — URL shorteners, crawlers, chat, and the big social/media platforms.'),
+    dict(slug=TOPIC_OS, title='Operating Systems & Linux Fundamentals', order=5,
+         description='The command-line and OS-level fundamentals for actually operating a system from the shell.'),
+    dict(slug=TOPIC_PYTHON, title='Python Internals & Concurrency', order=6,
+         description='What actually happens under `d[key]`, how subprocess/multiprocessing/threading differ, and the rest of the language’s advanced data model.'),
+]
+
 CHAPTERS = [
     # =========================================================================
     # --- Book 1: System Design Interview (Alex Xu) ---
@@ -73,6 +121,7 @@ CHAPTERS = [
     # this book with Grokking's "framework" chapter (cross-book, since all
     # three are approach/methodology rather than a specific system).
     dict(book='system-design-interview-xu', slug='sysdesign-fundamentals', title='System Design Fundamentals: Framework, Scaling & Estimation',
+         topic=TOPIC_FUNDAMENTALS, difficulty=1,
          order=1, unlock_level=1,
          summary='A repeatable approach to any design question, the building blocks of scaling one server to millions of users, and the back-of-the-envelope math to size a system before building it.',
          concept=dict(
@@ -226,11 +275,246 @@ CHAPTERS = [
                               ("150 milliseconds", True), ("15 seconds", False)],
                      explanation="Cross-continent round trips are roughly 150ms — orders of magnitude slower than an in-datacenter round trip (~500us).",
                      difficulty=2),
+
+                # --- Added from verified web sources (AWS/Azure docs, Cloudflare
+                # docs, MongoDB docs, Wikipedia, Redis blog, Jeff Dean's "Numbers
+                # Everyone Should Know") to broaden this topic's question bank
+                # beyond the original book chapters. Each explanation cites its
+                # source. Mix of single-answer (kind defaults to mcq) and
+                # select-all-that-apply (kind='multi') questions. ---
+
+                # Load balancing
+                dict(prompt="Which load-balancing algorithm sends each new request to the next server in a fixed rotating order, regardless of current load?",
+                     choices=[("Round robin", True), ("Least connections", False),
+                              ("Consistent hashing", False), ("Sticky sessions", False)],
+                     explanation="Round robin cycles through the server pool in order; it doesn't look at how busy each server currently is. (Source: AWS Elastic Load Balancing docs)",
+                     difficulty=1),
+                dict(prompt="Before November 2019, which single algorithm did AWS Application Load Balancers use for distributing HTTP/HTTPS traffic?",
+                     choices=[("Round robin", True), ("Least outstanding requests", False),
+                              ("Weighted random", False), ("Consistent hashing", False)],
+                     explanation="AWS added the Least Outstanding Requests algorithm as an alternative in November 2019; round robin was the only option before that. (Source: AWS ELB documentation)",
+                     difficulty=2),
+                dict(prompt="Least-connections (a.k.a. least-outstanding-requests) load balancing tends to outperform round robin for which kind of traffic?",
+                     choices=[("Long-lived connections like WebSockets or gRPC streams", True), ("One-off DNS lookups", False),
+                              ("Static file downloads under 1KB", False), ("Health check pings", False)],
+                     explanation="When connections stay open for a while, least-connections naturally avoids piling more work onto an already-busy server, which round robin can't see. (Source: AWS load-balancing guidance)",
+                     difficulty=2),
+                dict(prompt="Which of the following are legitimate reasons a load balancer might route a new request away from a particular server? (select all that apply)",
+                     kind='multi',
+                     choices=[("The server currently has more open connections than its peers", True), ("The server just failed its health check", True),
+                              ("The server's hostname sorts alphabetically last", False), ("The server was the first one registered in the pool", False)],
+                     explanation="Connection count (least-connections routing) and health status are real signals load balancers use; hostname order and registration order are not. (Source: AWS ELB target health docs)",
+                     difficulty=2),
+                dict(prompt="What does a Network Load Balancer's passive health check do that its active health check alone does not?",
+                     choices=[("Detects an unhealthy target faster, by observing real connection behavior", True), ("Encrypts traffic between the load balancer and the target", False),
+                              ("Replaces the need for DNS resolution", False), ("Balances traffic across separate AWS regions", False)],
+                     explanation="Passive health checks watch how targets actually respond to live connections, catching failures before the next scheduled active check would. (Source: AWS Network Load Balancer docs)",
+                     difficulty=3),
+                dict(prompt="Per AWS's target health documentation, when does a newly registered server start receiving traffic from the load balancer?",
+                     choices=[("Only after it passes its initial health checks", True), ("Immediately upon registration, health checks run afterward", False),
+                              ("Only after a manual approval step", False), ("After exactly 24 hours, regardless of health", False)],
+                     explanation="Registration alone isn't enough — the target must first pass the configured health checks before traffic is routed to it. (Source: AWS ELB docs)",
+                     difficulty=1),
+
+                # Caching
+                dict(prompt="Which cache eviction policy removes the item that was accessed longest ago when the cache is full?",
+                     choices=[("LRU (Least Recently Used)", True), ("LFU (Least Frequently Used)", False),
+                              ("FIFO (First In First Out)", False), ("Random replacement", False)],
+                     explanation="LRU tracks access recency and evicts whatever hasn't been touched in the longest time. (Source: Redis/AWS caching docs)",
+                     difficulty=1),
+                dict(prompt="Which cache eviction policy removes the item with the fewest total accesses, regardless of how recently it was used?",
+                     choices=[("LFU (Least Frequently Used)", True), ("LRU (Least Recently Used)", False),
+                              ("TTL expiry", False), ("Write-through", False)],
+                     explanation="LFU counts accesses over time and evicts the least-accessed item, which can outperform LRU when a few items get occasional bursts of traffic. (Source: Redis engineering blog)",
+                     difficulty=2),
+                dict(prompt="What eviction policy does Amazon ElastiCache for Redis use by default?",
+                     choices=[("volatile-lru — evict least-recently-used keys that have a TTL set", True), ("allkeys-lfu — evict least-frequently-used keys across the whole cache", False),
+                              ("no-eviction — refuse new writes once the cache is full", False), ("allkeys-random — evict a uniformly random key", False)],
+                     explanation="ElastiCache for Redis defaults to volatile-lru, which only considers keys that have an expiration set. (Source: AWS ElastiCache/Redis caching whitepaper)",
+                     difficulty=3),
+                dict(prompt="In the cache-aside (lazy-loading) pattern, what happens on a cache miss?",
+                     choices=[("The application reads from the database, then writes the result into the cache", True), ("The cache automatically fetches from the database on its own", False),
+                              ("The request fails until the cache is manually refreshed", False), ("The database is bypassed entirely for that request", False)],
+                     explanation="Cache-aside puts the application in charge: on a miss it goes to the database itself and populates the cache for next time. (Source: AWS caching best practices)",
+                     difficulty=1),
+                dict(prompt="What's the defining trade-off of a write-through cache compared to cache-aside?",
+                     choices=[("Every write goes to the cache and the database together, keeping them in sync at the cost of extra write latency", True), ("Writes only ever touch the cache; the database is updated later in a separate background batch job", False),
+                              ("Reads are always served from the database and the cache is never consulted for any read operation", False), ("The entire cache is invalidated and rebuilt from scratch every time any single write occurs", False)],
+                     explanation="Write-through keeps cache and database consistent by writing to both on every update, which adds latency to writes in exchange for read consistency. (Source: AWS caching best practices)",
+                     difficulty=2),
+                dict(prompt="Which of the following are valid cache eviction policies offered by Amazon ElastiCache for Redis? (select all that apply)",
+                     kind='multi',
+                     choices=[("allkeys-lru", True), ("volatile-ttl", True),
+                              ("write-behind", False), ("read-through-random", False)],
+                     explanation="ElastiCache exposes several real Redis eviction policies including allkeys-lru and volatile-ttl; 'write-behind' and 'read-through-random' aren't eviction policies at all. (Source: AWS ElastiCache documentation)",
+                     difficulty=3),
+                dict(prompt="Why might an engineer set a TTL (time-to-live) on cached entries even when using an LRU eviction policy?",
+                     choices=[("To guarantee stale data eventually gets refreshed, independent of how often it's accessed", True), ("Because LRU cannot function without a TTL configured", False),
+                              ("To make the cache evict the most recently used item first", False), ("Because TTL is required for the cache to accept writes", False)],
+                     explanation="LRU only reacts to access patterns — a popular-but-stale key could stay cached forever without a TTL forcing a refresh. (Source: Redis/AWS caching docs)",
+                     difficulty=2),
+
+                # CDN
+                dict(prompt="What does a CDN edge server do when it receives a request for content it already has cached?",
+                     choices=[("Responds directly with the cached copy, without contacting the origin server", True), ("Forwards every request to the origin server regardless of cache state", False),
+                              ("Redirects the client to the origin server's IP address", False), ("Discards the cached copy and fetches a fresh one every time", False)],
+                     explanation="Serving straight from the edge cache is the whole point of a CDN — it avoids a round trip to the origin for content that's already local. (Source: Cloudflare CDN docs)",
+                     difficulty=1),
+                dict(prompt="What happens when a CDN edge server does NOT have the requested content cached (a cache miss)?",
+                     choices=[("It fetches the content from the origin server, serves it, and caches it for future requests", True), ("It returns a 404 Not Found error directly to the client without contacting the origin", False),
+                              ("It queries every other edge server in the network simultaneously before contacting the origin", False), ("It permanently blocks that piece of content from ever being cached at any edge location", False)],
+                     explanation="A miss triggers a fetch from the origin; the edge server then caches the response so the next nearby request is a hit. (Source: Cloudflare CDN docs)",
+                     difficulty=1),
+                dict(prompt="What is the primary latency benefit a CDN provides to end users?",
+                     choices=[("Content is served from a server geographically close to the user instead of a single distant origin", True), ("It permanently increases the origin server's CPU and memory capacity for handling requests", False),
+                              ("It replaces the need for a database entirely by storing all application data at the edge", False), ("It encrypts data at rest on the origin server, which is unrelated to response speed", False)],
+                     explanation="By caching content at many edge locations worldwide, a CDN cuts the physical distance (and round-trip time) between the user and the server answering the request. (Source: Cloudflare CDN docs)",
+                     difficulty=1),
+                dict(prompt="Besides lowering latency, which of these are benefits commonly attributed to using a CDN? (select all that apply)",
+                     kind='multi',
+                     choices=[("Reduced bandwidth usage on the origin server", True), ("Reduced CPU load on the origin server", True),
+                              ("Guaranteed elimination of all cache invalidation bugs", False), ("Automatic horizontal scaling of the origin database", False)],
+                     explanation="CDNs offload both bandwidth and CPU from the origin by absorbing repeat requests at the edge; they don't touch the origin's database scaling and cache invalidation is still a real problem to manage. (Source: Cloudflare CDN docs)",
+                     difficulty=2),
+
+                # DNS load balancing
+                dict(prompt="How does round-robin DNS distribute load across multiple servers?",
+                     choices=[("It returns a different IP address from a rotating list each time the domain is queried", True), ("It inspects each server's current CPU load before answering", False),
+                              ("It always returns the IP address of the nearest server", False), ("It requires a dedicated load balancer appliance to function", False)],
+                     explanation="Round-robin DNS is just the DNS server cycling through a list of A records — it has no visibility into server load at all. (Source: Cloudflare / Wikipedia round-robin DNS docs)",
+                     difficulty=1),
+                dict(prompt="What is a well-known limitation of round-robin DNS as a load-balancing technique?",
+                     choices=[("DNS and client-side caching can pin a client to one IP far longer than intended, unevening the load", True), ("It cannot be used with IPv4 addresses at all, only with IPv6-based DNS records", False),
+                              ("It requires every server in the pool to share the exact same hostname and certificate", False), ("It only works for UDP-based protocols and fails for any TCP-based application traffic", False)],
+                     explanation="Because resolvers and clients cache DNS answers, round-robin's rotation doesn't translate into even real-time load distribution. (Source: Cloudflare round-robin DNS docs)",
+                     difficulty=2),
+                dict(prompt="What does anycast routing let a DNS provider like Cloudflare do?",
+                     choices=[("Route a user's query to the nearest available server sharing the same announced IP address", True), ("Guarantee that every query returns the exact same physical server every single time", False),
+                              ("Encrypt DNS queries end-to-end by default without any additional configuration", False), ("Replace the need for a CDN entirely by caching content inside the DNS resolver itself", False)],
+                     explanation="Anycast lets many physical servers around the world answer for the same IP; network routing sends each query to whichever one is topologically closest. (Source: Cloudflare anycast docs)",
+                     difficulty=2),
+                dict(prompt="Compared to simple round-robin DNS, what extra capability does a service like AWS Route 53 or Cloudflare Load Balancing add?",
+                     choices=[("Weighted and geo-aware routing decisions, plus automatic failover away from unhealthy endpoints", True), ("The ability to skip DNS resolution completely, connecting clients directly by raw IP", False),
+                              ("Guaranteed sub-millisecond latency for every user worldwide, regardless of physical distance", False), ("Elimination of the need for any health checks anywhere in the routing pipeline", False)],
+                     explanation="Managed DNS load balancers go beyond plain rotation — they can weight traffic, route by geography, and pull unhealthy endpoints out of rotation automatically. (Source: Cloudflare / AWS load balancing docs)",
+                     difficulty=2),
+
+                # Availability / SLA "nines"
+                dict(prompt="Roughly how much downtime per year does 99.9% ('three nines') availability allow?",
+                     choices=[("About 8.76 hours", True), ("About 52 minutes", False),
+                              ("About 5 minutes", False), ("About 1 hour", False)],
+                     explanation="99.9% availability allows roughly 8 hours and 46 minutes of downtime per year — each additional nine cuts that allowance by about 10x. (Source: Wikipedia 'Five nines')",
+                     difficulty=2),
+                dict(prompt="Roughly how much downtime per year does 99.99% ('four nines') availability allow?",
+                     choices=[("About 52.6 minutes", True), ("About 8.76 hours", False),
+                              ("About 5.3 minutes", False), ("About 26 minutes", False)],
+                     explanation="Four nines allows roughly 52 minutes of downtime a year — one order of magnitude tighter than three nines. (Source: Wikipedia 'Five nines')",
+                     difficulty=2),
+                dict(prompt="Roughly how much downtime per year does 99.999% ('five nines') availability allow?",
+                     choices=[("About 5.26 minutes", True), ("About 52.6 minutes", False),
+                              ("About 8.76 hours", False), ("About 1 minute", False)],
+                     explanation="Five nines is often called the gold standard for telecom/financial/healthcare systems, allowing only about 5 minutes of downtime a year. (Source: Wikipedia 'Five nines')",
+                     difficulty=2),
+                dict(prompt="What's the general relationship between adding one more '9' to an availability target and its allowed downtime?",
+                     choices=[("Each additional nine reduces allowed downtime by roughly a factor of 10", True), ("Each additional nine doubles the allowed downtime", False),
+                              ("Each additional nine has no effect on allowed downtime", False), ("Each additional nine reduces allowed downtime by a fixed 10 minutes", False)],
+                     explanation="Going from 99.9% to 99.99% to 99.999% each time divides the yearly downtime budget by about 10. (Source: Wikipedia 'Five nines')",
+                     difficulty=1),
+                dict(prompt="Which availability tier is described as the de-facto standard SLA for most SaaS products?",
+                     choices=[("99.9% (three nines)", True), ("99% (two nines)", False),
+                              ("99.999% (five nines)", False), ("100% (zero downtime)", False)],
+                     explanation="Three nines is the common baseline SLA offered by most SaaS products; five nines is reserved for telecom/financial/healthcare-grade systems. (Source: industry SLA references)",
+                     difficulty=1),
+
+                # Horizontal vs vertical scaling & statelessness
+                dict(prompt="What does vertical scaling ('scaling up') mean, per cloud provider architecture guidance?",
+                     choices=[("Increasing the capacity of an individual resource, e.g. a bigger VM or higher database tier", True), ("Adding more instances of the same resource so load is spread across all of them", False),
+                              ("Moving a workload to run in a different geographic region for lower latency", False), ("Replacing a relational database with a NoSQL one to raise write throughput", False)],
+                     explanation="Vertical scaling means making one unit bigger/stronger, as opposed to horizontal scaling which adds more units. (Source: AWS/Azure Well-Architected Framework)",
+                     difficulty=1),
+                dict(prompt="Why does horizontal scaling typically require an application to be stateless, or to externalize its state?",
+                     choices=[("Because any request must be servable by any instance, with no dependency on data stored on one server", True), ("Because stateless services always execute every request faster than any stateful service can", False),
+                              ("Because horizontal scaling technically only works when there is a single running server instance", False), ("Because application state can only ever be stored inside a CDN's edge cache layer", False)],
+                     explanation="If a server keeps request-relevant state only in its own memory/disk, routing a later request to a different server would lose that state — so scaling out cleanly needs state to live somewhere shared. (Source: AWS Well-Architected Framework)",
+                     difficulty=2),
+                dict(prompt="Per AWS's Well-Architected guidance, what's a key operational trade-off of vertical scaling compared to horizontal scaling?",
+                     choices=[("Automating vertical scaling requires extra custom tooling and can cause downtime during the resize", True), ("Vertical scaling is always fully automatic and never causes any downtime during a resize", False),
+                              ("Vertical scaling requires no application code changes under any circumstances", False), ("Vertical scaling is always the cheaper option compared to horizontal scaling", False)],
+                     explanation="Resizing a single resource up often means a restart or migration step, and automating that safely takes more custom work than adding/removing horizontal instances. (Source: AWS Well-Architected Framework)",
+                     difficulty=2),
+                dict(prompt="Which compute resources are commonly cited as naturally stateless, letting any instance service any request?",
+                     choices=[("EC2 instances behind a load balancer and AWS Lambda functions", True), ("A single on-premises database server", False),
+                              ("A developer's local laptop", False), ("A physical office file server", False)],
+                     explanation="Stateless compute like load-balanced EC2 fleets or Lambda functions can serve any request interchangeably, which is what makes them easy to scale horizontally. (Source: AWS Well-Architected Framework)",
+                     difficulty=1),
+                dict(prompt="Which of the following are genuine benefits of horizontal scaling over vertical scaling, per cloud architecture guidance? (select all that apply)",
+                     kind='multi',
+                     choices=[("Better resilience — losing one instance doesn't take down the whole system", True), ("Easier to automate scaling up and down with demand", True),
+                              ("Guaranteed lower cost at every possible scale", False), ("Removes the need for a load balancer", False)],
+                     explanation="Horizontal scaling spreads risk across many replaceable instances and is generally easier to automate; it doesn't guarantee lower cost at all scales, and it actually needs a load balancer to work. (Source: AWS/Azure Well-Architected Framework)",
+                     difficulty=2),
+                dict(prompt="Why might a team choose vertical scaling for a stateful component even though horizontal scaling is generally more flexible?",
+                     choices=[("Because that component has dependencies or stored state that make splitting it across instances impractical", True), ("Because vertical scaling is legally required for any service classified as stateful", False),
+                              ("Because horizontal scaling is fundamentally incompatible with public cloud providers", False), ("Because stateful components are technically incapable of being scaled in any direction", False)],
+                     explanation="Some components (e.g. certain databases) aren't easily distributed, so growing the single instance can be the pragmatic choice despite horizontal scaling's usual advantages. (Source: AWS Well-Architected Framework)",
+                     difficulty=2),
+
+                # Sharding / horizontal partitioning
+                dict(prompt="What does it mean to 'shard' a database?",
+                     choices=[("Split its data horizontally into smaller chunks distributed across multiple servers", True), ("Make a complete backup copy of the entire database onto one additional server", False),
+                              ("Compress the database's stored data so it uses less physical disk space", False), ("Encrypt the database's contents at rest to protect it from unauthorized access", False)],
+                     explanation="Sharding splits data horizontally (by rows, not columns) so each shard holds a subset of the overall dataset. (Source: MongoDB sharding documentation)",
+                     difficulty=1),
+                dict(prompt="What is the main motivation for sharding a database, per MongoDB's own documentation?",
+                     choices=[("Supporting very large datasets and high throughput that a single server can't handle", True), ("Making application queries noticeably simpler and shorter for developers to write", False),
+                              ("Avoiding the need to create and maintain indexes on any collection", False), ("Guaranteeing strong consistency across every replica in the cluster at all times", False)],
+                     explanation="Sharding exists specifically to scale out storage and throughput beyond what one machine can provide. (Source: MongoDB sharding documentation)",
+                     difficulty=1),
+                dict(prompt="In a sharded database cluster, how is read and write workload typically handled?",
+                     choices=[("Distributed across shards, with each shard processing only a subset of overall operations", True), ("Every single operation is broadcast to every shard in the cluster for redundancy", False),
+                              ("All writes are routed to one designated shard while reads go to a separate shard", False), ("Sharding only ever affects read operations and has no effect on writes at all", False)],
+                     explanation="Each shard owns a slice of the data and handles the operations that touch its slice, which is how sharding actually spreads out load. (Source: MongoDB sharding documentation)",
+                     difficulty=2),
+                dict(prompt="How does adding more shards to a cluster affect its scaling model?",
+                     choices=[("Both read and write workloads can be scaled horizontally by adding more shards", True), ("Only read workload benefits; writes stay bottlenecked on one shard", False),
+                              ("Only write workload benefits; reads stay bottlenecked on one shard", False), ("Adding shards has no effect on throughput, only on storage", False)],
+                     explanation="More shards means more machines sharing both the read and the write load, not just extra storage capacity. (Source: MongoDB sharding documentation)",
+                     difficulty=2),
+
+                # More latency numbers (Jeff Dean's list — different entries than
+                # the SSD-vs-memory and cross-continent ones already asked above)
+                dict(prompt="In Jeff Dean's classic 'latency numbers every programmer should know', roughly how long does an L1 cache reference take?",
+                     choices=[("About 0.5 nanoseconds", True), ("About 100 nanoseconds", False),
+                              ("About 10 microseconds", False), ("About 1 millisecond", False)],
+                     explanation="L1 cache is the fastest thing on the list — about half a nanosecond, roughly 200x faster than a main memory reference. (Source: Jeff Dean's 'Numbers Everyone Should Know')",
+                     difficulty=2),
+                dict(prompt="Roughly how much slower is an L2 cache reference than an L1 cache reference, per Jeff Dean's numbers?",
+                     choices=[("Roughly 14x slower (about 7ns vs 0.5ns)", True), ("Roughly 2x slower", False),
+                              ("Roughly 1000x slower", False), ("They're about the same speed", False)],
+                     explanation="L2 cache reference (~7ns) is meaningfully slower than L1 (~0.5ns) but still vastly faster than main memory (~100ns). (Source: Jeff Dean's 'Numbers Everyone Should Know')",
+                     difficulty=3),
+                dict(prompt="What operation does Jeff Dean's latency table list at roughly 25 nanoseconds?",
+                     choices=[("A mutex lock/unlock", True), ("A main memory reference", False),
+                              ("An SSD random read", False), ("A datacenter round trip", False)],
+                     explanation="Mutex lock/unlock sits between a branch mispredict (~5ns) and a main memory reference (~100ns) on the classic latency table. (Source: Jeff Dean's 'Numbers Everyone Should Know')",
+                     difficulty=3),
+                dict(prompt="Per Jeff Dean's numbers, roughly how long does it take to compress 1KB of data with a fast compressor (e.g. Zippy/Snappy)?",
+                     choices=[("About 3 microseconds", True), ("About 3 nanoseconds", False),
+                              ("About 3 milliseconds", False), ("About 3 seconds", False)],
+                     explanation="Compressing 1KB with a fast compressor lands around 3,000 nanoseconds (3 microseconds) — fast, but far slower than a raw memory reference. (Source: Jeff Dean's 'Numbers Everyone Should Know')",
+                     difficulty=3),
+                dict(prompt="Which of these operations are on the order of milliseconds, per Jeff Dean's classic latency table? (select all that apply)",
+                     kind='multi',
+                     choices=[("A disk seek on a spinning drive", True), ("Reading 1MB sequentially from a spinning disk", True),
+                              ("An L1 cache reference", False), ("A mutex lock/unlock", False)],
+                     explanation="A disk seek (~10ms) and a 1MB sequential spinning-disk read (~20ms) are both millisecond-scale; L1 cache (~0.5ns) and a mutex lock (~25ns) are nanosecond-scale — many orders of magnitude faster. (Source: Jeff Dean's 'Numbers Everyone Should Know')",
+                     difficulty=2),
              ]),
     ),
 
     # --- System design item: unchanged ---
     dict(book='system-design-interview-xu', slug='rate-limiter', title='Design a Rate Limiter',
+         topic=TOPIC_PATTERNS, difficulty=1,
          order=2, unlock_level=2, summary='Throttling clients to protect your APIs from abuse and overload.',
          concept=dict(
             slug='rate-limiting-algorithms', title='Rate Limiting Algorithms',
@@ -340,9 +624,63 @@ CHAPTERS = [
                               ("Because a single global limit is illegal under REST conventions", False)],
                      explanation="A cheap read endpoint and an expensive write or auth endpoint often warrant very different thresholds.",
                      difficulty=2),
+
+                # --- Added from verified web sources: IETF drafts, nginx docs, AWS docs ---
+                dict(prompt="Are the widely-used X-RateLimit-Limit / X-RateLimit-Remaining headers defined in any official RFC?",
+                     choices=[("No — they're a de facto convention, not standardized in any RFC", True), ("Yes — RFC 6585 defines them precisely", False),
+                              ("Yes — they were standardized alongside HTTP/1.1 itself", False), ("Yes — they're mandatory fields in the HTTP spec", False)],
+                     explanation="The X-RateLimit-* headers are a widely-copied convention, but different APIs implement their exact semantics differently since no RFC ever pinned them down. (Source: IETF httpapi working group draft)",
+                     difficulty=2),
+                dict(prompt="What is the goal of the IETF's draft-ietf-httpapi-ratelimit-headers effort?",
+                     choices=[("Replace the inconsistent X-RateLimit-* headers with standardized RateLimit and RateLimit-Policy fields", True), ("Remove all rate-limit information from HTTP responses so clients can't see their quota", False),
+                              ("Require every API to implement exactly the token bucket algorithm and no other", False), ("Mandate that no API's rate limit can ever exceed 100 requests per minute", False)],
+                     explanation="The draft defines two standardized fields, RateLimit and RateLimit-Policy, so clients can rely on one consistent format instead of guessing each API's X-RateLimit-* convention. (Source: IETF httpapi working group draft)",
+                     difficulty=2),
+                dict(prompt="Which rate-limiting algorithm does nginx's ngx_http_limit_req_module implement?",
+                     choices=[("Leaky bucket", True), ("Token bucket", False),
+                              ("Fixed window counter", False), ("Sliding window log", False)],
+                     explanation="nginx's own documentation describes limit_req as based on the leaky bucket method: requests arrive at various rates but leave (are processed) at a fixed rate. (Source: nginx.org ngx_http_limit_req_module docs)",
+                     difficulty=1),
+                dict(prompt="In nginx's limit_req_zone directive, what does the configured 'rate' parameter (e.g. rate=1r/s) control?",
+                     choices=[("The fixed rate at which queued requests are allowed to leave the bucket and be processed", True), ("The maximum number of concurrent client connections the server will accept", False),
+                              ("The number of nginx worker processes spawned to handle incoming requests", False), ("The TTL (time-to-live) applied to every cached static asset on disk", False)],
+                     explanation="The rate parameter sets how fast the leaky bucket drains — e.g. rate=1r/s processes at most one request per second, delaying the rest. (Source: nginx.org ngx_http_limit_req_module docs)",
+                     difficulty=2),
+                dict(prompt="In AWS API Gateway's token-bucket throttling model, what does the configured 'burst' limit represent?",
+                     choices=[("The maximum capacity of the token bucket — concurrent requests it can absorb before returning 429s", True), ("The total number of requests an API is allowed to receive per calendar month", False),
+                              ("The number of Lambda functions that can be invoked per second by clients", False), ("The maximum size in megabytes allowed for a single request payload body", False)],
+                     explanation="The burst limit is literally the bucket's token capacity: once it's drained faster than it refills, further requests get HTTP 429 Too Many Requests. (Source: AWS API Gateway throttling documentation)",
+                     difficulty=2),
+                dict(prompt="What is AWS API Gateway's default account-level steady-state request rate limit per AWS Region?",
+                     choices=[("10,000 requests per second", True), ("100 requests per second", False),
+                              ("1,000,000 requests per second", False), ("1 request per second", False)],
+                     explanation="Unless increased, API Gateway defaults to a 10,000 RPS steady-state limit (and a 5,000 burst limit) per account, per Region. (Source: AWS API Gateway throttling documentation)",
+                     difficulty=3),
+                dict(prompt="What is AWS API Gateway's default account-level burst limit per AWS Region?",
+                     choices=[("5,000 requests", True), ("500 requests", False),
+                              ("50,000 requests", False), ("Unlimited by default", False)],
+                     explanation="The default burst (token bucket capacity) is 5,000 requests, separate from the 10,000 RPS steady-state refill rate. (Source: AWS API Gateway throttling documentation)",
+                     difficulty=3),
+                dict(prompt="Which of the following are genuine properties of AWS API Gateway's throttling model? (select all that apply)",
+                     kind='multi',
+                     choices=[("It refills tokens at a configured steady-state rate every second", True), ("Exceeding the token supply results in an HTTP 429 response", True),
+                              ("It requires every client to pre-register a fixed IP address", False), ("It only throttles requests originating from outside AWS", False)],
+                     explanation="API Gateway's throttling is a straightforward token-bucket: tokens refill at the rate limit, and running out yields 429s; there's no IP pre-registration requirement or AWS-origin exemption. (Source: AWS API Gateway throttling documentation)",
+                     difficulty=2),
+                dict(prompt="Without the 'nodelay' option, what does nginx's limit_req do with a request that exceeds the configured rate but still fits within the burst allowance?",
+                     choices=[("Queues and delays it so the overall processing rate stays at the configured limit", True), ("Immediately rejects it with a 429 response", False),
+                              ("Silently drops it without any response at all", False), ("Processes it instantly, ignoring the configured rate", False)],
+                     explanation="By default limit_req queues excess requests up to the burst size and delays them, rather than rejecting outright — nodelay changes this to reject immediately instead. (Source: nginx.org ngx_http_limit_req_module docs)",
+                     difficulty=3),
+                dict(prompt="Per the IETF draft, what two header fields does the modern RateLimit proposal define, replacing the old X-RateLimit-* trio?",
+                     choices=[("RateLimit and RateLimit-Policy", True), ("X-Limit and X-Remaining", False),
+                              ("Retry-After and Rate-Status", False), ("Quota-Limit and Quota-Used", False)],
+                     explanation="The current draft consolidated what used to be three separate X-RateLimit-* headers down to just RateLimit (current status) and RateLimit-Policy (the quota policy). (Source: IETF httpapi working group draft)",
+                     difficulty=3),
              ]),
     ),
     dict(book='system-design-interview-xu', slug='consistent-hashing', title='Design Consistent Hashing',
+         topic=TOPIC_PATTERNS, difficulty=2,
          order=3, unlock_level=2, summary='Distributing data across servers without a total reshuffle when nodes change.',
          concept=dict(
             slug='consistent-hashing-core', title='Consistent Hashing & Virtual Nodes',
@@ -444,9 +782,63 @@ CHAPTERS = [
                               ("The key stays unassigned until a human intervenes", False)],
                      explanation="Removing a server only affects the keys that were mapped to it — they simply fall through to the next server clockwise.",
                      difficulty=1),
+
+                # --- Added from verified web sources: the original 1997 paper, Chord, and Jump Consistent Hash ---
+                dict(prompt="What problem was consistent hashing originally introduced to solve, per Karger et al.'s 1997 paper?",
+                     choices=[("Relieving hot spots in distributed web caching", True), ("Encrypting traffic between web browsers and servers", False),
+                              ("Compressing images for faster web page loads", False), ("Detecting duplicate content across websites", False)],
+                     explanation="The 1997 paper, 'Consistent hashing and random trees: Distributed caching protocols for relieving hot spots on the World Wide Web', targeted exactly that hot-spot problem. (Source: ACM STOC 1997, Karger/Lehman/Leighton/Levine/Lewin/Panigrahy)",
+                     difficulty=3),
+                dict(prompt="The Chord protocol, a well-known application of consistent hashing, organizes its nodes using what structure?",
+                     choices=[("A one-dimensional ring with successor pointers", True), ("A two-dimensional grid with neighbor pointers", False),
+                              ("A single centralized coordinator node", False), ("An unordered flat list of all nodes", False)],
+                     explanation="Chord arranges nodes on a ring and has each node track its 'successor', which is exactly the consistent-hashing ring idea applied to peer-to-peer lookup. (Source: 'Chord: A scalable peer-to-peer lookup protocol', IEEE/ACM ToN 2003)",
+                     difficulty=2),
+                dict(prompt="Which institution's researchers developed the Chord distributed hash table protocol?",
+                     choices=[("MIT", True), ("Stanford", False),
+                              ("Carnegie Mellon", False), ("UC Berkeley", False)],
+                     explanation="Chord was developed at MIT by Stoica, Morris, Karger, Kaashoek, and Balakrishnan. (Source: 'Chord: A scalable peer-to-peer lookup protocol', IEEE/ACM Transactions on Networking, 2003)",
+                     difficulty=3),
+                dict(prompt="What is Jump Consistent Hash's main practical advantage over classic ring-based consistent hashing with virtual nodes?",
+                     choices=[("It needs essentially no memory and distributes keys more evenly, with no ring data structure to store", True), ("It guarantees that zero keys ever need remapping when a node is removed", False),
+                              ("It eliminates the need for any hash function to be computed during lookups", False), ("It only works correctly when there is exactly one server in the entire pool", False)],
+                     explanation="Ring-based hashing needs thousands of bytes per shard to get even distribution; Jump Consistent Hash achieves better evenness with essentially no stored state at all. (Source: Lamping & Veach, 'A Fast, Minimal Memory, Consistent Hash Algorithm', 2014)",
+                     difficulty=3),
+                dict(prompt="What is a stated limitation of Jump Consistent Hash compared to ring-based consistent hashing?",
+                     choices=[("Buckets must be numbered sequentially, making it unsuited to arbitrary node IDs in web caching", True), ("It cannot run on any 64-bit computer architecture or operating system", False),
+                              ("It only supports a fixed maximum of 256 total buckets in any single cluster", False), ("It requires an active network connection just to compute a lookup", False)],
+                     explanation="Because buckets are just integers 0..n-1, removing an arbitrary node by ID (common in distributed caching) doesn't map cleanly onto Jump Consistent Hash the way it does onto a ring. (Source: Lamping & Veach, 'A Fast, Minimal Memory, Consistent Hash Algorithm', 2014)",
+                     difficulty=3),
+                dict(prompt="Roughly what time complexity does Jump Consistent Hash's core lookup loop run in, for n buckets?",
+                     choices=[("O(ln n)", True), ("O(n)", False),
+                              ("O(n^2)", False), ("O(1) with no dependence on n at all", False)],
+                     explanation="The algorithm's loop executes O(ln n) times — a constant amount faster than the O(log n) binary search a typical ring-hash lookup needs. (Source: Lamping & Veach, 'A Fast, Minimal Memory, Consistent Hash Algorithm', 2014)",
+                     difficulty=3),
+                dict(prompt="Which company's researchers published the Jump Consistent Hash algorithm?",
+                     choices=[("Google", True), ("Amazon", False),
+                              ("Microsoft", False), ("Facebook", False)],
+                     explanation="Jump Consistent Hash was published by Google researchers John Lamping and Eric Veach in 2014. (Source: 'A Fast, Minimal Memory, Consistent Hash Algorithm')",
+                     difficulty=2),
+                dict(prompt="What does the abbreviation 'DHT', as used to describe systems like Chord, stand for?",
+                     choices=[("Distributed Hash Table", True), ("Dynamic Hashing Technique", False),
+                              ("Data Hosting Topology", False), ("Deterministic Hash Tree", False)],
+                     explanation="A DHT is a decentralized system that provides a lookup service similar to a hash table, spread across many cooperating nodes — Chord is a classic example. (Source: Chord paper, MIT)",
+                     difficulty=1),
+                dict(prompt="Which of the following are true of distributed hash tables (DHTs) like Chord? (select all that apply)",
+                     kind='multi',
+                     choices=[("Each node is responsible for a contiguous range of the hash space", True), ("They provide a decentralized key lookup service across many cooperating nodes", True),
+                              ("They require a single always-on coordinator node to route every lookup", False), ("They can only store a fixed, hard-coded number of keys forever", False)],
+                     explanation="Chord-style DHTs split the keyspace across nodes and route lookups peer-to-peer with no central coordinator, and they scale to arbitrary numbers of keys. (Source: Chord paper, MIT)",
+                     difficulty=2),
+                dict(prompt="In what year was the Chord paper, 'A scalable peer-to-peer lookup protocol for internet applications', published in IEEE/ACM Transactions on Networking?",
+                     choices=[("2003", True), ("1997", False),
+                              ("2010", False), ("1990", False)],
+                     explanation="The Chord paper appeared in IEEE/ACM Transactions on Networking, volume 11, in 2003, six years after the original consistent hashing paper. (Source: IEEE/ACM ToN, 2003)",
+                     difficulty=3),
              ]),
     ),
     dict(book='system-design-interview-xu', slug='key-value-store', title='Design a Key-Value Store',
+         topic=TOPIC_DATA, difficulty=2,
          order=4, unlock_level=3, summary='CAP theorem trade-offs and conflict resolution in distributed storage.',
          concept=dict(
             slug='cap-theorem-quorum', title='CAP Theorem & Quorum Consensus',
@@ -543,6 +935,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='system-design-interview-xu', slug='unique-id-generator', title='Design a Unique ID Generator',
+         topic=TOPIC_PATTERNS, difficulty=2,
          order=5, unlock_level=3, summary='Generating globally unique, roughly sortable IDs at scale.',
          concept=dict(
             slug='snowflake-ids', title='Snowflake-Style ID Generation',
@@ -639,9 +1032,63 @@ CHAPTERS = [
                               ("Machine ID always equals the sequence number", False)],
                      explanation="Every host minting IDs needs its own machine ID so two hosts in the same millisecond never produce the same ID.",
                      difficulty=2),
+
+                # --- Added from verified web sources: RFC 9562, MongoDB docs, ULID spec ---
+                dict(prompt="What does RFC 9562, published by the IETF in 2024, formally define?",
+                     choices=[("UUIDs (Universally Unique Identifiers), including newer time-ordered versions", True), ("The HTTP/2 binary framing protocol used for multiplexed connections", False),
+                              ("The JSON data interchange format used for structured API payloads", False), ("The TCP three-way handshake used to establish new connections", False)],
+                     explanation="RFC 9562 is the current IETF specification for UUIDs, formally defining versions 1 through 8 including the newer, sortable UUID v7. (Source: RFC 9562, rfc-editor.org)",
+                     difficulty=2),
+                dict(prompt="Per RFC 9562, how many total bits make up a UUID, regardless of version?",
+                     choices=[("128 bits", True), ("64 bits", False),
+                              ("256 bits", False), ("32 bits", False)],
+                     explanation="Every UUID version is 128 bits long; what differs between versions is how those bits are filled in (random, timestamp, MAC address, etc). (Source: RFC 9562)",
+                     difficulty=1),
+                dict(prompt="Roughly how much of UUID version 4's 128 bits is filled with random data?",
+                     choices=[("122 bits — all but the fixed version and variant marker bits", True), ("64 bits — exactly half", False),
+                              ("32 bits — the low-order word only", False), ("8 bits — a single byte", False)],
+                     explanation="UUID v4 is 128 bits minus a 4-bit version field and a 2-bit variant field, leaving 122 bits of randomness. (Source: RFC 9562)",
+                     difficulty=2),
+                dict(prompt="Per RFC 9562's own guidance, which UUID version should new systems favor for sortable, time-ordered identifiers?",
+                     choices=[("UUID version 7", True), ("UUID version 1", False),
+                              ("UUID version 3", False), ("UUID version 4", False)],
+                     explanation="RFC 9562 recommends UUID v7 for new systems that don't need legacy v1 compatibility, since it embeds a timestamp for natural sort order. (Source: RFC 9562)",
+                     difficulty=2),
+                dict(prompt="What kind of timestamp does UUID version 7 embed in its first 48 bits?",
+                     choices=[("Unix time in milliseconds", True), ("Unix time in seconds", False),
+                              ("Days since a custom 2020 epoch", False), ("A 48-bit random nonce, not a timestamp at all", False)],
+                     explanation="UUID v7 leads with a 48-bit Unix millisecond timestamp, which is exactly what makes v7 IDs sort chronologically like Snowflake IDs do. (Source: RFC 9562)",
+                     difficulty=2),
+                dict(prompt="How many total bytes make up a MongoDB ObjectId?",
+                     choices=[("12 bytes", True), ("8 bytes", False),
+                              ("16 bytes", False), ("4 bytes", False)],
+                     explanation="A MongoDB ObjectId is 12 bytes: a 4-byte timestamp, a 5-byte per-process random value, and a 3-byte incrementing counter. (Source: MongoDB Database Manual)",
+                     difficulty=1),
+                dict(prompt="Which of the following are genuine components of a MongoDB ObjectId's 12 bytes? (select all that apply)",
+                     kind='multi',
+                     choices=[("A 4-byte timestamp measured in seconds since the Unix epoch", True), ("A 5-byte random value generated once per process", True),
+                              ("A 3-byte incrementing counter initialized to a random value", True), ("A 6-byte copy of the machine's MAC address", False)],
+                     explanation="MongoDB's current ObjectId format is timestamp + per-process random value + counter; the older MAC-address-based layout was dropped from the spec. (Source: MongoDB Database Manual)",
+                     difficulty=3),
+                dict(prompt="What text encoding does a ULID (Universally Unique Lexicographically Sortable Identifier) use for its canonical string form?",
+                     choices=[("Crockford's Base32", True), ("Base64", False),
+                              ("Hexadecimal", False), ("Plain ASCII digits only", False)],
+                     explanation="ULID uses Crockford's Base32 specifically because it's case-insensitive and avoids characters that are easy to misread, while staying URL-safe. (Source: ULID specification)",
+                     difficulty=2),
+                dict(prompt="How long is a ULID's canonical string representation, compared to a standard hyphenated UUID string (36 characters)?",
+                     choices=[("26 characters — shorter than a UUID string", True), ("36 characters — exactly the same length", False),
+                              ("52 characters — roughly double a UUID string", False), ("8 characters — much shorter than a UUID string", False)],
+                     explanation="A ULID encodes the same 128 bits as a UUID but with denser Base32 encoding, producing a 26-character string versus UUID's 36. (Source: ULID specification)",
+                     difficulty=2),
+                dict(prompt="What property makes a ULID more attractive than a random UUID v4 as a database primary key?",
+                     choices=[("Its first 48 bits are a timestamp, so ULIDs sort lexicographically in creation order", True), ("ULIDs are guaranteed to never collide, unlike UUID v4", False),
+                              ("ULIDs are always exactly 8 bytes, half the size of a UUID", False), ("ULIDs don't require any randomness to generate", False)],
+                     explanation="Because a ULID's leading bits encode a millisecond timestamp, sorting ULID strings lexicographically also sorts them by creation time — something a fully random UUID v4 can't offer. (Source: ULID specification)",
+                     difficulty=2),
              ]),
     ),
     dict(book='system-design-interview-xu', slug='url-shortener', title='Design a URL Shortener',
+         topic=TOPIC_CASE_STUDIES, difficulty=1,
          order=6, unlock_level=4, summary='Encoding long URLs into short, unique codes at scale.',
          concept=dict(
             slug='url-shortener-design', title='Base62 Encoding & Data Model',
@@ -739,6 +1186,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='system-design-interview-xu', slug='web-crawler', title='Design a Web Crawler',
+         topic=TOPIC_CASE_STUDIES, difficulty=2,
          order=7, unlock_level=4, summary='Systematically discovering and fetching pages across the web.',
          concept=dict(
             slug='crawler-architecture', title='Crawler Architecture & Politeness',
@@ -833,6 +1281,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='system-design-interview-xu', slug='notification-system', title='Design a Notification System',
+         topic=TOPIC_CASE_STUDIES, difficulty=2,
          order=8, unlock_level=5, summary='Delivering push, SMS, and email notifications reliably at scale.',
          concept=dict(
             slug='notification-architecture', title='Notification System Architecture',
@@ -932,6 +1381,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='system-design-interview-xu', slug='chat-system', title='Design a Chat System',
+         topic=TOPIC_CASE_STUDIES, difficulty=2,
          order=9, unlock_level=5, summary='Real-time messaging with online presence and message ordering.',
          concept=dict(
             slug='chat-system-realtime', title='Real-Time Delivery with WebSockets',
@@ -1036,6 +1486,7 @@ CHAPTERS = [
     # --- Book 2: Grokking the System Design Interview ---
     # =========================================================================
     dict(book='grokking-system-design', slug='designing-instagram', title='Designing Instagram',
+         topic=TOPIC_CASE_STUDIES, difficulty=2,
          order=1, unlock_level=6, summary='Photo sharing at scale: news feed generation and data sharding.',
          concept=dict(
             slug='newsfeed-fanout', title='News Feed Fan-out & Sharding',
@@ -1135,6 +1586,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='grokking-system-design', slug='designing-dropbox', title='Designing Dropbox',
+         topic=TOPIC_CASE_STUDIES, difficulty=3,
          order=2, unlock_level=7, summary='Cloud file storage: sync, chunking, and deduplication.',
          concept=dict(
             slug='sync-dedup', title='File Sync & Deduplication',
@@ -1230,6 +1682,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='grokking-system-design', slug='designing-twitter', title='Designing Twitter',
+         topic=TOPIC_CASE_STUDIES, difficulty=2,
          order=3, unlock_level=7, summary='Timeline generation and sharding for a write-heavy social graph.',
          concept=dict(
             slug='twitter-timeline', title='Timeline Generation & Data Sharding',
@@ -1326,6 +1779,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='grokking-system-design', slug='designing-messenger', title='Designing Facebook Messenger',
+         topic=TOPIC_CASE_STUDIES, difficulty=3,
          order=4, unlock_level=8, summary='One-on-one and group messaging with delivery guarantees.',
          concept=dict(
             slug='messenger-delivery', title='Message Delivery & Online Status',
@@ -1422,6 +1876,7 @@ CHAPTERS = [
              ]),
     ),
     dict(book='grokking-system-design', slug='designing-youtube', title='Designing YouTube / Netflix',
+         topic=TOPIC_CASE_STUDIES, difficulty=3,
          order=5, unlock_level=8, summary='Video upload, encoding, and CDN-based delivery at scale.',
          concept=dict(
             slug='video-cdn-delivery', title='Video Encoding & CDN Delivery',
@@ -1527,6 +1982,7 @@ CHAPTERS = [
     # it's literally the LSM-tree read path, the natural second half of the
     # LSM-tree write path covered a paragraph earlier).
     dict(book='database-internals', slug='storage-engines-durability', title='Storage Engines: B-Trees, LSM-Trees & Crash Recovery',
+         topic=TOPIC_DATA, difficulty=3,
          order=1, unlock_level=9,
          summary='How on-disk storage engines organize data, trade off read vs. write performance, and recover cleanly from a crash.',
          concept=dict(
@@ -1712,6 +2168,7 @@ CHAPTERS = [
     # distributed systems" and "consistency and consensus" chapters
     # (cross-book — all five are the "hard parts of distributed systems").
     dict(book='database-internals', slug='distributed-failure-replication-consensus', title='Distributed Systems: Failure Detection, Replication & Consensus',
+         topic=TOPIC_DATA, difficulty=3,
          order=2, unlock_level=10,
          summary='Why nodes can never be certain another has failed, how replicas trade off consistency for speed, and how a majority of unreliable nodes agree on anything at all.',
          concept=dict(
@@ -1927,6 +2384,7 @@ CHAPTERS = [
     # moved into the Database Internals domains above since they're the same
     # topics.)
     dict(book='designing-data-intensive-apps', slug='data-systems-fundamentals', title='Data Systems Fundamentals: Models, Partitioning & Transactions',
+         topic=TOPIC_DATA, difficulty=3,
          order=1, unlock_level=12,
          summary='What makes a data system "good", how relational/document/graph models differ, how datasets get split across machines, and what isolation levels actually promise.',
          concept=dict(
@@ -2087,6 +2545,7 @@ CHAPTERS = [
     # --- System design item (kept as-is): a specific replication topology to
     # build, already has its own builder game.
     dict(book='designing-data-intensive-apps', slug='replication-ddia', title='Replication',
+         topic=TOPIC_DATA, difficulty=2,
          order=2, unlock_level=13, summary='Keeping a copy of the same data on multiple machines.',
          concept=dict(
             slug='leader-based-replication', title='Leader-Based Replication',
@@ -2186,6 +2645,7 @@ CHAPTERS = [
     # "practical CLI skills" domain — these were always a loosely related
     # grab-bag of commands rather than a single narrative.
     dict(book='linux-pocket-guide', slug='linux-command-line-essentials', title='Linux Command-Line Essentials',
+         topic=TOPIC_OS, difficulty=1,
          order=1, unlock_level=16,
          summary='Navigation, permissions, processes, text pipelines, package management, and networking — the day-to-day shell toolkit.',
          concept=dict(
@@ -2368,7 +2828,726 @@ CHAPTERS = [
                               ("Changing file permissions", False)],
                      explanation="`scp` reuses SSH's encrypted connection specifically to transfer files instead of opening an interactive shell.",
                      difficulty=1),
+
+                # --- Added from verified web sources: man7.org, kernel.org, GNU coreutils
+                # manual, Red Hat/SUSE/Oracle systemd docs, OpenSSH man pages ---
+
+                # Permissions deep-dive
+                dict(prompt="What is the default umask value for a typical non-root user on most Linux distributions?",
+                     choices=[("0002", True), ("0000", False),
+                              ("0777", False), ("0644", False)],
+                     explanation="A umask of 0002 subtracts write permission for 'others' from the base 666/777 permissions, which is the common default for regular users. (Source: Red Hat / nixCraft umask documentation)",
+                     difficulty=2),
+                dict(prompt="Given a umask of 0022, what permissions will a newly created regular file end up with?",
+                     choices=[("644 (rw-r--r--)", True), ("755 (rwxr-xr-x)", False),
+                              ("666 (rw-rw-rw-)", False), ("600 (rw-------)", False)],
+                     explanation="Files start from a base of 666; a umask of 022 subtracts write permission from group and others, leaving 644. (Source: Red Hat file permissions documentation)",
+                     difficulty=2),
+                dict(prompt="What does the setuid bit do when set on an executable file?",
+                     choices=[("Runs the program with the permissions of the file's owner, not the user running it", True), ("Prevents the file from ever being executed by anyone", False),
+                              ("Forces the file to run only when invoked by the root account", False), ("Makes the file permanently read-only for every user", False)],
+                     explanation="setuid lets a program temporarily run with its owner's privileges — classic examples are tools like passwd that need brief root access. (Source: setuid/setgid/sticky bit documentation)",
+                     difficulty=2),
+                dict(prompt="What does the sticky bit do when set on a shared directory?",
+                     choices=[("Only the file's owner, the directory's owner, or root can delete or rename files inside it", True), ("It prevents any new files from ever being created in the directory", False),
+                              ("It makes every file inside the directory execute automatically", False), ("It hides the directory entirely from directory listings", False)],
+                     explanation="The sticky bit is what makes shared directories like /tmp usable: anyone can add files, but only the owner (or root) can remove someone else's. (Source: setuid/setgid/sticky bit documentation)",
+                     difficulty=2),
+                dict(prompt="In octal chmod notation (e.g. `chmod 4755 file`), what numeric value represents the setuid bit?",
+                     choices=[("4", True), ("1", False),
+                              ("2", False), ("8", False)],
+                     explanation="The special-permissions digit is setuid=4, setgid=2, sticky=1 — they can be added together and combined with the normal rwx digits. (Source: setuid/setgid/sticky bit documentation)",
+                     difficulty=2),
+                dict(prompt="What does setting the setgid bit on a directory (rather than on a file) do?",
+                     choices=[("New files created inside automatically inherit the directory's group ownership", True), ("It permanently deletes the directory's existing group ownership", False),
+                              ("It prevents any group members from being able to read the directory", False), ("It converts the directory into a symbolic link to another path", False)],
+                     explanation="setgid on a directory is commonly used for shared team folders, so every new file lands in the right group without anyone remembering to chgrp it. (Source: setuid/setgid/sticky bit documentation)",
+                     difficulty=3),
+
+                # Process management
+                dict(prompt="What range of nice values can a Linux process have, from highest scheduling priority to lowest?",
+                     choices=[("-20 (highest priority) to 19 (lowest priority)", True), ("0 to 100, with 100 being highest priority", False),
+                              ("-100 to 100, with 0 as the midpoint default", False), ("1 to 10, with 10 being highest priority", False)],
+                     explanation="Nice values run from -20 (most favored by the scheduler) to 19 (least favored); the name comes from how 'nice' a process is being to its peers. (Source: renice(1) Linux manual page)",
+                     difficulty=2),
+                dict(prompt="Who is allowed to set a negative (higher-priority) nice value for a process?",
+                     choices=[("Only the root user", True), ("Any user at all, with no restriction", False),
+                              ("Only the process's original parent process", False), ("No one — negative nice values are always disallowed", False)],
+                     explanation="Unprivileged users can only raise their own processes' nice value (lower priority), never lower it — that's reserved for root. (Source: renice(1) Linux manual page)",
+                     difficulty=2),
+                dict(prompt="What is the key difference between the `nice` and `renice` commands?",
+                     choices=[("`nice` sets priority when starting a new process; `renice` changes the priority of one already running", True), ("`nice` only works on processes owned by root; `renice` works on any process", False),
+                              ("`nice` changes CPU priority only; `renice` changes disk I/O priority only", False), ("They are two completely different names for exactly the same underlying command", False)],
+                     explanation="`nice` launches a fresh process at a given priority, while `renice` adjusts the priority of a process that's already running. (Source: Linux process management documentation)",
+                     difficulty=1),
+                dict(prompt="What does prefixing a command with `nohup` accomplish?",
+                     choices=[("Keeps the command running even after the user logs out, immune to hangup signals", True), ("Pauses the command's execution until the terminal window is closed", False),
+                              ("Automatically restarts the command if it happens to crash", False), ("Runs the command silently, suppressing all of its output", False)],
+                     explanation="nohup specifically ignores the SIGHUP signal a process would otherwise get when its controlling terminal closes, so it keeps running after logout. (Source: Linux process management documentation)",
+                     difficulty=2),
+                dict(prompt="What does the `jobs` command show in an interactive shell?",
+                     choices=[("The background and suspended jobs running in the current shell session", True), ("Every process running anywhere on the entire system", False),
+                              ("The system's scheduled cron jobs and their next run times", False), ("A list of every user currently logged into the machine", False)],
+                     explanation="`jobs` is scoped to the current shell session — it won't show processes from other terminals or other users. (Source: Linux job control documentation)",
+                     difficulty=1),
+                dict(prompt="After suspending a foreground process with Ctrl+Z, which command resumes it running in the background?",
+                     choices=[("`bg`", True), ("`fg`", False),
+                              ("`jobs`", False), ("`nohup`", False)],
+                     explanation="Ctrl+Z suspends the process; `bg` resumes it in the background, while `fg` would instead bring it back to the foreground. (Source: Linux job control documentation)",
+                     difficulty=1),
+                dict(prompt="What does the Linux kernel's /proc filesystem represent?",
+                     choices=[("A virtual, in-memory filesystem exposing live kernel and process information, not stored on disk", True), ("A physical disk partition reserved specifically for temporary files", False),
+                              ("A backup location where deleted process logs are archived", False), ("A configuration directory that's only read once, at boot time", False)],
+                     explanation="/proc is generated by the kernel on the fly — reading a file under /proc/PID/ gives you a live snapshot of that process's state, not a file that exists on disk. (Source: kernel.org /proc filesystem documentation)",
+                     difficulty=2),
+
+                # systemd / systemctl
+                dict(prompt="What is the difference between `systemctl start` and `systemctl enable` for a service?",
+                     choices=[("`start` runs it immediately; `enable` configures it to start automatically on future boots", True), ("`start` makes the change permanent; `enable` only lasts until the next reboot", False),
+                              ("They are equivalent aliases that do exactly the same thing", False), ("`enable` runs it immediately; `start` only schedules it for later", False)],
+                     explanation="The two are independent: you can start a service without enabling it (won't survive reboot) or enable it without starting it now (will start next boot). (Source: Red Hat systemd service management docs)",
+                     difficulty=1),
+                dict(prompt="What information does `systemctl status <service>` provide?",
+                     choices=[("Whether the service is running, its process ID, and recent log output", True), ("Only whether the service's unit file exists on disk", False),
+                              ("The host machine's CPU temperature and fan speed readings", False), ("A complete list of every other service installed on the system", False)],
+                     explanation="`systemctl status` gives a quick operational snapshot — running/stopped state, PID, and a tail of recent journal log lines for that unit. (Source: systemd service management documentation)",
+                     difficulty=1),
+                dict(prompt="What does `systemctl enable` actually do under the hood?",
+                     choices=[("Creates symbolic links in systemd's unit directories so the service starts automatically at boot", True), ("Recompiles the service's underlying binary from its source code", False),
+                              ("Downloads and installs the service's package from a repository", False), ("Grants the service's process root-level file permissions", False)],
+                     explanation="Enabling a unit wires it into the appropriate systemd target via symlinks — it doesn't touch the binary or package at all. (Source: Red Hat/SUSE systemd documentation)",
+                     difficulty=3),
+                dict(prompt="What init system does the `systemctl` command control on most modern Linux distributions?",
+                     choices=[("systemd", True), ("SysVinit", False),
+                              ("Upstart", False), ("OpenRC", False)],
+                     explanation="systemctl is systemd's own control tool; SysVinit, Upstart, and OpenRC are older or alternative init systems that systemd has largely replaced on major distros. (Source: systemd documentation)",
+                     difficulty=1),
+                dict(prompt="Which command stops a running systemd-managed service immediately, without changing its boot-time behavior?",
+                     choices=[("`systemctl stop <service>`", True), ("`systemctl disable <service>`", False),
+                              ("`systemctl mask <service>`", False), ("`systemctl daemon-reload`", False)],
+                     explanation="`stop` only affects the currently running instance; `disable` instead changes whether it starts at the next boot, without stopping it now. (Source: systemd service management documentation)",
+                     difficulty=2),
+
+                # SSH keys
+                dict(prompt="In SSH key-based authentication, where does the private key need to live?",
+                     choices=[("Only on the client machine, kept secret and never shared", True), ("On the server, inside the authorized_keys file", False),
+                              ("On both the client and the server equally", False), ("On a public key server accessible to anyone", False)],
+                     explanation="Only the public key goes to the server; the private key must stay secret on the client, since possessing it is what proves identity. (Source: OpenSSH ssh-keygen documentation)",
+                     difficulty=1),
+                dict(prompt="What file on the server holds the public keys allowed to authenticate as a given user?",
+                     choices=[("`~/.ssh/authorized_keys`", True), ("`~/.ssh/known_hosts`", False),
+                              ("`/etc/passwd`", False), ("`~/.ssh/id_rsa`", False)],
+                     explanation="authorized_keys lists which public keys are accepted for that account; known_hosts instead records which servers the client already trusts. (Source: OpenSSH documentation)",
+                     difficulty=1),
+                dict(prompt="What tool is used to generate a new SSH key pair?",
+                     choices=[("`ssh-keygen`", True), ("`ssh-copy-id`", False),
+                              ("`ssh-agent`", False), ("`scp`", False)],
+                     explanation="ssh-keygen is the OpenSSH utility that creates a new public/private key pair, typically stored under ~/.ssh/. (Source: ssh-keygen(1) manual page)",
+                     difficulty=1),
+                dict(prompt="What does the `ssh-copy-id` command do?",
+                     choices=[("Copies your public key to a remote server's authorized_keys file automatically", True), ("Copies your private key to a remote server as a backup", False),
+                              ("Downloads the remote server's own public key onto your machine", False), ("Generates a brand-new SSH key pair directly on the remote server", False)],
+                     explanation="ssh-copy-id automates what would otherwise be manually appending your public key to the remote authorized_keys file. (Source: OpenSSH key deployment documentation)",
+                     difficulty=2),
+                dict(prompt="Why might you add a passphrase when generating an SSH key with `ssh-keygen`?",
+                     choices=[("To add a layer of protection so a stolen private key file alone isn't enough to authenticate", True), ("Because SSH key pairs are completely unusable without a passphrase set", False),
+                              ("To make the generated key pair automatically expire after 30 days", False), ("To allow the private key to be safely shared with other people", False)],
+                     explanation="A passphrase encrypts the private key at rest, so simply copying the key file isn't enough for an attacker to use it. (Source: OpenSSH/DigitalOcean SSH key documentation)",
+                     difficulty=2),
+
+                # Text processing
+                dict(prompt="What is `grep` primarily used for?",
+                     choices=[("Searching text for lines matching a pattern and printing them", True), ("Replacing matched text in place within a file", False),
+                              ("Sorting the lines of a file into alphabetical order", False), ("Counting the number of files inside a directory", False)],
+                     explanation="grep's whole job is pattern matching and printing matching lines — editing and sorting are what sed and sort are for. (Source: GNU Coreutils manual / grep documentation)",
+                     difficulty=1),
+                dict(prompt="What is `sed` primarily used for?",
+                     choices=[("Editing a stream of text according to a script of commands, e.g. find-and-replace", True), ("Searching for and listing only the lines that match a pattern", False),
+                              ("Compressing one or more files to save disk space", False), ("Displaying real-time CPU and memory usage statistics", False)],
+                     explanation="sed is a 'stream editor' — it transforms text as it flows through, most commonly for substitution, rather than just searching or reporting on it. (Source: GNU sed documentation)",
+                     difficulty=1),
+                dict(prompt="What is `awk` primarily designed for?",
+                     choices=[("Pattern scanning and processing text, especially column/field-based data", True), ("Managing user accounts and their file permissions", False),
+                              ("Scheduling recurring background tasks at fixed times", False), ("Establishing encrypted network connections between hosts", False)],
+                     explanation="awk is a full pattern-scanning and text-processing language built around splitting each line into fields, which grep and sed don't natively do. (Source: awk/sed/grep text processing documentation)",
+                     difficulty=2),
+                dict(prompt="What does the `cut` command do?",
+                     choices=[("Extracts selected columns or fields from each line of input", True), ("Deletes selected files from the current working directory", False),
+                              ("Splits one large file into several smaller output files", False), ("Removes trailing whitespace from the end of every line", False)],
+                     explanation="cut slices out specific character positions or delimiter-separated fields from each input line, commonly used after grep to isolate one column. (Source: GNU Coreutils manual)",
+                     difficulty=2),
+                dict(prompt="What does `wc -l` report about a file?",
+                     choices=[("The total number of lines in the file", True), ("The total number of words contained in the file", False),
+                              ("The file's total size measured in bytes", False), ("The number of distinct, non-duplicate lines in the file", False)],
+                     explanation="wc counts words, lines, and bytes by default; the -l flag narrows that down to just the line count. (Source: GNU Coreutils wc documentation)",
+                     difficulty=1),
+                dict(prompt="In the pipeline `cmd1 | cmd2`, what does the pipe character (`|`) actually do?",
+                     choices=[("Feeds cmd1's standard output directly into cmd2's standard input", True), ("Runs cmd1 and cmd2 at the same time with no data shared between them", False),
+                              ("Saves cmd1's output to a temporary file for cmd2 to read later", False), ("Runs cmd2 to completion first, then runs cmd1 afterward", False)],
+                     explanation="A pipe connects one process's stdout directly to the next process's stdin, without ever touching disk. (Source: shell pipeline documentation)",
+                     difficulty=1),
+                dict(prompt="Which of these are among the standard GNU coreutils text-processing tools? (select all that apply)",
+                     kind='multi',
+                     choices=[("`cut`", True), ("`wc`", True),
+                              ("`systemctl`", False), ("`ssh-keygen`", False)],
+                     explanation="cut and wc ship as part of GNU coreutils; systemctl belongs to systemd and ssh-keygen belongs to OpenSSH — different projects entirely. (Source: GNU Coreutils manual)",
+                     difficulty=2),
+
+                # Shell fundamentals: exit codes and redirection
+                dict(prompt="What range of numeric values can a Unix/Linux command's exit status take?",
+                     choices=[("0 to 255", True), ("-128 to 127", False),
+                              ("0 to 1 only", False), ("1 to 100", False)],
+                     explanation="Exit statuses are stored in a single byte's worth of range, 0 through 255, by shell convention. (Source: Bash exit codes documentation)",
+                     difficulty=2),
+                dict(prompt="What does an exit status of 0 conventionally mean for a shell command?",
+                     choices=[("The command completed successfully, with no error", True), ("The command is still running in the background", False),
+                              ("The command was forcibly killed by a signal", False), ("The command needs elevated permissions to proceed", False)],
+                     explanation="By near-universal shell convention, 0 means success and any nonzero value signals some kind of failure. (Source: Bash exit codes documentation)",
+                     difficulty=1),
+                dict(prompt="Which special shell variable holds the exit status of the most recently run command?",
+                     choices=[("`$?`", True), ("`$!`", False),
+                              ("`$#`", False), ("`$0`", False)],
+                     explanation="`$?` always expands to the previous command's exit status, which is how scripts check success/failure after each step. (Source: Bash documentation)",
+                     difficulty=1),
+                dict(prompt="What are the three standard file descriptors every process starts with, and their numbers?",
+                     choices=[("stdin (0), stdout (1), stderr (2)", True), ("stdin (1), stdout (2), stderr (3)", False),
+                              ("input (0), output (1), log (2)", False), ("stdin (0), stdout (0), stderr (0)", False)],
+                     explanation="File descriptor 0 is always stdin, 1 is stdout, and 2 is stderr — this numbering is what makes redirections like `2>&1` meaningful. (Source: shell redirection documentation)",
+                     difficulty=1),
+                dict(prompt="In `cmd > file.txt 2>&1`, what does the trailing `2>&1` do?",
+                     choices=[("Sends stderr to wherever stdout currently points, so both end up in file.txt", True), ("Sends stdout to wherever stderr currently points instead", False),
+                              ("Discards stderr entirely, keeping only stdout in the file", False), ("Merges stdin and stdout into a single combined stream", False)],
+                     explanation="Since stdout was just redirected to file.txt, `2>&1` afterward makes stderr follow it into the same file. (Source: Linuxize stderr redirection documentation)",
+                     difficulty=2),
+                dict(prompt="Why does the order of redirections matter, e.g. `cmd 2>&1 > file.txt` versus `cmd > file.txt 2>&1`?",
+                     choices=[("Redirections apply left to right, so `2>&1` before `> file.txt` sends stderr to the old stdout, not the file", True), ("Order never matters at all — both forms behave completely identically in every shell", False),
+                              ("The first form is always rejected outright as a syntax error and will never run", False), ("Only the very last redirection listed anywhere in a command has any real effect", False)],
+                     explanation="At the moment `2>&1` executes in the first form, stdout still points at the terminal, so stderr gets pinned there before stdout is later redirected to the file. (Source: shell redirection documentation)",
+                     difficulty=3),
              ]),
+    ),
+
+    # =========================================================================
+    # --- Book 6: Python: Advanced Concepts (compiled reference notes) ---
+    # =========================================================================
+
+    dict(book='python-advanced-concepts', slug='python-dicts-concurrency-internals', title='Python Advanced Concepts: Dictionaries, Concurrency & the Data Model',
+         topic=TOPIC_PYTHON, difficulty=2,
+         order=1, unlock_level=1,
+         summary='How CPython dicts actually store data under the hood, subprocess vs. multiprocessing vs. threading, and the rest of the language’s advanced machinery (GC, generators, decorators, descriptors, metaclasses, asyncio).',
+         concept=dict(
+            slug='python-advanced-internals', title='Dict Internals, Process/Thread Management & the Data Model',
+            source_note='Compiled reference notes: CPython dict internals (PEP 412); subprocess/multiprocessing/threading and the GIL; generators, decorators, context managers, descriptors, metaclasses, asyncio',
+            summary=(
+                "What a dict actually is under the hood, the three tiers of Python concurrency and when to reach "
+                "for each one, and the rest of the language's advanced data model."
+            ),
+            notes=[
+                dict(heading="Dictionaries: Storage Layout",
+                     body=(
+                        "A Python dict is a hash table, but since the CPython 3.6 'compact dict' redesign it's "
+                        "really two arrays working together: a sparse index array (a power-of-2-sized array of "
+                        "small integers, kept at roughly 1/3-2/3 load factor) and a dense entries array holding "
+                        "(hash, key, value) triples in strict insertion order with no gaps. Looking up d[key] "
+                        "hashes the key, uses the hash to pick a starting slot in the sparse array (index & mask), "
+                        "reads the dense-array index stored there, and compares the cached hash then the key "
+                        "itself. A mismatch triggers CPython's open-addressing probe sequence (not simple linear "
+                        "probing) until it finds either a match or an empty slot. Splitting storage this way is "
+                        "what makes iteration order match insertion order for free — you just walk the dense "
+                        "array — and it shrank per-entry memory overhead by roughly 20-25% versus the pre-3.6 "
+                        "design."
+                     ),
+                     deep_dive=dict(
+                        title="Key-sharing dicts (PEP 412) and why __slots__ saves even more",
+                        body=(
+                            "When many instances of the same class have identical attribute names, CPython can "
+                            "share one keys array across all of them and store only a per-instance values array — "
+                            "a major memory win for ordinary __dict__-based instances. __slots__ goes further: it "
+                            "removes the per-instance dict entirely in favor of a fixed-size C-level array, saving "
+                            "even more memory at the cost of dynamic attribute assignment."
+                        ),
+                     )),
+                dict(heading="Dictionaries: Resizing, Hashing & Memory",
+                     body=(
+                        "Resizes happen when the load factor crosses a threshold; CPython allocates a new sparse "
+                        "array and re-places entries from the dense array using their already-cached hashes (no "
+                        "rehashing needed). Because growth is geometric, not +1 each time, a single insertion is "
+                        "O(1) on average even though any individual insertion might trigger an O(n) rebuild. Only "
+                        "hashable objects can be keys — a stable __hash__ plus an __eq__ that agrees with it — "
+                        "which is exactly why mutable builtins like list and dict can't be keys: a key's hash "
+                        "changing after insertion would corrupt its own slot invariant. String and bytes hashes "
+                        "are salted per-process by default (SipHash, since Python 3.3) specifically to prevent "
+                        "hash-flooding attacks that degrade lookups toward O(n); this is also why dict iteration "
+                        "order with string keys can differ across separate process runs despite being stable "
+                        "within one run."
+                     )),
+                dict(heading="Dictionary Variants",
+                     body=(
+                        "collections.defaultdict supplies a factory function on missing-key access; "
+                        "collections.Counter specializes in counting hashables with arithmetic operators defined "
+                        "on the counts; collections.ChainMap layers several dicts as one logical view without "
+                        "copying; collections.OrderedDict predates 3.7's guaranteed ordering and is still useful "
+                        "for move_to_end() and order-sensitive equality; types.MappingProxyType wraps an existing "
+                        "dict as a read-only live view, which is how cls.__dict__ is exposed externally."
+                     )),
+                dict(heading="subprocess: Running External Programs",
+                     body=(
+                        "subprocess.run() is the modern blocking entry point, built on the lower-level Popen, "
+                        "which exposes .pid, .stdin/.stdout/.stderr as pipes, and .terminate()/.kill(). "
+                        "shell=False (the default) executes the program directly via an execve-family syscall "
+                        "with an argument list, avoiding shell parsing; shell=True runs the string through "
+                        "/bin/sh -c, which is a command-injection risk if any part of it comes from untrusted "
+                        "input. Writing to a Popen's pipes without using .communicate() risks a classic deadlock: "
+                        "the OS pipe buffer (commonly 64KB on Linux) fills, the child blocks writing more, and "
+                        "the parent blocks reading/writing in the wrong order — .communicate() avoids this with "
+                        "internal reader threads. A child that exits before its parent calls wait()/communicate() "
+                        "becomes a zombie process table entry until reaped."
+                     )),
+                dict(heading="multiprocessing: True Parallelism",
+                     body=(
+                        "The GIL lets only one thread execute Python bytecode at a time per process, so "
+                        "multiprocessing sidesteps it entirely with separate OS processes, each its own "
+                        "interpreter and memory space. The start method matters: fork (Linux/macOS default "
+                        "historically) copy-on-write clones the parent's memory instantly but can be unsafe with "
+                        "inherited threads/file descriptors; spawn (Windows and modern macOS default) boots a "
+                        "clean new interpreter and re-imports the target module, which is why Windows/spawn code "
+                        "needs an `if __name__ == \"__main__\":` guard; forkserver forks children from one clean "
+                        "server process forked early, as a safer middle ground. Since processes don't share "
+                        "memory, data crosses via Queue/Pipe (pickled through an OS pipe), Value/Array (shared "
+                        "ctypes memory with an optional Lock), Manager() (a separate process proxying Python "
+                        "objects), or multiprocessing.shared_memory for true unpickled shared buffers. Everything "
+                        "sent between processes must be picklable — lambdas and open file handles are common "
+                        "failure points."
+                     )),
+                dict(heading="threading: Concurrency Within One Process",
+                     body=(
+                        "Threads share memory and the GIL, so only one runs Python bytecode at an instant, but "
+                        "I/O operations (network calls, disk reads, time.sleep, many C-extension internals) "
+                        "release the GIL while waiting — which is why threading still helps I/O-bound workloads "
+                        "even though it can't parallelize CPU-bound ones. Even simple-looking operations like "
+                        "x += 1 aren't atomic at the bytecode level, so unsynchronized concurrent updates can "
+                        "still lose data despite the GIL preventing outright memory corruption; Lock/RLock, "
+                        "Condition, Event, Semaphore, and Barrier coordinate this. concurrent.futures."
+                        "ThreadPoolExecutor is the modern high-level layer over raw threading. PEP 703 introduced "
+                        "an experimental free-threaded (no-GIL) CPython build starting around 3.13, an active "
+                        "area of change."
+                     )),
+                dict(heading="Memory Management & the Garbage Collector",
+                     body=(
+                        "Every object is reference-counted and deallocated immediately, deterministically, once "
+                        "its count hits zero. Reference cycles (two objects referencing each other) can't be "
+                        "freed by refcounting alone, so a separate generational garbage collector (3 generations, "
+                        "young objects collected most often) handles those; gc.collect() forces a pass. CPython's "
+                        "own small-object allocator, pymalloc, handles allocations under roughly 512 bytes in "
+                        "arenas/pools/blocks to avoid calling the system malloc for every tiny object."
+                     )),
+                dict(heading="Generators, Decorators & Context Managers",
+                     body=(
+                        "A generator function (using yield) implements the iterator protocol (__iter__/__next__) "
+                        "automatically, suspending and resuming a saved frame at each yield for lazy, on-demand "
+                        "evaluation — critical for memory usage on large or infinite sequences. yield from "
+                        "delegates to a sub-generator and enables .send()/.throw() two-way communication, the "
+                        "mechanism early asyncio built coroutines on before async/await syntax existed. A "
+                        "decorator is a higher-order function wrapping another function/class for cross-cutting "
+                        "concerns like logging or caching (functools.wraps preserves the original's metadata); "
+                        "functools.lru_cache is a decorator-based memoization cache using a doubly linked list "
+                        "plus a dict for O(1) LRU eviction. The `with` statement relies on the context manager "
+                        "protocol (__enter__/__exit__, the latter able to suppress an exception by returning "
+                        "truthy); contextlib.contextmanager lets you write one as a single-yield generator "
+                        "instead of a full class."
+                     )),
+                dict(heading="Descriptors, Metaclasses & asyncio",
+                     body=(
+                        "A descriptor implements __get__/__set__/__delete__ to customize attribute access when "
+                        "placed as a class attribute — property, staticmethod, and classmethod are all built on "
+                        "this. A metaclass (default: type) is 'the class of a class'; defining a class with "
+                        "metaclass=Meta lets Meta intercept class creation itself, which is how Django's ORM and "
+                        "abc.ABCMeta work under the hood. asyncio runs a single-threaded event loop that "
+                        "schedules coroutines cooperatively yielding at await points (usually I/O), scaling to "
+                        "thousands of concurrent connections without per-thread OS overhead — but calling a "
+                        "blocking synchronous function inside a coroutine blocks the entire event loop, a common "
+                        "correctness pitfall best fixed with async-native libraries or loop.run_in_executor()."
+                     )),
+            ],
+            questions=[
+                dict(prompt="Since the CPython 3.6 'compact dict' redesign, what two structures does a dict's internal storage split into?",
+                     choices=[("A sparse index array of small integers, and a dense array of (hash, key, value) triples in insertion order", True),
+                              ("Two identical hash tables kept in sync for redundancy", False),
+                              ("A B-tree of keys and a separate linked list of values", False),
+                              ("A single flat array of key-value pairs sorted by hash", False)],
+                     explanation="The sparse array maps hash slots to positions in the dense array, which is what lets iteration order match insertion order for free.",
+                     difficulty=2),
+                dict(prompt="Why does splitting a dict into a sparse index array and a dense entries array make iteration order match insertion order?",
+                     choices=[("Iterating just walks the dense array, which is already in insertion order since entries are appended there directly", True),
+                              ("Python re-sorts the dict alphabetically before every iteration", False),
+                              ("It doesn't — dict order is still random even in modern CPython", False),
+                              ("The sparse array is what gets iterated, and it happens to be insertion-ordered", False)],
+                     explanation="The dense array holds entries contiguously in the order they were inserted; the sparse array is only used for hashing to a position, not for iteration.",
+                     difficulty=2),
+                dict(prompt="What happens on a dict lookup when the initial slot's stored hash doesn't match the key being looked up?",
+                     choices=[("CPython immediately raises KeyError with no further checking", False),
+                              ("CPython follows an open-addressing probe sequence to check subsequent slots until it finds a match or an empty slot", True),
+                              ("The dict automatically resizes on every single mismatch", False),
+                              ("CPython falls back to a linear scan of every key in the dict", False)],
+                     explanation="A hash collision triggers CPython's specific probing scheme (not simple linear probing) rather than an immediate failure or full scan.",
+                     difficulty=2),
+                dict(prompt="Why can't a plain Python list be used as a dict key?",
+                     choices=[("Lists are too large to hash efficiently", False),
+                              ("Lists are mutable, so their contents (and thus their hash) could change after insertion, corrupting the key's slot invariant", True),
+                              ("Only numeric types can ever be dict keys", False),
+                              ("Dicts technically allow it, but silently ignore list keys", False)],
+                     explanation="If a key's hash changed after it was placed in a slot, the dict would no longer be able to find it — mutability and hashability are fundamentally incompatible.",
+                     difficulty=2),
+                dict(prompt="Why are Python string hashes randomized (salted) per process by default since Python 3.3?",
+                     choices=[("To make dicts use less memory", False),
+                              ("To prevent hash-flooding denial-of-service attacks where crafted keys deliberately collide and degrade lookups toward O(n)", True),
+                              ("To guarantee dict iteration order is always alphabetical", False),
+                              ("It's a leftover from Python 2 with no current purpose", False)],
+                     explanation="SipHash-based per-process salting means an attacker can't precompute colliding keys in advance, which is exactly the hash-flooding attack it defends against.",
+                     difficulty=3),
+                dict(prompt="What does the 'key-sharing dictionary' optimization (PEP 412) do?",
+                     choices=[("It compresses dict values to save disk space", False),
+                              ("It lets many instances of the same class share one keys array in memory, storing only a per-instance values array", True),
+                              ("It shares one dict object across multiple threads for thread safety", False),
+                              ("It merges two dicts into one when their keys overlap", False)],
+                     explanation="When many instances of a class have the same attribute names, sharing the keys array is a substantial memory win over each instance holding a full independent dict.",
+                     difficulty=3),
+                dict(prompt="Which of the following are true about `collections.defaultdict`, `Counter`, and `ChainMap`? (select all that apply)",
+                     kind='multi',
+                     choices=[("`defaultdict` calls a factory function automatically on missing-key access", True),
+                              ("`Counter` supports arithmetic operators like `+` and `-` directly on counts", True),
+                              ("`ChainMap` layers multiple dicts as one view without copying or merging them", True),
+                              ("All three eagerly copy and merge their source dicts into one new dict at creation time", False)],
+                     explanation="All three avoid the corresponding manual boilerplate — missing-key checks, count bookkeeping, and dict merging — without extra copying (except where the dict itself is mutated).",
+                     difficulty=2),
+                dict(prompt="Why does the CPython GIL exist in the first place?",
+                     choices=[("To make single-threaded code run faster", False),
+                              ("Because CPython's reference-counting memory management isn't thread-safe by default, so a single mutex prevents concurrent refcount corruption", True),
+                              ("To prevent programs from using more than one CPU core for any reason", False),
+                              ("It's required by the Python language specification itself", False)],
+                     explanation="Without the GIL, concurrent increments/decrements of an object's refcount from multiple threads could race and corrupt object lifetimes.",
+                     difficulty=2),
+                dict(prompt="Why does `threading` still help with I/O-bound workloads despite the GIL?",
+                     choices=[("Threading doesn't actually help I/O-bound workloads at all", False),
+                              ("I/O operations release the GIL while waiting, letting other threads run Python bytecode during that wait", True),
+                              ("The GIL only applies to CPU-bound code, never to I/O", False),
+                              ("Each thread gets its own separate GIL", False)],
+                     explanation="A blocked network call or disk read releases the GIL, so other threads get real concurrency during that wait even though only one thread ever executes Python bytecode at a time.",
+                     difficulty=2),
+                dict(prompt="What is the key architectural difference between `multiprocessing` and `threading`?",
+                     choices=[("They are two names for the exact same underlying mechanism", False),
+                              ("multiprocessing uses separate OS processes with independent memory (bypassing the GIL); threading uses threads sharing one process's memory (subject to the GIL)", True),
+                              ("threading is always faster than multiprocessing for every kind of workload", False),
+                              ("multiprocessing can only be used for network I/O, never CPU-bound work", False)],
+                     explanation="Separate processes mean separate interpreters and memory spaces, which is what lets multiprocessing achieve true multi-core parallelism that threading cannot for CPU-bound code.",
+                     difficulty=1),
+                dict(prompt="On Windows, why does `multiprocessing` code typically require an `if __name__ == \"__main__\":` guard?",
+                     choices=[("It's just a stylistic convention with no functional effect", False),
+                              ("The default 'spawn' start method boots a fresh interpreter and re-imports the target module, so top-level code would otherwise re-run in every child process", True),
+                              ("Windows doesn't support multiprocessing without this guard", False),
+                              ("The guard is only needed when using threading, not multiprocessing", False)],
+                     explanation="Without the guard, re-importing the module in each spawned child would re-execute any top-level process-creation code, potentially spawning processes recursively.",
+                     difficulty=3),
+                dict(prompt="Why must objects passed between processes in `multiprocessing` (via Queue, Pool, etc.) be picklable?",
+                     choices=[("Because separate processes don't share memory, so data must be serialized to cross between them", True),
+                              ("Pickling is only a performance optimization, not a requirement", False),
+                              ("Only numeric data can ever be sent between processes", False),
+                              ("Picklability is required for threading too, not just multiprocessing", False)],
+                     explanation="Unlike threads, processes have independent memory spaces, so any data crossing between them (arguments, return values, queue items) must be serialized and deserialized.",
+                     difficulty=2),
+                dict(prompt="What is the risk of writing to a `subprocess.Popen`'s stdout/stderr pipes without using `.communicate()`?",
+                     choices=[("There is no risk — pipes have unlimited buffer size", False),
+                              ("A deadlock: the OS pipe buffer can fill, blocking the child, while the parent is also blocked reading/writing in the wrong order", True),
+                              ("The subprocess module will raise an ImportError", False),
+                              ("The child process will silently ignore all output", False)],
+                     explanation="`.communicate()` uses internal reader threads specifically to avoid this classic deadlock pattern around fixed-size OS pipe buffers.",
+                     difficulty=3),
+                dict(prompt="What does a Python generator function (using `yield`) provide that a regular function returning a list does not?",
+                     choices=[("Faster execution in every case, with no other difference", False),
+                              ("Lazy, on-demand evaluation — values are computed one at a time instead of all being materialized in memory upfront", True),
+                              ("Automatic parallel execution across multiple CPU cores", False),
+                              ("Guaranteed thread-safety with no locking needed", False)],
+                     explanation="A generator suspends execution at each `yield` and resumes on the next `next()` call, which is what enables streaming large or infinite sequences without holding them all in memory.",
+                     difficulty=1),
+                dict(prompt="What is a Python descriptor?",
+                     choices=[("A type hint used only for static analysis, with no runtime effect", False),
+                              ("Any object implementing `__get__`, `__set__`, or `__delete__`, used to customize attribute access when placed as a class attribute", True),
+                              ("A special kind of comment describing what a function does", False),
+                              ("A synonym for a Python decorator", False)],
+                     explanation="`property`, `staticmethod`, and `classmethod` are all built on the descriptor protocol — it's the general mechanism behind customized attribute access.",
+                     difficulty=3),
+                dict(prompt="What does a Python metaclass do?",
+                     choices=[("It defines default values for a class's instance attributes", False),
+                              ("It is 'the class of a class' — it intercepts and can customize how the class object itself is constructed", True),
+                              ("It is just another name for a base class in inheritance", False),
+                              ("It controls only how instances are printed with `repr()`", False)],
+                     explanation="By default a class's metaclass is `type`; supplying a custom metaclass lets you hook into class creation itself, which is how frameworks like Django's ORM and `abc.ABCMeta` work.",
+                     difficulty=3),
+                dict(prompt="Why does calling a blocking, synchronous function inside an `async def` coroutine cause problems in `asyncio`?",
+                     choices=[("It raises a SyntaxError immediately", False),
+                              ("It blocks the entire single-threaded event loop, preventing every other coroutine from making progress until it returns", True),
+                              ("asyncio automatically runs it in a background thread with no code changes needed", False),
+                              ("It has no effect since `async def` functions ignore blocking calls", False)],
+                     explanation="asyncio's concurrency model depends on coroutines voluntarily yielding at `await` points; a blocking call never yields, so it stalls the whole loop until it finishes.",
+                     difficulty=2),
+            ]),
+    ),
+
+    # =========================================================================
+    # --- Book 7: Operating Systems: File Handling & Systems Programming ---
+    # =========================================================================
+
+    dict(book='os-file-handling-systems', slug='os-file-handling-access-storage', title='File Handling: Access Management, Permissions & Storage',
+         topic=TOPIC_OS, difficulty=2,
+         order=2, unlock_level=1,
+         summary='How files are actually represented (inodes, file descriptors), how chmod/octal permissions and special bits work, how PIDs and open files relate, and how filesystem storage is organized underneath.',
+         concept=dict(
+            slug='os-file-handling-permissions-storage', title='Inodes, Permissions, PIDs & Filesystem Storage',
+            source_note='Compiled reference notes: inodes & file descriptors; chmod octal permission math and special bits; PIDs and process/file relationships; filesystem storage internals',
+            summary=(
+                "What a file actually is beneath its name, exactly how a chmod digit like 754 is built from "
+                "r/w/x bits, how PIDs and open files relate, and how filesystems organize storage underneath."
+            ),
+            notes=[
+                dict(heading="Inodes: What a File Actually Is",
+                     body=(
+                        "Every file and directory on a Unix-like system is represented by an inode — a fixed-"
+                        "size metadata record holding the file type, owner UID/GID, permission bits, size, "
+                        "timestamps (atime/mtime/ctime — ctime is last metadata change, not creation time), a "
+                        "link count, and pointers to the actual data blocks. Critically, the inode does not "
+                        "store the filename — that lives in a directory entry mapping name to inode number. "
+                        "This is why multiple names (hard links) can point at the same inode with no 'original' "
+                        "vs 'copy' distinction, and why renaming within the same filesystem is a cheap directory-"
+                        "only operation while moving across filesystems requires a real copy (inode numbers are "
+                        "only unique within one filesystem)."
+                     ),
+                     deep_dive=dict(
+                        title="Why a 'deleted' file a process still has open doesn't free its space yet",
+                        body=(
+                            "`unlink()` (what `rm` does) only removes the directory entry and decrements the "
+                            "inode's link count. If a process still has the file open, the inode and its data "
+                            "blocks aren't actually freed until that last file descriptor closes — which is why "
+                            "a program can keep writing to a file that `ls` no longer shows, and why disk space "
+                            "isn't reclaimed until the process exits (`lsof | grep deleted` finds this situation)."
+                        ),
+                     )),
+                dict(heading="File Descriptors and the Open File Table",
+                     body=(
+                        "Opening a file involves three layers: a small per-process integer, the file descriptor "
+                        "(0/1/2 are stdin/stdout/stderr by convention), indexing into a table private to that "
+                        "process; a system-wide open file description tracking the current read/write offset and "
+                        "access mode; and the inode itself, shared by every open file description referencing it. "
+                        "After fork(), parent and child share open file descriptions (and thus offsets) for FDs "
+                        "that existed at fork time, while two independent open() calls on the same path get "
+                        "separate offsets even though they reference the same inode. dup()/dup2() create a new "
+                        "FD pointing at the same open file description, sharing its offset — different from "
+                        "opening the same path twice."
+                     )),
+                dict(heading="Permissions: Classes, Types & the Octal Digit",
+                     body=(
+                        "Every file has three permission classes — owner, group, others — each with read (r), "
+                        "write (w), and execute (x). Treating r/w/x as a 3-bit binary number gives each class a "
+                        "single octal digit: read=4, write=2, execute=1, summed for whichever bits are set. So "
+                        "rwxr-xr-- becomes owner=7 (4+2+1), group=5 (4+0+1), other=4 (4+0+0), combined as chmod "
+                        "754. Every chmod digit is built exactly this way — 6 is read+write, 5 is read+execute, "
+                        "3 is write+execute, and so on — which is why chmod numbers are always the same 3-digit "
+                        "pattern regardless of which permissions are actually being set. For a directory, read "
+                        "means listing its entries and execute means being able to cd into it or traverse to a "
+                        "file inside by exact path — distinct capabilities, not synonyms."
+                     )),
+                dict(heading="Special Permission Bits: setuid, setgid, sticky",
+                     body=(
+                        "A 4th, leading chmod digit (e.g. chmod 4755) encodes special bits, also bit-weighted: "
+                        "4 is setuid — an executable runs with the file owner's privileges rather than the "
+                        "invoking user's (classic example: /usr/bin/passwd running as root so any user can "
+                        "update /etc/shadow); 2 is setgid — on an executable it runs with the file's group "
+                        "privileges, and on a directory new files inside inherit that directory's group instead "
+                        "of the creator's; 1 is the sticky bit — on a directory it restricts deletion of files "
+                        "inside to their owner (or root) even if others have write access, which is exactly how "
+                        "/tmp (mode 1777) lets anyone create files but not delete each other's. `ls -l` shows "
+                        "these as a lowercase s/t in the execute position when execute is also set, uppercase "
+                        "S/T when it isn't."
+                     )),
+                dict(heading="chmod, chown & umask in Practice",
+                     body=(
+                        "chmod 644 file.txt sets exact bits (rw-r--r--), discarding whatever was there; symbolic "
+                        "mode (chmod u+x,g-w,o=r) makes relative changes without needing to know the full current "
+                        "mode. chown user:group file changes owner and group together (typically root-only); "
+                        "chgrp changes only the group, allowed to the owner if they belong to the target group. "
+                        "umask sets the default permissions stripped from every newly created file/directory — a "
+                        "umask of 022 yields 644 for new files and 755 for new directories, since 022 clears the "
+                        "group/other write bit from a base of 666/777."
+                     )),
+                dict(heading="PIDs, Process Trees & the /proc Filesystem",
+                     body=(
+                        "Every running process gets a unique PID from the kernel, reused after the process exits "
+                        "and the value cycles around, drawn from a range capped by /proc/sys/kernel/pid_max. PID "
+                        "1 (traditionally init, now usually systemd) bootstraps userspace and reaps orphaned "
+                        "processes whose original parent exited before they did. On Linux, /proc/<pid>/fd/ is a "
+                        "directory of symlinks, one per open file descriptor, showing exactly what that running "
+                        "process has open — a regular file, socket, pipe, or /dev/null — which is how tools like "
+                        "lsof inspect a live process's open files without special syscalls. A zombie is a "
+                        "terminated process whose exit status hasn't been collected via wait() yet; it still "
+                        "occupies a process table slot (with a PID) until reaped."
+                     ),
+                     deep_dive=dict(
+                        title="File descriptor inheritance across fork() and exec()",
+                        body=(
+                            "fork() duplicates the entire file descriptor table, so child FDs point at the same "
+                            "open file descriptions (and offsets) as the parent. exec() replaces a process's "
+                            "program image in place, by default preserving open FDs unless they're marked "
+                            "close-on-exec (FD_CLOEXEC). This combination is exactly how a shell implements "
+                            "`command > file.txt`: it opens the file, dup2()s it onto FD 1, then execs the "
+                            "target command, which transparently inherits the redirected stdout."
+                        ),
+                     )),
+                dict(heading="Filesystem Storage: Blocks, Superblocks & Journaling",
+                     body=(
+                        "Storage devices expose fixed-size sectors, and the filesystem groups these into blocks "
+                        "(commonly 4KB on ext4) — the true allocation unit, so even a 1-byte file consumes a "
+                        "full block. A superblock holds filesystem-wide metadata (block/inode counts, block "
+                        "size, clean/dirty state); the inode table holds every inode (pre-allocated in older "
+                        "designs, which is why a filesystem can run out of inodes despite having free bytes); "
+                        "and modern filesystems (ext4, XFS, Btrfs) use extents — a (start_block, length) pair — "
+                        "instead of per-block pointer lists, cutting metadata size and fragmentation for large "
+                        "files. Journaling logs pending metadata changes so a crash mid-write can be replayed or "
+                        "rolled back on reboot instead of requiring a full filesystem scan."
+                     )),
+                dict(heading="Page Cache, fsync() & Advisory File Locking",
+                     body=(
+                        "Writes typically land in the kernel's page cache (memory) first, not immediately on "
+                        "physical storage — a completed write() only guarantees the data is in kernel memory "
+                        "unless the application calls fsync() (flush data+metadata, wait for confirmation) or "
+                        "the lighter fdatasync(). This is why an application can 'successfully' write data that "
+                        "is then lost on sudden power loss if it never calls fsync(). Because multiple processes "
+                        "can open the same inode concurrently, flock() (whole-file, tied to the open file "
+                        "description) and fcntl() record locks (byte-range, tied to process+inode) coordinate "
+                        "access — both are advisory, meaning the kernel doesn't force an uncooperative process "
+                        "to respect them, unlike rarely-used mandatory locking."
+                     )),
+            ],
+            questions=[
+                dict(prompt="Where does a file's name actually live, given that the inode doesn't store it?",
+                     choices=[("In a directory entry that maps a name to an inode number", True),
+                              ("Inside the inode's data blocks alongside the file's content", False),
+                              ("In the filesystem's superblock", False),
+                              ("Filenames aren't stored anywhere — they're computed from the inode number", False)],
+                     explanation="The inode holds metadata and data-block pointers, but the name-to-inode mapping lives in the directory that contains the file — which is exactly what makes hard links possible.",
+                     difficulty=2),
+                dict(prompt="Why does deleting one hard link to a file not necessarily free its disk space?",
+                     choices=[("Hard links can't actually be deleted at all", False),
+                              ("The underlying inode is only freed once its link count reaches zero AND no process still has it open", True),
+                              ("Deleting a hard link always corrupts the filesystem", False),
+                              ("Hard links each have their own separate copy of the data", False)],
+                     explanation="Multiple directory entries (hard links) can reference the same inode; the data is only reclaimed when the last reference — link or open file descriptor — goes away.",
+                     difficulty=2),
+                dict(prompt="A file is `rm`'d while a process still has it open. What happens to that process's ability to keep using the file?",
+                     choices=[("The process immediately gets an error on its next read/write", False),
+                              ("The process can keep reading/writing normally — the inode and data blocks stay allocated until the last open file descriptor closes", True),
+                              ("The file is instantly and irrecoverably destroyed for all processes", False),
+                              ("The OS automatically renames the file to prevent this from happening", False)],
+                     explanation="`unlink()` only removes the directory entry; a process with the file already open retains access via its file descriptor until it closes it.",
+                     difficulty=3),
+                dict(prompt="What permission does the numeric mode `754` grant?",
+                     choices=[("Owner: read+write+execute; Group: read+execute; Other: read-only", True),
+                              ("Owner: read-only; Group: read+write+execute; Other: read+execute", False),
+                              ("Owner: read+write; Group: read+write; Other: execute-only", False),
+                              ("Full access for everyone", False)],
+                     explanation="7 = 4(r)+2(w)+1(x) for the owner, 5 = 4(r)+0+1(x) for the group, 4 = 4(r)+0+0 for others.",
+                     difficulty=1),
+                dict(prompt="Which single sum of weights produces the octal digit 6 in a chmod permission?",
+                     choices=[("read (4) + write (2), with no execute", True),
+                              ("write (2) + execute (1), with no read", False),
+                              ("read (4) + execute (1), with no write", False),
+                              ("read (4) + write (2) + execute (1)", False)],
+                     explanation="Each permission type has a fixed weight — read=4, write=2, execute=1 — and the digit is just the sum of whichever are present; 4+2=6 is read+write with no execute.",
+                     difficulty=1),
+                dict(prompt="What does `chmod u+x,g-w,o=r file.txt` do, compared to `chmod 644 file.txt`?",
+                     choices=[("They are exactly equivalent in every case", False),
+                              ("The symbolic form makes relative changes to whatever mode already existed; the numeric form sets an exact, absolute mode regardless of what was there before", True),
+                              ("The symbolic form only works on directories, never on files", False),
+                              ("The numeric form can only remove permissions, never add them", False)],
+                     explanation="Symbolic mode (`+`/`-`/`=` with `u`/`g`/`o`) adjusts relative to the current permissions; a numeric mode like `644` always sets the exact final bits, discarding the prior mode entirely.",
+                     difficulty=2),
+                dict(prompt="What does the setuid bit do when set on an executable file?",
+                     choices=[("It prevents the file from ever being executed", False),
+                              ("The process runs with the privileges of the file's owner, rather than the user who invoked it", True),
+                              ("It makes the file read-only for everyone including the owner", False),
+                              ("It automatically encrypts the file's contents", False)],
+                     explanation="The classic example is /usr/bin/passwd, owned by root with setuid set, so an unprivileged user running it can still update the privileged /etc/shadow file.",
+                     difficulty=2),
+                dict(prompt="Why is the sticky bit set on `/tmp` (mode 1777)?",
+                     choices=[("So that no one, including root, can ever delete files there", False),
+                              ("So that any user can create files in /tmp, but only that file's owner (or root) can delete or rename it, even though /tmp is world-writable", True),
+                              ("So that /tmp automatically empties itself every reboot", False),
+                              ("So that files in /tmp always run with root privileges", False)],
+                     explanation="Without the sticky bit, world-writable would also mean anyone could delete or rename anyone else's files in that directory — the sticky bit specifically closes that gap.",
+                     difficulty=2),
+                dict(prompt="Which of the following are true about the special (4th) chmod digit? (select all that apply)",
+                     kind='multi',
+                     choices=[("setuid has weight 4", True),
+                              ("setgid has weight 2", True),
+                              ("the sticky bit has weight 1", True),
+                              ("the special digit replaces the need for the other 3 permission digits entirely", False)],
+                     explanation="setuid=4, setgid=2, sticky=1 — the same bit-weighted-sum pattern as the r/w/x digits, but it's an additional leading digit, not a replacement for the owner/group/other digits.",
+                     difficulty=2),
+                dict(prompt="What is the difference between `chmod` and `chown`?",
+                     choices=[("They are two names for the same command", False),
+                              ("`chmod` changes what actions (read/write/execute) are permitted; `chown` changes who the owner and/or group are", True),
+                              ("`chown` only works on directories, never on files", False),
+                              ("`chmod` changes ownership; `chown` changes permission bits", False)],
+                     explanation="`chmod` controls the permission bits themselves; `chown` controls the UID/GID that those bits are evaluated against.",
+                     difficulty=1),
+                dict(prompt="With a umask of `022`, what default permissions do newly created files and directories get?",
+                     choices=[("Files: 644, Directories: 755", True),
+                              ("Files: 666, Directories: 777 (umask has no effect)", False),
+                              ("Files: 022, Directories: 022", False),
+                              ("Files: 755, Directories: 644", False)],
+                     explanation="umask is subtracted from the base 666 (files) / 777 (directories); 022 strips the group/other write bit, giving 644 for files and 755 for directories.",
+                     difficulty=3),
+                dict(prompt="What is a zombie process?",
+                     choices=[("A process that is consuming excessive CPU in an infinite loop", False),
+                              ("A terminated process whose exit status hasn't yet been collected by its parent via wait(), so it still occupies a process table slot", True),
+                              ("A process that has been forcibly killed with SIGKILL", False),
+                              ("A process running with no assigned PID", False)],
+                     explanation="A zombie has already finished executing — it consumes no CPU or memory beyond its process table entry — and is cleared once the parent reaps its exit status.",
+                     difficulty=2),
+                dict(prompt="What does `/proc/<pid>/fd/` show on a Linux system?",
+                     choices=[("The source code of the running process", False),
+                              ("Symlinks, one per open file descriptor, showing exactly what that process currently has open", True),
+                              ("A list of every process that PID has ever spawned", False),
+                              ("The process's CPU and memory usage history", False)],
+                     explanation="This is the live, inspectable link between a running process and the files/sockets/pipes it has open, which is how tools like `lsof` work.",
+                     difficulty=2),
+                dict(prompt="After `fork()`, what do the parent and child processes share with respect to file descriptors that existed before the fork?",
+                     choices=[("Nothing — the child starts with a completely empty file descriptor table", False),
+                              ("The same open file descriptions, including the current read/write offset", True),
+                              ("Only the file descriptor numbers, but with entirely independent offsets", False),
+                              ("File descriptors are automatically closed in the child after fork()", False)],
+                     explanation="fork() duplicates the FD table itself, but the duplicated FDs still point at the same underlying open file descriptions as the parent, so they share offsets.",
+                     difficulty=3),
+                dict(prompt="Why can a filesystem run out of usable space for new files even while `df` shows free bytes available?",
+                     choices=[("This can never actually happen", False),
+                              ("The filesystem's pre-allocated inode table can be exhausted by a huge number of tiny files, even with free data blocks remaining", True),
+                              ("Free bytes shown by `df` always includes reserved space that can never be used", False),
+                              ("Only Windows filesystems have this limitation", False)],
+                     explanation="Traditional filesystem designs pre-allocate a fixed number of inodes at creation time; running out of inodes (`df -i`) is a distinct failure mode from running out of data blocks.",
+                     difficulty=3),
+                dict(prompt="Why might a program's `write()` call succeed, yet the data still be lost after a sudden power failure?",
+                     choices=[("write() always writes directly to physical storage with no exceptions", False),
+                              ("The write was buffered in the kernel's page cache and never flushed to durable storage with fsync() before the power loss", True),
+                              ("This can only happen with network filesystems, never local disks", False),
+                              ("write() calls are purely cosmetic and never actually persist data", False)],
+                     explanation="A successful write() only guarantees the data reached kernel memory (the page cache); durability requires an explicit fsync()/fdatasync() to force it to the physical device.",
+                     difficulty=2),
+                dict(prompt="What does it mean that `flock()` and `fcntl()` record locks are 'advisory'?",
+                     choices=[("They are enforced automatically by the filesystem for every process, no exceptions", False),
+                              ("The kernel does not stop an uncooperative process from ignoring the lock and accessing the file anyway — it's a cooperative protocol", True),
+                              ("They only work on network filesystems", False),
+                              ("They are deprecated and no longer functional on modern Linux", False)],
+                     explanation="Advisory locking relies on every participating process choosing to check the lock; a process that ignores the API entirely can still read/write the file, unlike (rarely used) mandatory locking.",
+                     difficulty=3),
+            ]),
     ),
 ]
 
@@ -2383,11 +3562,19 @@ class Command(BaseCommand):
         book3, _ = Book.objects.update_or_create(slug=BOOK3['slug'], defaults=BOOK3)
         book4, _ = Book.objects.update_or_create(slug=BOOK4['slug'], defaults=BOOK4)
         book5, _ = Book.objects.update_or_create(slug=BOOK5['slug'], defaults=BOOK5)
+        book6, _ = Book.objects.update_or_create(slug=BOOK6['slug'], defaults=BOOK6)
+        book7, _ = Book.objects.update_or_create(slug=BOOK7['slug'], defaults=BOOK7)
         books = {
             'system-design-interview-xu': book1, 'grokking-system-design': book2,
             'database-internals': book3, 'designing-data-intensive-apps': book4,
-            'linux-pocket-guide': book5,
+            'linux-pocket-guide': book5, 'python-advanced-concepts': book6,
+            'os-file-handling-systems': book7,
         }
+
+        topics = {}
+        for t_data in TOPICS:
+            topic, _ = Topic.objects.update_or_create(slug=t_data['slug'], defaults=t_data)
+            topics[t_data['slug']] = topic
 
         chapter_count = 0
         concept_count = 0
@@ -2397,11 +3584,13 @@ class Command(BaseCommand):
 
         for ch_data in CHAPTERS:
             book = books[ch_data['book']]
+            topic = topics[ch_data['topic']]
             chapter, _ = Chapter.objects.update_or_create(
                 book=book, slug=ch_data['slug'],
                 defaults=dict(
                     title=ch_data['title'], order=ch_data['order'],
                     unlock_level=ch_data['unlock_level'], summary=ch_data['summary'],
+                    topic=topic, difficulty=ch_data['difficulty'],
                 ),
             )
             chapter_count += 1
@@ -2423,7 +3612,7 @@ class Command(BaseCommand):
             concept.questions.all().delete()
             for q_data in c_data['questions']:
                 question = Question.objects.create(
-                    concept=concept, kind=Question.MCQ, prompt=q_data['prompt'],
+                    concept=concept, kind=q_data.get('kind', Question.MCQ), prompt=q_data['prompt'],
                     explanation=q_data.get('explanation', ''),
                     difficulty=q_data.get('difficulty', 1),
                 )
@@ -2450,7 +3639,7 @@ class Command(BaseCommand):
         ensure_badges_exist()
 
         self.stdout.write(self.style.SUCCESS(
-            f'Seeded {len(books)} books, {chapter_count} chapters, '
+            f'Seeded {len(books)} books, {len(topics)} topics, {chapter_count} chapters, '
             f'{concept_count} concepts, {question_count} questions. '
             f'Removed {stale_chapter_count} stale chapters, {stale_concept_count} stale concepts.'
         ))
