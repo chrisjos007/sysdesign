@@ -1,106 +1,136 @@
 {% extends "learn/base.html" %}
 {% block title %}{{ challenge.title }} — Matching{% endblock %}
 {% block content %}
-<a href="{% url 'learn:concept_detail' challenge.concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ challenge.concept.title }}</a>
-<h1 class="text-2xl font-bold mt-2 mb-1">🧩 {{ challenge.title }}</h1>
-<p class="text-slate-400 mb-6 text-sm">{{ challenge.instructions }} Correct matches score points, wrong ones cost points — so drag deliberately. Click a filled slot to clear it and try again.</p>
+<header class="page-head">
+    <h1>{{ challenge.title }}</h1>
+    {% if challenge.instructions %}<p class="page-head__lede">{{ challenge.instructions }}</p>{% endif %}
+</header>
+
+<p class="howto"><strong>How to play:</strong> drag a definition onto its term, or tap a definition and then tap the term. Tap a filled slot to clear it. Correct matches score points and wrong ones cost points, so match deliberately.</p>
 
 {% if result %}
-<div class="mb-6 rounded-xl border p-5 {% if result.is_perfect %}border-emerald-700 bg-emerald-950/40{% elif result.score >= 0 %}border-amber-700 bg-amber-950/30{% else %}border-red-700 bg-red-950/40{% endif %}">
-    <div class="font-bold text-lg mb-2">
-        {% if result.is_perfect %}🧩 Perfect match! +{{ result.xp_awarded }} XP{% else %}Score: {{ result.score }} pts (+{{ result.xp_awarded }} XP){% endif %}
+<section class="card verdict verdict--{% if result.is_perfect %}right{% elif result.score >= 0 %}partial{% else %}wrong{% endif %}" aria-live="polite">
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use href="#{% if result.is_perfect %}i-check{% elif result.score >= 0 %}i-match{% else %}i-x{% endif %}"/></svg></span>
+            {% if result.is_perfect %}Perfect match{% else %}<span class="num">{{ result.score }}</span>&nbsp;points{% endif %}
+            <span class="verdict__xp num">+{{ result.xp_awarded }} XP</span>
+        </div>
+        <ul class="verdict__list">
+            {% if result.detail.correct_terms %}<li><svg class="icon icon--sm is-right"><use href="#i-check"/></svg><span>Correct: {{ result.detail.correct_terms|join:", " }}</span></li>{% endif %}
+            {% if result.detail.wrong_terms %}<li><svg class="icon icon--sm is-wrong"><use href="#i-x"/></svg><span>Wrong: {{ result.detail.wrong_terms|join:", " }}</span></li>{% endif %}
+        </ul>
+        {% include "learn/_verdict_extras.html" %}
+        <div><a href="{% url 'learn:matching_challenge' challenge.slug %}" class="btn btn--quiet btn--sm"><svg class="icon icon--sm"><use href="#i-retry"/></svg> Try again</a></div>
     </div>
-    <div class="text-sm text-slate-300">✅ Correct: {{ result.detail.correct_terms|join:", " }}</div>
-    {% if result.detail.wrong_terms %}<div class="text-sm text-red-400">❌ Wrong: {{ result.detail.wrong_terms|join:", " }}</div>{% endif %}
-    {% if result.leveled_up %}<div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>{% endif %}
-    {% for badge in result.new_badges %}<div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>{% endfor %}
-</div>
-<a href="{% url 'learn:matching_challenge' challenge.slug %}" class="inline-block mb-6 bg-accent text-white font-semibold px-4 py-2 rounded-lg hover:opacity-90">🔄 Try again</a>
+</section>
 {% endif %}
 
-<div class="grid md:grid-cols-2 gap-6">
+<div class="match">
     <div>
-        <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Terms — drop a definition here</div>
-        <div class="flex flex-col gap-2">
+        <div class="panel-label"><span>Terms</span><span class="meta num" id="match-progress">0 of {{ terms|length }} matched</span></div>
+        <div class="terms">
             {% for pair in terms %}
-            <div class="rounded-lg border border-slate-700 bg-panel p-3">
-                <div class="font-semibold text-sm mb-2">{{ pair.term }}</div>
-                <div class="drop-slot min-h-[42px] rounded border-2 border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500" data-term-id="{{ pair.id }}" title="Click to clear once filled">
-                    drop here
-                </div>
+            <div class="card term">
+                <div class="term__name">{{ pair.term }}</div>
+                <div class="drop-slot" data-term-id="{{ pair.id }}" role="button" tabindex="0" aria-label="Definition slot for {{ pair.term }}">Drop a definition here</div>
             </div>
             {% endfor %}
         </div>
     </div>
     <div>
-        <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Definitions</div>
-        <div id="def-pool" class="flex flex-col gap-2">
+        <div class="panel-label"><span>Definitions</span><span class="meta" id="pick-hint">Tap one to pick it up</span></div>
+        <div id="def-pool" class="def-pool">
             {% for pair in definitions %}
-            <div draggable="true" data-def-id="{{ pair.id }}" class="def-chip cursor-grab select-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm hover:border-accent2">
-                {{ pair.definition }}
-            </div>
+            <button type="button" draggable="true" data-def-id="{{ pair.id }}" class="def-chip">{{ pair.definition }}</button>
             {% endfor %}
         </div>
     </div>
 </div>
 
-<form id="submit-form" method="post" action="{% url 'learn:matching_challenge' challenge.slug %}" class="mt-6">
+<form id="submit-form" method="post" action="{% url 'learn:matching_challenge' challenge.slug %}" class="btn-row submit-row">
     {% csrf_token %}
     <input type="hidden" name="answers" id="answers">
-    <button type="submit" class="bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Matches</button>
+    <button type="submit" class="btn btn--primary">Submit matches <svg class="icon"><use href="#i-arrow-right"/></svg></button>
 </form>
+{% endblock %}
 
-<style>
-  .drop-slot.filled { border-style:solid; border-color:#06b6d4; background:#0f0f1a; }
-  .drop-slot.dragover { border-color:#8b5cf6; }
-</style>
+{% block scripts %}
 <script>
 (function(){
   const answers = {};  // termId -> defId
-  document.querySelectorAll('.def-chip').forEach(chip => {
-    chip.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', chip.dataset.defId);
-    });
+  const slots = Array.from(document.querySelectorAll('.drop-slot'));
+  const chips = Array.from(document.querySelectorAll('.def-chip'));
+  const progress = document.getElementById('match-progress');
+  const hint = document.getElementById('pick-hint');
+  const EMPTY = 'Drop a definition here';
+  let picked = null;
+
+  function updateProgress(){
+    progress.textContent = Object.keys(answers).length + ' of ' + slots.length + ' matched';
+    slots.forEach(s => s.classList.toggle('is-target', picked !== null && s.dataset.filled !== '1'));
+    hint.textContent = picked ? 'Now tap the term it defines' : 'Tap one to pick it up';
+  }
+
+  function pick(chip){
+    if (picked) picked.classList.remove('is-picked');
+    picked = (picked === chip) ? null : chip;
+    if (picked) picked.classList.add('is-picked');
+    updateProgress();
+  }
+
+  function clearSlot(slot){
+    if (slot.dataset.filled !== '1') return;
+    const chip = document.querySelector('.def-chip[data-def-id="' + slot.dataset.currentDefId + '"]');
+    if (chip) chip.style.display = '';
+    slot.textContent = EMPTY;
+    slot.classList.remove('filled');
+    slot.dataset.filled = '0';
+    delete slot.dataset.currentDefId;
+    delete answers[slot.dataset.termId];
+  }
+
+  function fill(slot, defId){
+    const chip = document.querySelector('.def-chip[data-def-id="' + defId + '"]');
+    if (!chip) return;
+    clearSlot(slot);  // a filled slot hands its previous definition back to the pool
+    slot.textContent = chip.textContent.trim();
+    slot.classList.add('filled');
+    slot.dataset.filled = '1';
+    slot.dataset.currentDefId = defId;
+    chip.style.display = 'none';
+    chip.classList.remove('is-picked');
+    answers[slot.dataset.termId] = defId;
+    picked = null;
+    updateProgress();
+  }
+
+  chips.forEach(chip => {
+    chip.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', chip.dataset.defId); });
+    chip.addEventListener('click', () => pick(chip));
   });
-  document.querySelectorAll('.drop-slot').forEach(slot => {
+
+  slots.forEach(slot => {
     slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('dragover'); });
     slot.addEventListener('dragleave', () => slot.classList.remove('dragover'));
     slot.addEventListener('drop', e => {
       e.preventDefault();
       slot.classList.remove('dragover');
-      const defId = e.dataTransfer.getData('text/plain');
-      const chip = document.querySelector('.def-chip[data-def-id="' + defId + '"]');
-      if (!chip) return;
-      // if slot already had something, put previous chip back to pool
-      if (slot.dataset.filled === '1') {
-        const prevText = slot.textContent.trim();
-        const prevId = slot.dataset.currentDefId;
-        const prevChip = document.querySelector('.pool-return[data-def-id="' + prevId + '"]');
-        if (prevChip) { prevChip.classList.remove('pool-return'); prevChip.style.display=''; }
-      }
-      slot.innerHTML = chip.textContent.trim();
-      slot.classList.add('filled');
-      slot.dataset.filled = '1';
-      slot.dataset.currentDefId = defId;
-      chip.style.display = 'none';
-      chip.classList.add('pool-return');
-      answers[slot.dataset.termId] = defId;
+      fill(slot, e.dataTransfer.getData('text/plain'));
     });
-    slot.addEventListener('click', () => {
-      if (slot.dataset.filled !== '1') return;
-      const defId = slot.dataset.currentDefId;
-      const chip = document.querySelector('.def-chip[data-def-id="' + defId + '"]');
-      if (chip) { chip.classList.remove('pool-return'); chip.style.display = ''; }
-      slot.innerHTML = 'drop here';
-      slot.classList.remove('filled');
-      slot.dataset.filled = '0';
-      delete slot.dataset.currentDefId;
-      delete answers[slot.dataset.termId];
-    });
+    function activate(){
+      if (picked) { fill(slot, picked.dataset.defId); return; }
+      clearSlot(slot);
+      updateProgress();
+    }
+    slot.addEventListener('click', activate);
+    slot.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
   });
+
   document.getElementById('submit-form').addEventListener('submit', () => {
     document.getElementById('answers').value = JSON.stringify(answers);
   });
+  updateProgress();
 })();
 </script>
 {% endblock %}

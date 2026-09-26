@@ -1,134 +1,129 @@
 {% extends "learn/base.html" %}
-{% block title %}{{ challenge.title }} — Code{% endblock %}
-{% block content %}
+{% block title %}{{ challenge.title }} — Coding{% endblock %}
+{% block head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+{% endblock %}
+{% block content %}
+<header class="page-head">
+    <h1>{{ challenge.title }}</h1>
+    <p class="page-head__meta"><span class="num">Difficulty {{ challenge.difficulty }} of 5</span><span>Python 3: read from stdin, print to stdout</span></p>
+</header>
 
-<a href="{% url 'learn:concept_detail' challenge.concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ challenge.concept.title }}</a>
-<h1 class="text-2xl font-bold mt-2 mb-1">💻 {{ challenge.title }}</h1>
-<p class="text-xs text-slate-500 mb-4">Difficulty {{ challenge.difficulty }}/5 · write a Python 3 program that reads from stdin and prints to stdout</p>
-
-<div class="grid gap-6 lg:grid-cols-2 items-start">
-
-    <!-- LEFT: problem description -->
-    <div class="space-y-4">
-        <div class="bg-panel border border-slate-800 rounded-xl p-5">
-            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Problem Statement</div>
-            <div id="problem-statement" class="markdown-body text-slate-200 leading-relaxed">{{ challenge.prompt }}</div>
-            {{ challenge.prompt|json_script:"problem-statement-raw" }}
-        </div>
+<div class="code-layout">
+    <div class="stack">
+        <section class="card card--head" aria-labelledby="problem-title">
+            <div class="card__pad">
+                <h2 id="problem-title" class="visually-hidden">Problem</h2>
+                <div id="problem-statement" class="markdown-body">{{ challenge.prompt }}</div>
+                {{ challenge.prompt|json_script:"problem-statement-raw" }}
+            </div>
+        </section>
 
         {% if sample_test_cases %}
-        <div class="bg-panel border border-slate-800 rounded-xl p-5">
-            <div class="text-xs uppercase tracking-wide text-slate-500 mb-3">Examples</div>
-            <div class="space-y-3">
+        <section class="card" aria-labelledby="examples-title">
+            <div class="card__pad">
+                <h2 id="examples-title" class="panel-label">Examples</h2>
                 {% for tc in sample_test_cases %}
-                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm">
-                    <div class="font-semibold text-slate-300 mb-2">Example {{ forloop.counter }}</div>
-                    <div class="text-slate-500 text-xs mb-1">Input</div>
-                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2 mb-2">{{ tc.stdin }}</pre>
-                    <div class="text-slate-500 text-xs mb-1">Output</div>
-                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2">{{ tc.expected_output }}</pre>
+                <div class="example">
+                    <div class="example__head">Example <span class="num">{{ forloop.counter }}</span></div>
+                    <div class="io"><span class="io__label">Input</span><pre>{{ tc.stdin }}</pre></div>
+                    <div class="io"><span class="io__label">Output</span><pre>{{ tc.expected_output }}</pre></div>
                 </div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
         {% endif %}
 
         {% if challenge.constraints %}
-        <div class="bg-panel border border-slate-800 rounded-xl p-5">
-            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Constraints</div>
-            <div class="text-sm text-slate-300 whitespace-pre-line">{{ challenge.constraints }}</div>
-        </div>
+        <section class="card" aria-labelledby="constraints-title">
+            <div class="card__pad">
+                <h2 id="constraints-title" class="panel-label">Constraints</h2>
+                <div class="constraints">{{ challenge.constraints }}</div>
+            </div>
+        </section>
         {% endif %}
 
         {% if request.user.is_superuser %}
-        <div class="bg-panel border border-amber-800/50 rounded-xl p-5">
-            <div class="flex items-center justify-between gap-3">
-                <div class="text-xs uppercase tracking-wide text-amber-400">Superadmin</div>
-                <button id="all-tests-toggle" type="button"
-                    class="text-xs px-3 py-1.5 rounded-full border border-amber-600 text-amber-300 hover:bg-amber-600 hover:text-white transition font-semibold whitespace-nowrap">
-                    👁 View all test cases ({{ all_test_cases|length }})
-                </button>
-            </div>
-            <div id="all-tests-panel" class="hidden mt-3 space-y-3">
-                {% for tc in all_test_cases %}
-                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="font-semibold text-slate-300">Test case {{ forloop.counter }}</span>
-                        {% if tc.is_sample %}<span class="text-xs text-emerald-400">sample</span>{% else %}<span class="text-xs text-slate-500">hidden</span>{% endif %}
-                    </div>
-                    <div class="text-slate-500 text-xs mb-1">stdin</div>
-                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2 mb-2">{{ tc.stdin }}</pre>
-                    <div class="text-slate-500 text-xs mb-1">expected stdout</div>
-                    <pre class="text-slate-200 whitespace-pre-wrap bg-slate-950/50 rounded p-2">{{ tc.expected_output }}</pre>
+        <section class="card admin-card" aria-labelledby="admin-title">
+            <div class="card__pad">
+                <div class="panel-label">
+                    <h2 id="admin-title" class="panel-label__title">Admin: all test cases</h2>
+                    <button id="all-tests-toggle" type="button" class="btn btn--quiet btn--sm" aria-expanded="false" aria-controls="all-tests-panel">
+                        <svg class="icon icon--sm"><use href="#i-eye"/></svg> <span>Show all <span class="num">{{ all_test_cases|length }}</span></span>
+                    </button>
                 </div>
-                {% endfor %}
+                <div id="all-tests-panel" hidden>
+                    {% for tc in all_test_cases %}
+                    <div class="example">
+                        <div class="example__head"><span>Test case <span class="num">{{ forloop.counter }}</span></span><span class="meta">{% if tc.is_sample %}sample{% else %}hidden{% endif %}</span></div>
+                        <div class="io"><span class="io__label">stdin</span><pre>{{ tc.stdin }}</pre></div>
+                        <div class="io"><span class="io__label">expected stdout</span><pre>{{ tc.expected_output }}</pre></div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
+        </section>
         {% endif %}
     </div>
 
-    <!-- RIGHT: code editor + submit result -->
-    <div class="space-y-4 lg:sticky lg:top-4">
+    <div class="stack code-layout__editor">
         {% if result %}
-        <div class="rounded-xl border p-5 {% if result.is_perfect %}border-emerald-700 bg-emerald-950/40{% elif result.score >= 0 %}border-amber-700 bg-amber-950/30{% else %}border-red-700 bg-red-950/40{% endif %}">
-            <div class="font-bold text-lg mb-2">
-                {% if result.is_perfect %}💻 All tests passed! +{{ result.xp_awarded }} XP{% else %}Score: {{ result.score }} pts (+{{ result.xp_awarded }} XP){% endif %}
-            </div>
-            <div class="text-sm text-slate-300 mb-3">{{ result.detail.passed }} / {{ result.detail.total }} test cases passed</div>
-            {% if result.leveled_up %}<div class="mb-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>{% endif %}
-            {% for badge in result.new_badges %}<div class="mb-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>{% endfor %}
-
-            <div class="mt-3 space-y-2">
-                {% for r in result.detail.results %}
-                <div class="rounded-lg border {% if r.passed %}border-emerald-800 bg-emerald-950/30{% else %}border-red-800 bg-red-950/20{% endif %} p-3 text-sm">
-                    {% if r.is_sample %}
-                    <div class="font-semibold mb-1">{% if r.passed %}✅{% else %}❌{% endif %} Sample test case</div>
-                    {% if r.timed_out %}
-                    <div class="text-red-300 text-xs">Timed out — check for an infinite loop.</div>
-                    {% elif r.blocked_reason %}
-                    <div class="text-red-300 text-xs">{{ r.blocked_reason }}</div>
-                    {% else %}
-                    <div class="text-slate-500 text-xs mb-1">your stdout</div>
-                    <pre class="text-slate-200 whitespace-pre-wrap">{{ r.stdout }}</pre>
-                    {% if r.stderr %}
-                    <div class="text-slate-500 text-xs mt-2 mb-1">stderr</div>
-                    <pre class="text-red-300 whitespace-pre-wrap">{{ r.stderr }}</pre>
-                    {% endif %}
-                    {% endif %}
-                    {% else %}
-                    <div class="font-semibold">{% if r.passed %}✅{% else %}❌{% endif %} Hidden test case
-                        {% if r.timed_out %}<span class="text-red-300 font-normal">— timed out</span>{% endif %}
-                    </div>
-                    {% if r.blocked_reason %}<div class="text-red-300 text-xs mt-1">{{ r.blocked_reason }}</div>{% endif %}
-                    {% endif %}
+        <section class="card verdict verdict--{% if result.is_perfect %}right{% elif result.score >= 0 %}partial{% else %}wrong{% endif %}" aria-live="polite">
+            <div class="card__pad">
+                <div class="verdict__head">
+                    <span class="verdict__mark"><svg class="icon icon--lg"><use href="#{% if result.is_perfect %}i-check{% elif result.score >= 0 %}i-code{% else %}i-x{% endif %}"/></svg></span>
+                    {% if result.is_perfect %}All tests passed{% else %}<span class="num">{{ result.detail.passed }} of {{ result.detail.total }}</span>&nbsp;tests passed{% endif %}
+                    <span class="verdict__xp num">{{ result.score }} pts · +{{ result.xp_awarded }} XP</span>
                 </div>
-                {% endfor %}
+                {% include "learn/_verdict_extras.html" %}
+                <div class="test-results">
+                    {% for r in result.detail.results %}
+                    <div class="test test--{% if r.passed %}pass{% else %}fail{% endif %}">
+                        <div class="test__head">
+                            <svg class="icon icon--sm"><use href="#{% if r.passed %}i-check{% else %}i-x{% endif %}"/></svg>
+                            {% if r.is_sample %}Sample test{% else %}Hidden test{% endif %}{% if r.timed_out %}: timed out{% endif %}
+                        </div>
+                        {% if r.is_sample %}
+                        {% if r.timed_out %}
+                        <p class="test__note">Timed out. Check for an infinite loop.</p>
+                        {% elif r.blocked_reason %}
+                        <p class="test__note">{{ r.blocked_reason }}</p>
+                        {% else %}
+                        <div class="io"><span class="io__label">Your stdout</span><pre>{{ r.stdout }}</pre></div>
+                        {% if r.stderr %}<div class="io"><span class="io__label">stderr</span><pre>{{ r.stderr }}</pre></div>{% endif %}
+                        {% endif %}
+                        {% elif r.blocked_reason %}
+                        <p class="test__note">{{ r.blocked_reason }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
+        </section>
         {% endif %}
 
-        <div class="bg-panel border border-slate-800 rounded-xl p-4">
-            <form id="code-form" method="post" action="{% url 'learn:coding_challenge' challenge.slug %}">
-                {% csrf_token %}
-                <textarea id="code-editor" name="code">{{ submitted_code }}</textarea>
-                <button type="submit" class="mt-4 w-full bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">▶ Run &amp; Submit</button>
-            </form>
-        </div>
+        <form id="code-form" method="post" action="{% url 'learn:coding_challenge' challenge.slug %}" class="card card--head editor-card">
+            {% csrf_token %}
+            <label for="code-editor" class="visually-hidden">Your Python program</label>
+            <textarea id="code-editor" name="code">{{ submitted_code }}</textarea>
+            <div class="editor-card__bar">
+                <span class="meta">Runs against every test case, sample and hidden</span>
+                <button type="submit" class="btn btn--primary"><svg class="icon"><use href="#i-play"/></svg> Run &amp; submit</button>
+            </div>
+        </form>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 (function () {
     // Problem Statement is stored as Markdown and rendered client-side.
-    // json_script safely round-trips the raw text (handles quotes/newlines)
-    // without needing a server-side Markdown dependency. If marked.js fails
-    // to load, the div keeps showing its raw-text fallback content instead
-    // of going blank.
+    // json_script safely round-trips the raw text; if marked.js fails to
+    // load, the div keeps showing its raw-text fallback.
     var promptDataEl = document.getElementById('problem-statement-raw');
     var problemStatementEl = document.getElementById('problem-statement');
     if (promptDataEl && problemStatementEl && window.marked) {
@@ -136,36 +131,29 @@
         problemStatementEl.innerHTML = marked.parse(JSON.parse(promptDataEl.textContent));
     }
 
-    var editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
-        mode: 'python',
-        theme: 'dracula',
-        lineNumbers: true,
-        indentUnit: 4,
-        tabSize: 4,
-        indentWithTabs: false,
-        viewportMargin: Infinity,
-    });
-    editor.setSize('100%', 420);
-    // CodeMirror hides the real <textarea> and doesn't keep it in sync as
-    // you type — save() copies the editor's current content back into it
-    // right before the browser reads the form for submission.
-    document.getElementById('code-form').addEventListener('submit', function () {
-        editor.save();
-    });
+    if (window.CodeMirror) {
+        var editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            mode: 'python',
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            viewportMargin: Infinity,
+        });
+        // CodeMirror doesn't keep the hidden <textarea> in sync as you type;
+        // save() copies the editor's content back right before submission.
+        document.getElementById('code-form').addEventListener('submit', function () { editor.save(); });
+    }
 
-    var allTestsToggle = document.getElementById('all-tests-toggle');
-    var allTestsPanel = document.getElementById('all-tests-panel');
-    if (allTestsToggle && allTestsPanel) {
-        var toggleLabel = allTestsToggle.textContent.trim();
-        allTestsToggle.addEventListener('click', function () {
-            var showing = !allTestsPanel.classList.contains('hidden');
-            if (showing) {
-                allTestsPanel.classList.add('hidden');
-                allTestsToggle.textContent = toggleLabel;
-            } else {
-                allTestsPanel.classList.remove('hidden');
-                allTestsToggle.textContent = '🙈 Hide all test cases';
-            }
+    var toggle = document.getElementById('all-tests-toggle');
+    var panel = document.getElementById('all-tests-panel');
+    if (toggle && panel) {
+        var label = toggle.querySelector('span');
+        var showLabel = label.innerHTML;
+        toggle.addEventListener('click', function () {
+            panel.hidden = !panel.hidden;
+            toggle.setAttribute('aria-expanded', String(!panel.hidden));
+            label.innerHTML = panel.hidden ? showLabel : 'Hide all';
         });
     }
 })();
