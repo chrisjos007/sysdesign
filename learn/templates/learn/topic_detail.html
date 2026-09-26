@@ -1,21 +1,39 @@
 {% extends "learn/base.html" %}
-{% block title %}{{ topic.title }}{% endblock %}
+{% block title %}{{ topic.title }} — SysDesign Quest{% endblock %}
 {% block content %}
-<a href="{% url 'learn:dashboard' %}" class="text-sm text-slate-400 hover:text-accent">&larr; Dashboard</a>
-<h1 class="text-2xl font-bold mt-2 mb-1">{{ topic.title }}</h1>
-<p class="text-slate-400 mb-6">{{ topic.description }}</p>
+<header class="page-head">
+    <h1>{{ topic.title }}</h1>
+    {% if topic.description %}<p class="page-head__lede">{{ topic.description }}</p>{% endif %}
+</header>
 
 {% for tier in tiers %}
-<div class="mb-8">
-    <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">{{ tier.label }}</h2>
-    <div class="grid gap-3">
+<section>
+    <h2 class="tier-head">{{ tier.label }}</h2>
+    <div class="card-list">
         {% for c in tier.chapters %}
-        <a href="{% if c.unlocked %}{% url 'learn:chapter_detail' c.chapter.slug %}{% else %}#{% endif %}"
-           class="rounded-lg border p-4 {% if c.unlocked %}border-slate-700 bg-panel hover:border-accent{% else %}border-slate-800 opacity-60{% endif %}">
-            {% if not c.unlocked %}🔒{% endif %} {{ c.chapter.title }} — {{ c.mastered }}/{{ c.total }} mastered
+        {% if c.unlocked %}
+        <a href="{{ c.href }}" class="card card--head row-card">
+            <span class="row-card__main">
+                <span class="row-card__title">{{ c.chapter.title }}</span>
+                {% if c.chapter.summary %}<span class="row-card__sub">{{ c.chapter.summary|truncatewords:28 }}</span>{% endif %}
+            </span>
+            <span class="row-card__end">
+                <span class="state{% if c.total and c.mastered == c.total %} state--mastered{% elif c.mastered %} state--learning{% endif %} num">{{ c.mastered }}/{{ c.total }} mastered</span>
+                <svg class="icon"><use href="#i-chevron-right"/></svg>
+            </span>
         </a>
+        {% else %}
+        <div class="card row-card file-card--locked">
+            <span class="row-card__main">
+                <span class="row-card__title">{{ c.chapter.title }}</span>
+            </span>
+            <span class="row-card__end file-card__lock"><svg class="icon icon--sm"><use href="#i-lock"/></svg> Unlocks at level <span class="num">{{ c.chapter.unlock_level }}</span></span>
+        </div>
+        {% endif %}
         {% endfor %}
     </div>
-</div>
+</section>
+{% empty %}
+<div class="card empty"><div class="card__pad"><h2>No chapters here yet</h2><p>This topic hasn't been filled in yet.</p></div></div>
 {% endfor %}
 {% endblock %}

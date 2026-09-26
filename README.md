@@ -52,6 +52,27 @@ or more Matching/Ordering games.
   flag that bypasses all chapter level-gating, so you can browse and test
   every chapter/concept/game regardless of your actual level. Click again
   to restore normal locking.
+- **Coding Challenges** — a fifth "play to learn" activity alongside quizzes and
+  the three mini-games: the learner writes a Python 3 program in an in-browser
+  editor (CodeMirror, syntax highlighting, no build step) that reads from
+  stdin and prints to stdout, and submits it to be graded against a set of
+  test cases (sample cases shown up front, the rest hidden). Same
+  never-free-to-guess-wrong scoring principle as the other games: passing
+  tests score XP, failing ones cost a little, and a fully-passing run earns
+  the perfect bonus and the "Coder" badge. Submissions run in a
+  best-effort sandboxed subprocess (timeout, memory/CPU limits, and an
+  import allowlist that blocks `os`/`socket`/`subprocess`/etc.) — see the
+  security note at the top of `learn/code_runner.py` before considering this
+  hardened enough for a public multi-tenant deployment.
+  - **Admins generate challenges from a scenario, not by hand-writing test
+    cases.** From Django admin -> Coding challenges -> "✨ Generate from
+    scenario", describe the exercise in plain language (which concept it's
+    for, what the program should do, roughly what input/output looks like).
+    Gemini (`learn/llm.py`) either returns a full challenge — title, prompt,
+    starter code, difficulty, and 4+ stdin/expected-output test cases — or,
+    if the scenario doesn't have enough in it to write unambiguous test
+    cases, comes back with specific clarifying questions instead of
+    guessing. Requires a free `GEMINI_API_KEY` (see below).
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
@@ -83,6 +104,16 @@ python manage.py createsuperuser   # optional, for /admin access
 python manage.py runserver
 ```
 
+To use the admin's "Generate from scenario" button for Coding Challenges, add
+a free Gemini API key to `.env`:
+
+```
+GEMINI_API_KEY=your-key-here   # https://aistudio.google.com/apikey
+```
+
+(everything else works without it — the app just won't be able to generate
+new coding challenges until it's set).
+
 Then open http://127.0.0.1:8000/ and sign up for an account (or log in
 with the superuser you created).
 
@@ -110,6 +141,19 @@ its own item, prefer folding it into an existing (or new) merged "domain"
 chapter alongside related topics, with a combined summary/quiz and however
 many matching/ordering games make sense — a `Concept` can hold any number
 of each.
+
+### Adding a new coding challenge
+
+Unlike everything else above, coding challenges aren't seeded via a
+management command — they're created one at a time through Django admin
+(Coding challenges -> "✨ Generate from scenario"), since each one is
+generated from a free-text scenario via Gemini rather than hand-authored as a
+Python data structure. After generating, the challenge (and its test cases)
+are normal rows you can hand-edit from the challenge's admin change page like
+any other content — the generator just gets you a well-specified starting
+point instead of a blank page, and won't produce one until it's sure the
+scenario has enough in it (task, exact stdin/stdout format, a worked example)
+to write unambiguous test cases.
 
 ### Adding a new architecture-builder challenge
 

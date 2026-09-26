@@ -1,0 +1,10 @@
+{% if result.leveled_up or result.new_badges %}
+<div class="verdict__extras">
+    {% if result.leveled_up %}
+    <div class="verdict__extra verdict__extra--level"><svg class="icon"><use href="#i-level"/></svg> Level up! You're now level <span class="num">{{ result.new_level }}</span>.</div>
+    {% endif %}
+    {% for badge in result.new_badges %}
+    <div class="verdict__extra verdict__extra--badge"><svg class="icon"><use href="#i-stamp"/></svg> Badge earned: {{ badge.name }}</div>
+    {% endfor %}
+</div>
+{% endif %}

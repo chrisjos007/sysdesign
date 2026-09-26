@@ -1,215 +1,258 @@
 {% extends "learn/base.html" %}
-{% block title %}{{ concept.title }}{% endblock %}
+{% block title %}{{ concept.title }} — SysDesign Quest{% endblock %}
 {% block content %}
-<a href="{% url 'learn:chapter_detail' concept.chapter.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ concept.chapter.title }}</a>
-<h1 class="text-2xl font-bold mt-2 mb-1">{{ concept.title }}</h1>
-<p class="text-xs text-slate-500 mb-4">{{ concept.source_note }}</p>
+<header class="page-head">
+    <h1>{{ concept.title }}</h1>
+    {% if concept.source_note %}<p class="page-head__meta"><span>Source: {{ concept.source_note }}</span></p>{% endif %}
+</header>
 
-<!-- Notes -->
-<div class="bg-panel border border-slate-800 rounded-xl p-5 mb-4">
-    <p class="text-slate-300 mb-3">{{ concept.summary }}</p>
-    <button id="notes-toggle" type="button"
-        class="text-sm px-4 py-2 rounded-full border border-accent text-accent hover:bg-accent hover:text-white transition font-semibold">
-        📖 View Notes
-    </button>
+<div class="concept-layout">
+    <article class="card card--head notes-sheet" aria-label="Notes">
+        <div class="card__pad">
+            <p class="notes-sheet__summary">{{ concept.summary }}</p>
 
-    <div id="notes-panel" class="hidden mt-4">
-        <div class="flex items-center justify-between gap-3 mb-4 border-t border-slate-800 pt-4">
-            <div class="text-xs uppercase tracking-wide text-slate-500">📖 Notes &middot; {{ concept.source_note }}</div>
-            <div class="flex items-center gap-2">
-                <button id="notes-tts" type="button" title="Read notes aloud"
-                    class="text-xs px-3 py-1.5 rounded-full border border-slate-700 text-slate-300 hover:border-accent2 hover:text-accent2 transition">
-                    🔊 Read aloud
-                </button>
-                <button id="study-toggle" type="button"
-                    class="text-xs px-3 py-1.5 rounded-full border border-accent text-accent hover:bg-accent hover:text-white transition">
-                    🧠 Study mode
+            {% if concept.notes_sections %}
+            <div class="notes-toolbar">
+                <div class="segmented" role="group" aria-label="How to read the notes">
+                    <button type="button" id="mode-outline" aria-pressed="true"><svg class="icon icon--sm"><use href="#i-order"/></svg> Outline</button>
+                    <button type="button" id="mode-read" aria-pressed="false"><svg class="icon icon--sm"><use href="#i-notes"/></svg> Read notes</button>
+                    <button type="button" id="mode-study" aria-pressed="false"><svg class="icon icon--sm"><use href="#i-study"/></svg> Study mode</button>
+                </div>
+                <button type="button" id="notes-tts" class="btn btn--ghost btn--sm" hidden>
+                    <svg class="icon icon--sm"><use href="#i-speaker"/></svg> <span>Read aloud</span>
                 </button>
             </div>
-        </div>
 
-        <div id="notes-full" class="leading-relaxed text-slate-200 space-y-5">
-            {% for section in concept.notes_sections %}
-            <div>
-                <h3 class="text-base font-bold text-white mb-1.5">{{ section.heading }}</h3>
-                <div class="text-slate-300">{{ section.body|linebreaks }}</div>
-                {% if section.deep_dive %}
-                <details class="mt-2 group">
-                    <summary class="cursor-pointer text-sm text-accent2 font-semibold list-none flex items-center gap-1.5 hover:opacity-80">
-                        <span class="inline-block transition-transform group-open:rotate-90">▶</span>
-                        🔍 Click to know more: {{ section.deep_dive.title }}
-                    </summary>
-                    <div class="mt-2 ml-5 pl-3 border-l-2 border-accent2/40 text-sm text-slate-300">
-                        {{ section.deep_dive.body|linebreaks }}
-                    </div>
-                </details>
+            <nav class="toc" id="notes-outline" aria-label="Sections">
+                <ol>
+                    {% for section in concept.notes_sections %}
+                    <li><a href="#section-{{ forloop.counter }}" data-section="{{ forloop.counter }}"><span class="toc__no num">{{ forloop.counter }}</span><span>{{ section.heading }}</span></a></li>
+                    {% endfor %}
+                </ol>
+            </nav>
+
+            <div class="notes" id="notes-full" hidden>
+                {% for section in concept.notes_sections %}
+                <section class="notes__section" id="section-{{ forloop.counter }}">
+                    <h2>{{ section.heading }}</h2>
+                    <div class="notes__body">{{ section.body|linebreaks }}</div>
+                    {% if section.deep_dive %}
+                    <details class="deep-dive">
+                        <summary>
+                            <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                            {{ section.deep_dive.title }}
+                            <span class="deep-dive__kind">Deep dive</span>
+                        </summary>
+                        <div class="deep-dive__body">{{ section.deep_dive.body|linebreaks }}</div>
+                    </details>
+                    {% endif %}
+                </section>
+                {% endfor %}
+            </div>
+
+            {{ concept.notes_sections|json_script:"notes-sections-data" }}
+
+            <div class="study" id="notes-study" hidden>
+                <div class="card card--head card--ruled study__card" id="study-card" aria-live="polite">
+                    <h2 class="study__heading" id="study-card-heading"></h2>
+                    <div class="study__body" id="study-card-body"></div>
+                </div>
+                <div class="study__nav">
+                    <button type="button" id="study-prev" class="btn btn--quiet btn--sm"><svg class="icon icon--sm"><use href="#i-arrow-left"/></svg> Back</button>
+                    <div class="study__progress" id="study-progress" aria-hidden="true"></div>
+                    <span class="meta num" id="study-count"></span>
+                    <button type="button" id="study-next" class="btn btn--primary btn--sm">Next <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></button>
+                </div>
+                <p class="study__done" id="study-done" hidden><svg class="icon"><use href="#i-check"/></svg> You've been through every key point. Ready for the quiz.</p>
+            </div>
+            {% else %}
+            <p class="meta notes-missing">Notes for this concept haven't been written yet.</p>
+            {% endif %}
+        </div>
+    </article>
+
+    <aside class="concept-layout__side stack">
+        <section class="card side-card" aria-labelledby="play-title">
+            <div class="card__pad">
+                <h2 id="play-title">Play to learn</h2>
+                <div class="activities">
+                    <a href="{% url 'learn:concept_quiz' concept.slug %}" class="card activity activity--primary">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-quiz"/></svg></span>
+                        <span class="activity__main">
+                            <span class="activity__title">Quiz</span>
+                            <span class="activity__sub num">{{ question_count }} question{{ question_count|pluralize }}</span>
+                        </span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% for dc in design_challenges %}
+                    <a href="{% url 'learn:design_challenge' dc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-build"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ dc.title }}</span><span class="activity__sub">Architecture Builder</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
+                    {% for mc in matching_challenges %}
+                    <a href="{% url 'learn:matching_challenge' mc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-match"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ mc.title }}</span><span class="activity__sub">Matching</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
+                    {% for oc in ordering_challenges %}
+                    <a href="{% url 'learn:ordering_challenge' oc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-order"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ oc.title }}</span><span class="activity__sub">Ordering</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
+                    {% for cc in coding_challenges %}
+                    <a href="{% url 'learn:coding_challenge' cc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-code"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ cc.title }}</span><span class="activity__sub">Coding · Python</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="card side-card" aria-labelledby="progress-title">
+            <div class="card__pad">
+                <h2 id="progress-title">Your progress</h2>
+                {% if mastery %}
+                <span class="state state--{{ mastery.state }}">{% if mastery.state == 'mastered' %}Mastered{% elif mastery.state == 'learning' %}Learning{% else %}{{ mastery.get_state_display }}{% endif %}</span>
+                <div class="progress-facts">
+                    <div class="fact"><div class="fact__value num">{{ mastery.correct_count }}</div><div class="fact__label">correct answers</div></div>
+                    <div class="fact"><div class="fact__value num">{{ mastery.incorrect_count }}</div><div class="fact__label">wrong answers</div></div>
+                </div>
+                {% else %}
+                <p class="meta">Not started. Your first quiz answer files this concept in review box 1.</p>
                 {% endif %}
             </div>
-            {% empty %}
-            <p class="text-slate-400 text-sm">Notes for this concept haven't been written yet.</p>
-            {% endfor %}
-        </div>
-
-        {{ concept.notes_sections|json_script:"notes-sections-data" }}
-
-        <div id="notes-study" class="hidden">
-            <div class="w-full bg-slate-800 rounded-full h-2 mb-4">
-                <div id="study-progress" class="bg-gradient-to-r from-accent to-accent2 h-2 rounded-full transition-all" style="width:0%"></div>
-            </div>
-            <div id="study-card" class="min-h-[140px] flex flex-col items-center justify-center text-center bg-slate-900/60 rounded-lg p-6 border border-slate-800">
-                <div id="study-card-heading" class="text-sm font-bold text-accent2 uppercase tracking-wide mb-2"></div>
-                <div id="study-card-body" class="text-base font-medium leading-relaxed"></div>
-            </div>
-            <div class="flex items-center justify-between mt-4">
-                <button id="study-prev" type="button" class="text-sm text-slate-400 hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed">&larr; Back</button>
-                <span id="study-count" class="text-xs text-slate-500"></span>
-                <button id="study-next" type="button" class="text-sm text-accent font-semibold hover:opacity-80">Next &rarr;</button>
-            </div>
-            <div id="study-done" class="hidden mt-4 text-center text-emerald-400 font-semibold text-sm">✅ You've been through every key point — ready for the quiz!</div>
-        </div>
-    </div>
+        </section>
+    </aside>
 </div>
+{% endblock %}
 
-{% if mastery %}
-<div class="mb-6 text-sm text-slate-400">
-    Progress: {{ mastery.correct_count }} correct / {{ mastery.incorrect_count }} incorrect · status
-    <span class="font-semibold">{{ mastery.state }}</span>
-</div>
-{% else %}
-<div class="mb-6"></div>
-{% endif %}
-
+{% block scripts %}
 <script>
 (function () {
-    var notesToggle = document.getElementById('notes-toggle');
-    var notesPanel = document.getElementById('notes-panel');
-    var fullEl = document.getElementById('notes-full');
-    var studyEl = document.getElementById('notes-study');
-    var studyToggle = document.getElementById('study-toggle');
+    var dataEl = document.getElementById('notes-sections-data');
+    var outlineBtn = document.getElementById('mode-outline');
+    if (!dataEl || !outlineBtn) return;
+
+    var readBtn = document.getElementById('mode-read');
+    var studyBtn = document.getElementById('mode-study');
+    var outline = document.getElementById('notes-outline');
+    var full = document.getElementById('notes-full');
+    var study = document.getElementById('notes-study');
     var ttsBtn = document.getElementById('notes-tts');
-    var cardHeadingEl = document.getElementById('study-card-heading');
-    var cardBodyEl = document.getElementById('study-card-body');
+    var card = document.getElementById('study-card');
+    var headingEl = document.getElementById('study-card-heading');
+    var bodyEl = document.getElementById('study-card-body');
     var progressEl = document.getElementById('study-progress');
     var countEl = document.getElementById('study-count');
     var prevBtn = document.getElementById('study-prev');
     var nextBtn = document.getElementById('study-next');
     var doneEl = document.getElementById('study-done');
-    var dataEl = document.getElementById('notes-sections-data');
 
-    // Study Mode cards come straight from the structured sections data
-    // (one card per section) rather than guessing sentence boundaries
-    // from rendered text — regex sentence-splitting broke on things like
-    // "e.g." or "62^7" and produced malformed, choppy cards.
+    // Study Mode cards come straight from the structured sections data (one
+    // card per section) rather than guessing sentence boundaries from
+    // rendered text.
     var sections = [];
-    try {
-        sections = dataEl ? JSON.parse(dataEl.textContent) : [];
-    } catch (e) { sections = []; }
-
+    try { sections = JSON.parse(dataEl.textContent) || []; } catch (e) { sections = []; }
     var idx = 0;
-    var inStudy = false;
 
-    notesToggle.addEventListener('click', function () {
-        var showing = !notesPanel.classList.contains('hidden');
-        if (showing) {
-            notesPanel.classList.add('hidden');
-            notesToggle.textContent = '📖 View Notes';
-        } else {
-            notesPanel.classList.remove('hidden');
-            notesToggle.textContent = '📖 Hide Notes';
-        }
+    sections.forEach(function () {
+        var tick = document.createElement('span');
+        tick.className = 'study__tick';
+        progressEl.appendChild(tick);
     });
 
-    function render() {
-        if (!sections.length) return;
-        var s = sections[idx];
-        cardHeadingEl.textContent = s.heading || '';
-        cardBodyEl.textContent = s.body || '';
-        countEl.textContent = (idx + 1) + ' / ' + sections.length;
-        progressEl.style.width = Math.round(((idx + 1) / sections.length) * 100) + '%';
-        prevBtn.disabled = idx === 0;
-        nextBtn.textContent = idx === sections.length - 1 ? 'Finish ✓' : 'Next →';
-        doneEl.classList.add('hidden');
+    function setMode(mode) {
+        outlineBtn.setAttribute('aria-pressed', String(mode === 'outline'));
+        readBtn.setAttribute('aria-pressed', String(mode === 'read'));
+        studyBtn.setAttribute('aria-pressed', String(mode === 'study'));
+        outline.hidden = mode !== 'outline';
+        full.hidden = mode !== 'read';
+        study.hidden = mode !== 'study';
+        ttsBtn.hidden = mode !== 'read' || !('speechSynthesis' in window);
+        if (mode !== 'read') stopReading();
+        if (mode === 'study') renderCard(false);
     }
 
-    studyToggle.addEventListener('click', function () {
-        inStudy = !inStudy;
-        if (inStudy) {
-            fullEl.classList.add('hidden');
-            studyEl.classList.remove('hidden');
-            studyToggle.textContent = '📖 Full text';
-            idx = 0;
-            render();
-        } else {
-            fullEl.classList.remove('hidden');
-            studyEl.classList.add('hidden');
-            studyToggle.textContent = '🧠 Study mode';
+    function paragraphs(text) {
+        var frag = document.createDocumentFragment();
+        String(text || '').split(/\n\s*\n/).forEach(function (chunk) {
+            if (!chunk.trim()) return;
+            var p = document.createElement('p');
+            p.textContent = chunk.trim();
+            frag.appendChild(p);
+        });
+        return frag;
+    }
+
+    function renderCard(animate) {
+        if (!sections.length) return;
+        var s = sections[idx];
+        headingEl.textContent = s.heading || '';
+        bodyEl.textContent = '';
+        bodyEl.appendChild(paragraphs(s.body));
+        Array.prototype.forEach.call(progressEl.children, function (t, i) {
+            t.className = 'study__tick' + (i < idx ? ' is-seen' : '') + (i === idx ? ' is-current' : '');
+        });
+        countEl.textContent = (idx + 1) + ' of ' + sections.length;
+        prevBtn.disabled = idx === 0;
+        var last = idx === sections.length - 1;
+        nextBtn.disabled = last;
+        doneEl.hidden = !last;
+        if (animate) {
+            card.classList.remove('is-flipping');
+            void card.offsetWidth;
+            card.classList.add('is-flipping');
         }
+    }
+
+    outlineBtn.addEventListener('click', function () { setMode('outline'); });
+    readBtn.addEventListener('click', function () { setMode('read'); });
+    studyBtn.addEventListener('click', function () { setMode('study'); });
+    prevBtn.addEventListener('click', function () { if (idx > 0) { idx--; renderCard(true); } });
+    nextBtn.addEventListener('click', function () { if (idx < sections.length - 1) { idx++; renderCard(true); } });
+
+    outline.addEventListener('click', function (e) {
+        var link = e.target.closest('a[data-section]');
+        if (!link) return;
+        e.preventDefault();
+        setMode('read');
+        var target = document.getElementById('section-' + link.dataset.section);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    prevBtn.addEventListener('click', function () {
-        if (idx > 0) { idx -= 1; render(); }
+    document.addEventListener('keydown', function (e) {
+        if (study.hidden || e.target.closest('input, textarea')) return;
+        if (e.key === 'ArrowRight') nextBtn.click();
+        if (e.key === 'ArrowLeft') prevBtn.click();
     });
 
-    nextBtn.addEventListener('click', function () {
-        if (idx < sections.length - 1) {
-            idx += 1;
-            render();
-        } else {
-            doneEl.classList.remove('hidden');
-        }
-    });
-
+    var ttsLabel = ttsBtn.querySelector('span');
+    var ttsIcon = ttsBtn.querySelector('use');
+    function stopReading() {
+        if ('speechSynthesis' in window && window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+        ttsLabel.textContent = 'Read aloud';
+        ttsIcon.setAttribute('href', '#i-speaker');
+    }
     if ('speechSynthesis' in window) {
         ttsBtn.addEventListener('click', function () {
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.cancel();
-                ttsBtn.textContent = '🔊 Read aloud';
-                return;
-            }
-            var rawText = sections.map(function (s) {
-                return s.heading + '. ' + s.body;
-            }).join(' ');
-            var utter = new SpeechSynthesisUtterance(rawText);
+            if (window.speechSynthesis.speaking) { stopReading(); return; }
+            var text = sections.map(function (s) { return s.heading + '. ' + s.body; }).join(' ');
+            var utter = new SpeechSynthesisUtterance(text);
             utter.rate = 0.98;
-            utter.onend = function () { ttsBtn.textContent = '🔊 Read aloud'; };
-            ttsBtn.textContent = '⏹ Stop reading';
+            utter.onend = stopReading;
+            ttsLabel.textContent = 'Stop reading';
+            ttsIcon.setAttribute('href', '#i-stop');
             window.speechSynthesis.speak(utter);
         });
-    } else {
-        ttsBtn.classList.add('hidden');
     }
 })();
 </script>
-
-<div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Play to learn</div>
-<div class="grid gap-3 sm:grid-cols-2">
-    <a href="{% url 'learn:concept_quiz' concept.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent">
-        <div class="font-semibold">▶ Quiz</div>
-        <div class="text-xs text-slate-400 mt-1">{{ question_count }} question{{ question_count|pluralize }} · multiple choice</div>
-    </a>
-    {% for dc in design_challenges %}
-    <a href="{% url 'learn:design_challenge' dc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent">
-        <div class="font-semibold">🏗️ {{ dc.title }}</div>
-        <div class="text-xs text-slate-400 mt-1">Drag-and-drop architecture builder</div>
-    </a>
-    {% endfor %}
-    {% for mc in matching_challenges %}
-    <a href="{% url 'learn:matching_challenge' mc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent2">
-        <div class="font-semibold">🧩 {{ mc.title }}</div>
-        <div class="text-xs text-slate-400 mt-1">Match terms to definitions</div>
-    </a>
-    {% endfor %}
-    {% for oc in ordering_challenges %}
-    <a href="{% url 'learn:ordering_challenge' oc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent2">
-        <div class="font-semibold">🔢 {{ oc.title }}</div>
-        <div class="text-xs text-slate-400 mt-1">Put the steps in order</div>
-    </a>
-    {% endfor %}
-    {% for cc in coding_challenges %}
-    <a href="{% url 'learn:coding_challenge' cc.slug %}" class="rounded-xl border border-slate-700 bg-panel p-4 hover:border-accent">
-        <div class="font-semibold">💻 {{ cc.title }}</div>
-        <div class="text-xs text-slate-400 mt-1">Write Python, pass the test cases</div>
-    </a>
-    {% endfor %}
-</div>
 {% endblock %}

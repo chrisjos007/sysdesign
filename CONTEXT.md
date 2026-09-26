@@ -1,7 +1,210 @@
 # SysDesign Quest — Context for Continuing
 
-Last updated: 2026-07-19, by Claude (Cowork session).
+Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
+
+## 2026-07-29 session: added Python + OS books/chapters (6th & 7th books)
+
+User asked, in a separate Cowork conversation, for two standalone PDF reference
+chapters (Python advanced concepts: dict internals, subprocess/multiprocessing/
+threading, GIL/generators/decorators/descriptors/metaclasses/asyncio; and OS
+file handling: inodes, chmod/octal permission math, setuid/setgid/sticky, PIDs,
+/proc, filesystem storage/journaling/page cache), then asked to also add that
+content into this web app. Added as two new "domain"-style chapters (one
+concept each, same pattern as `linux-cli-essentials`), not new system-design
+builds:
+
+- **`learn/management/commands/seed_content.py`**: added `BOOK6`
+  (`python-advanced-concepts`) and `BOOK7` (`os-file-handling-systems`), a new
+  `TOPIC_PYTHON` (`python-internals`) topic, and two chapter dicts appended to
+  `CHAPTERS`: `python-dicts-concurrency-internals` (concept slug
+  `python-advanced-internals`, 9 notes sections, 17 questions) and
+  `os-file-handling-access-storage` (concept slug
+  `os-file-handling-permissions-storage`, topic `operating-systems-linux` —
+  same topic as the existing Linux CLI chapter — 8 notes sections, 17
+  questions). Both `unlock_level=1`, `difficulty=2`. `Command.handle()`'s
+  `books` dict updated to include both new books (easy to forget — chapters
+  reference books by slug and KeyError if the book isn't in that dict).
+- **`learn/management/commands/seed_games.py`**: added 4 `MATCHING_CHALLENGES`
+  (`match-python-dict-internals`, `match-python-concurrency-tools`,
+  `match-file-permission-vocab`, `match-inode-filesystem-vocab`) and 4
+  `ORDERING_CHALLENGES` (`order-dict-lookup-process`,
+  `order-thread-io-gil-release`, `order-chmod-digit-calculation`,
+  `order-file-deletion-open-fd`), 2 matching + 2 ordering per new concept, no
+  design-builder challenges (not applicable — these aren't concrete systems to
+  build). No `Command.handle()` changes needed there; it resolves concepts by
+  slug generically.
+- **Verified before touching the live db**: built and reseeded a **disposable
+  copy** (`cp db.sqlite3 /tmp/scratch.sqlite3`,
+  `DATABASE_URL=sqlite:////tmp/scratch.sqlite3`) first — `manage.py migrate`
+  (local `db.sqlite3` was still missing migrations `0005`-`0007`, i.e. it had
+  drifted behind what's actually deployed on Neon — see gotcha below),
+  `seed_content`, `seed_games`, then `render_to_string('learn/concept_detail.
+  html', ...)` for both new concepts, a data-integrity pass (every `mcq`
+  question has exactly 1 correct choice, every `multi` has ≥1, every ordering
+  challenge's steps are a contiguous 1..N), all read-only against the real
+  file throughout. Confirmed 0 stale chapters/concepts removed (purely
+  additive) and `chris`'s profile byte-identical before/after
+  (xp=192, streaks 2/2, unlock_all_content=1 — note this is `1`/`True` now,
+  not the `False` recorded as the "known-good baseline" in the 07-19 entry
+  below; that drift predates this session and wasn't touched here, just
+  noting it no longer matches that old baseline).
+- **Applied to the real `db.sqlite3` via a full-file copy, not incremental
+  migrate**, after `migrate` hit the disk-I/O-error gotcha (see below) twice
+  in a row on the real file, the second time leaving tables
+  (`learn_codingchallenge` etc.) created but not recorded in
+  `django_migrations` — a genuinely messier partial state than the "error but
+  the write actually lands cleanly" pattern described in the 07-26 entry.
+  Rather than keep fighting incremental transactions against this mount,
+  since the scratch copy was byte-identical to the real file before I'd
+  touched it (same user data) and was now fully migrated+seeded+verified, I
+  just did `cp /tmp/scratch.sqlite3 db.sqlite3` — one file-level operation
+  instead of many flaky SQL commits. Re-verified immediately after via a
+  fresh read-only connection: `integrity_check` = `ok`, all migrations
+  `0001`-`0007` recorded, counts match (7 books, 6 topics, 21 chapters/
+  concepts, 288 questions, 20 matching, 16 ordering, 14 design unchanged),
+  `chris`'s profile untouched. An independent subagent re-verified all of
+  this from scratch (own read-only queries, own render checks against a
+  disposable copy) and confirmed PASS with no issues.
+- Left-over `db.sqlite3-journal-migrate01.bak` / `-migrate03.bak` files in
+  the project root from the failed migrate attempts — same as every prior
+  session, `rm` returns "Operation not permitted" on this mount, safe to
+  delete manually, SQLite ignores them.
+- **Important — this Cowork sandbox cannot reach the production Neon
+  Postgres DB at all**: `ep-young-bird-aze4uwew-pooler.c-3.ap-southeast-1.
+  aws.neon.tech` fails DNS resolution from here (network egress is
+  allowlisted and Neon isn't on it), confirmed via a direct `psycopg`
+  connection attempt. So everything above only updated the **local
+  `db.sqlite3`** file in the mounted project folder — if the deployed web app
+  (Render, per `DEPLOYMENT.md`) points at that Neon `DATABASE_URL`, the new
+  Python/OS content is **not live there yet**. To get it onto the actual
+  deployed app, run `python3 manage.py seed_content && python3 manage.py
+  migrate && python3 manage.py seed_games` (migrate first if Neon is also
+  behind on `0005`-`0007`) from somewhere that *can* reach Neon — the user's
+  own machine, or a Render shell — since `DATABASE_URL` in `.env` already
+  points at it and both seed commands are idempotent/additive by design.
+
+## 2026-07-26 session: added Coding Challenges (5th mini-game)
+
+Added a full new activity type — the user's ask was: admin describes a
+scenario, an LLM turns it into a question + test cases (with a completeness
+check that asks clarifying questions instead of guessing), the learner writes
+code to pass the test cases, and it should slot into the existing
+quiz/design/matching/ordering structure rather than living in a separate
+section. Concretely:
+
+- **Models** (`learn/models.py`, migration `0005_codingchallenge_codingattempt_testcase`):
+  `CodingChallenge` (FK to `Concept`, same as the other three challenge
+  types — `title`, `prompt`, `constraints`, `starter_code`, `difficulty`,
+  `source_scenario` for audit), `TestCase` (`stdin`, `expected_output`,
+  `is_sample`, `order`), `CodingAttempt` (mirrors `DesignAttempt`/
+  `MatchingAttempt`/`OrderingAttempt` — `score`, `xp_awarded`, `is_perfect`,
+  `detail` JSON).
+- **Grading model chosen: stdin -> stdout**, not a function-signature
+  harness. The learner submits a full Python program; each `TestCase` feeds
+  `stdin` to it and compares (whitespace-trimmed, per-line) stdout to
+  `expected_output`. This was chosen so generation and grading don't need to
+  agree on a function name/signature — much simpler for an LLM to produce
+  reliably and for the runner to grade.
+- **`learn/llm.py`** — one Gemini structured-output call
+  (`generate_coding_challenge`) does double duty as the completeness check
+  *and* the generator, via a discriminated-union JSON schema
+  (`status: "needs_clarification" | "ready"`, using `anyOf` the same way
+  Google's own docs do for conditional/classification schemas). If the
+  scenario is missing a clear task, a concrete stdin/stdout format, or enough
+  detail to derive 4+ unambiguous test cases, it comes back with
+  `missing_items` + `clarifying_questions` instead of guessing. Uses the
+  plain REST endpoint (`generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`)
+  with `requests`, not the `google-genai` SDK — one fewer dependency, and the
+  REST `generationConfig.responseMimeType`/`responseSchema` fields are the
+  ones documented on the actual `generateContent` API reference (as opposed
+  to the newer `responseFormat` wrapper shown in some SDK-flavored doc
+  examples, which may not be what the plain REST endpoint accepts — used the
+  reference page, not the higher-level guide, to decide this). Default model
+  `gemini-2.5-flash`, overridable via `GEMINI_MODEL` env var; needs
+  `GEMINI_API_KEY` (free key from https://aistudio.google.com/apikey) in
+  `.env` — placeholder added, **left blank**, user needs to fill it in
+  themselves.
+- **`learn/code_runner.py`** — the sandboxing decision needed a fresh look
+  from what the user might expect (a public code-execution API): as of this
+  session, Piston's public API (the obvious free option) now requires
+  requesting authorization from the maintainer on Discord — no longer
+  self-serve — and Docker-per-submission isn't available on the project's
+  actual deploy target (Render's free web service, per DEPLOYMENT.md, 0.1
+  vCPU/512MB, no Docker-in-container). So: **subprocess-based sandboxing**,
+  same trust tier as the rest of this project ("fine for single-user local
+  use, needs hardening before deploying anywhere public" — see README/
+  DEPLOYMENT notes). Three layers, all best-effort, documented in the
+  module's own docstring: (1) an AST-based **import allowlist** (only a
+  fixed safe stdlib subset — `math`, `itertools`, `collections`, etc. — plus
+  a blocklist on `eval`/`exec`/`open`/`__import__`/etc.) which is the actual
+  defense against filesystem/process/network access, since (2) CPU/memory
+  `resource.setrlimit` and (3) a wall-clock timeout (whole process group
+  killed via `start_new_session=True` + `os.killpg`) only guard against
+  runaway/accidental resource use, not a determined attacker with network
+  access already ruled out by (1). **This is not a hard security boundary**
+  — no container/VM/namespace isolation — flagged prominently in the
+  module docstring for whoever revisits this before a public launch.
+- **`services.record_coding_attempt`** — same never-free-to-guess-wrong
+  scoring principle as every other mini-game here: `POINTS_TEST_PASSED = 12`,
+  `POINTS_TEST_FAILED = 3`, `PERFECT_BONUS` on an all-passing run. Hidden
+  test cases stay hidden in the result detail too (pass/fail only, no
+  stdin/expected/stdout shown) — only sample cases show a full diff to debug
+  against. New `'coder'` badge (pass every test case once) and
+  `'game_master'` now also requires a perfect coding run.
+- **Integration point, per the "don't segregate" instruction**: no new nav
+  section, no separate "Coding" tab. `CodingChallenge` hangs off `Concept`
+  exactly like `DesignChallenge`/`MatchingChallenge`/`OrderingChallenge`, and
+  shows up as a 5th card in the *same* "Play to learn" grid on
+  `concept_detail.html` (`{% for cc in coding_challenges %}` right after the
+  ordering-challenge loop) — nothing else about that template's structure
+  changed. The generation prompt itself also nudges toward blending "system
+  logic" (an algorithm/data structure behind the concept — rate limiting,
+  consistent hashing, LRU, leader election, etc.) with "system design"
+  (a scaled-down piece of a real system) and "general" problems as one
+  unified challenge type, rather than three separate content buckets.
+- **Admin flow**: `CodingChallengeAdmin` (in `learn/admin.py`) adds a custom
+  `generate/` URL via `get_urls()`/`admin_site.admin_view()` (so it's
+  automatically staff-gated, no new user-facing nav link needed) plus a
+  `change_list_template` override that injects a "✨ Generate from scenario"
+  button next to the usual "+ Add" one. The generate view is one template
+  (`templates/admin/learn/codingchallenge/generate.html`) handling three
+  states via a single `scenario` textarea and an `action` field
+  (`generate` -> `needs_clarification` shows questions inline, admin adds
+  answers into the *same* textarea and clicks Generate again; `generate` ->
+  `ready` shows a read-only preview + a `save` form carrying the draft as a
+  hidden JSON blob; `save` creates the `CodingChallenge` + `TestCase` rows
+  and redirects to the normal admin change page). Deliberately did **not**
+  build inline-editable preview fields for the draft — once saved, the
+  existing `TestCaseInline` on the normal change page already covers
+  hand-editing, so duplicating that UI in the generate flow wasn't worth it.
+- **Verified without touching the live `db.sqlite3` or chris's baseline** —
+  per the gotcha below about rollback-wrapped tests not being trustworthy
+  here, all of this was tested against a **disposable copy**
+  (`cp db.sqlite3 /tmp/scratch.sqlite3`, then `DATABASE_URL=sqlite:////tmp/scratch.sqlite3`
+  for every `manage.py`/script invocation), never the real file or the
+  production Neon `DATABASE_URL` already in `.env`. Confirmed `db.sqlite3`'s
+  mtime was untouched and no stray journal file appeared afterward. Checked,
+  on the scratch copy: `manage.py check` clean; `code_runner.py` smoke
+  tests (correct/wrong solutions score right, disallowed imports rejected,
+  infinite loop times out) run as plain Python with no Django involved at
+  all; a real `Client.force_login` + GET/POST walkthrough of
+  `concept_detail` (new card appears), `coding_challenge` (correct submission
+  scores 3/3, wrong one scores 1/3, XP/badge plumbing runs), and the admin
+  changelist/generate/change pages (button present, form renders); and the
+  full admin generate/clarify/save round-trip with `learn.llm.generate_coding_challenge`
+  mocked (no real Gemini call — no API key available in this session) —
+  clarification path shows the questions, ready path shows the preview, save
+  path creates the challenge + 4 test cases and redirects, and saving the
+  same title twice correctly suffixes the slug (`-2`).
+- **Not done / left for the user**: no `GEMINI_API_KEY` was available this
+  session, so the actual Gemini call was never exercised end-to-end — only
+  the surrounding admin view logic (mocked). **First real use of "Generate
+  from scenario" should be treated as the real integration test** — worth
+  double-checking the JSON schema is accepted as expected and a real
+  scenario produces sane output before relying on it.
+
+## Earlier session (2026-07-19 and prior)
 
 ## What this project is
 

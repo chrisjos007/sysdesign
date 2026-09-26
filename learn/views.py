@@ -8,8 +8,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from .context_processors import _chapter_href
 from .models import (
-    Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
+    Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
     MatchingChallenge, OrderingChallenge, Question, ReviewCard, Topic, UserBadge,
 )
 from .services import (
@@ -47,6 +48,7 @@ def _tiers_for_chapters(chapters, request, profile, with_pct=False):
             'unlocked': chapter_is_unlocked(chapter, profile),
             'total': total,
             'mastered': mastered,
+            'href': _chapter_href(chapter),
         }
         if with_pct:
             entry['pct'] = int(100 * mastered / total) if total else 0
@@ -58,25 +60,97 @@ def _tiers_for_chapters(chapters, request, profile, with_pct=False):
     ]
 
 
+LEITNER_BOXES = [
+    (1, 'New or missed'),
+    (2, 'Recalled once'),
+    (3, 'Recalled twice'),
+    (4, 'Three in a row'),
+    (5, 'Long-term'),
+]
+
+
+def _leitner_box(card):
+    """Files a concept's review card into a Leitner compartment by its SM-2
+    repetition streak: a wrong answer resets repetitions to 0, which is
+    exactly Leitner's 'back to box 1'. Cards past four clean recalls all
+    live in box 5."""
+    return min(card.repetitions, 4) + 1
+
+
+def _continue_concept(user, profile):
+    """The card to reopen: the concept behind the learner's most recent quiz
+    attempt, unless it's already mastered; otherwise the first unlocked,
+    unmastered concept in drawer order."""
+    mastered_ids = set(ConceptMastery.objects.filter(
+        user=user, state=ConceptMastery.STATE_MASTERED).values_list('concept_id', flat=True))
+    last = Attempt.objects.filter(user=user).select_related('question__concept__chapter__topic').first()
+    if last and last.question.concept_id not in mastered_ids:
+        return last.question.concept, True
+    for concept in Concept.objects.select_related('chapter__topic').order_by(
+            'chapter__topic__order', 'chapter__difficulty', 'chapter__order', 'order', 'id'):
+        if concept.id not in mastered_ids and chapter_is_unlocked(concept.chapter, profile):
+            return concept, False
+    return None, False
+
+
 @login_required
 def dashboard(request):
     profile = get_profile(request.user)
+    now = timezone.now()
+
+    cards = {c.concept_id: c for c in ReviewCard.objects.filter(user=request.user)}
+    boxes = {n: {'number': n, 'label': label, 'count': 0, 'due': 0} for n, label in LEITNER_BOXES}
+    for card in cards.values():
+        box = boxes[_leitner_box(card)]
+        box['count'] += 1
+        if card.due_at <= now:
+            box['due'] += 1
+
     topics = Topic.objects.prefetch_related('chapters__concepts')
     topic_data = []
+    unfiled = 0
     for topic in topics:
         tiers = _tiers_for_chapters(topic.chapters.all(), request, profile, with_pct=True)
-        if tiers:
-            topic_data.append({'topic': topic, 'tiers': tiers})
+        if not tiers:
+            continue
+        chapters = []
+        for tier in tiers:
+            for entry in tier['chapters']:
+                # A chapter card is stamped with the lowest compartment any of
+                # its concepts sits in: the weakest card sets the pace.
+                chapter_cards = [cards[c.id] for c in entry['chapter'].concepts.all() if c.id in cards]
+                entry['tier'] = tier['label']
+                entry['box'] = min((_leitner_box(c) for c in chapter_cards), default=None)
+                entry['due'] = any(c.due_at <= now for c in chapter_cards)
+                if entry['box'] is None:
+                    unfiled += 1
+                chapters.append(entry)
+        topic_data.append({
+            'topic': topic,
+            'chapters': chapters,
+            'mastered': sum(e['mastered'] for e in chapters),
+            'total': sum(e['total'] for e in chapters),
+        })
 
-    due_count = due_review_cards(request.user).count()
-    earned_badges = UserBadge.objects.filter(user=request.user).select_related('badge')
+    continue_concept, resumed = _continue_concept(request.user, profile)
+    due_count = sum(b['due'] for b in boxes.values())
+    filed_max = max([b['count'] for b in boxes.values()] + [1])
 
     return render(request, 'learn/dashboard.html', {
         'profile': profile,
         'topic_data': topic_data,
+        'boxes': list(boxes.values()),
+        'filed_total': len(cards),
+        'filed_max': filed_max,
+        'unfiled': unfiled,
         'due_count': due_count,
-        'earned_badges': earned_badges,
-        'xp_progress_pct': int(100 * profile.xp_into_level / profile.xp_for_next_level) if profile.xp_for_next_level else 100,
+        'continue_concept': continue_concept,
+        'continue_resumed': resumed,
+        'due_concept_ids': {cid for cid, c in cards.items() if c.due_at <= now},
+        'continue_activities': (
+            1 + continue_concept.design_challenges.count() + continue_concept.matching_challenges.count()
+            + continue_concept.ordering_challenges.count() + continue_concept.coding_challenges.count()
+        ) if continue_concept else 0,
     })
 
 
@@ -175,12 +249,20 @@ def concept_quiz(request, concept_slug):
         choices = list(next_question.choices.all())
         random.shuffle(choices)
 
+    # One tick per question in the run: answered, the one on screen, still to come.
+    answered = run['answered']
+    run_ticks = ['done'] * min(answered, run['total'])
+    if not finished and not empty:
+        run_ticks.append('current')
+    run_ticks += ['todo'] * max(run['total'] - len(run_ticks), 0)
+
     return render(request, 'learn/quiz.html', {
         'concept': concept,
         'result': result,
         'next_question': next_question,
         'choices': choices,
         'run': run,
+        'run_ticks': run_ticks,
         'empty': empty,
         'finished': finished,
         'is_review': False,
@@ -197,14 +279,21 @@ def review_queue(request):
         result['question'] = question
         result['selected_choices'] = list(question.choices.filter(id__in=selected_ids))
         result['correct_choices'] = list(question.choices.filter(is_correct=True))
+        box_before = request.POST.get('box_before', '')
+        card.refresh_from_db()
         return render(request, 'learn/review.html', {
             'result': result, 'card': None, 'next_question': None, 'choices': [],
+            'box_before': int(box_before) if box_before.isdigit() else None,
+            'box_after': _leitner_box(card),
+            'due_left': due_review_cards(request.user).count(),
         })
 
     due = list(due_review_cards(request.user))
     if not due:
+        upcoming = ReviewCard.objects.filter(user=request.user).order_by('due_at').first()
         return render(request, 'learn/review.html', {
             'result': None, 'card': None, 'next_question': None, 'choices': [], 'empty': True,
+            'next_due': upcoming.due_at if upcoming else None,
         })
     card = random.choice(due)
     questions = list(card.concept.questions.all())
@@ -213,7 +302,7 @@ def review_queue(request):
     random.shuffle(choices)
     return render(request, 'learn/review.html', {
         'result': None, 'card': card, 'next_question': question, 'choices': choices,
-        'due_total': len(due),
+        'due_total': len(due), 'box': _leitner_box(card),
     })
 
 
@@ -244,7 +333,10 @@ def toggle_unlock_all(request):
 
 @login_required
 def badges_view(request):
-    all_badges = Badge.objects.all()
+    all_badges = list(Badge.objects.all())
+    for badge in all_badges:
+        # Stamp monogram: initials of the badge name ("Game Master" -> "GM").
+        badge.initials = ''.join(w[0] for w in badge.name.split()[:2]).upper()
     earned_ids = set(UserBadge.objects.filter(user=request.user).values_list('badge_id', flat=True))
     return render(request, 'learn/badges.html', {
         'all_badges': all_badges, 'earned_ids': earned_ids,
