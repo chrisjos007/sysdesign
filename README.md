@@ -73,6 +73,15 @@ or more Matching/Ordering games.
     if the scenario doesn't have enough in it to write unambiguous test
     cases, comes back with specific clarifying questions instead of
     guessing. Requires a free `GEMINI_API_KEY` (see below).
+- **Spot the Flaw** — an architecture diagram with a few design mistakes
+  planted in it (e.g. a notification system with one shared queue and a
+  synchronous SMS call). Tap a box or arrow you think is wrong, then pick
+  why: the right reason scores, a wrong reason or a tap on a healthy part
+  costs points, and every flaw still hidden when you finish the review
+  costs more. A clean run earns the perfect bonus and the "Flaw Finder"
+  badge. Each tap is checked on the server, which keeps the run in the
+  session, so the page never holds the answers and a reload can't wipe a
+  penalty.
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
@@ -98,7 +107,7 @@ pip install -r requirements.txt
 
 python manage.py migrate
 python manage.py seed_content   # loads the book content + quiz questions
-python manage.py seed_games     # loads the architecture/matching/ordering games
+python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw games
 python manage.py createsuperuser   # optional, for /admin access
 
 python manage.py runserver
@@ -125,7 +134,13 @@ with the superuser you created).
   dicts, rendered behind the View Notes toggle and reused as Study Mode's
   flashcards.
 - Mini-game content (architecture builder pools/wiring, matching pairs,
-  ordering steps) lives in `learn/management/commands/seed_games.py`.
+  ordering steps, spot-the-flaw diagrams) lives in
+  `learn/management/commands/seed_games.py`. A spot-the-flaw diagram is
+  hand-placed boxes and SVG arrow paths in a 1000×430 viewBox; see the
+  comment above `FLAW_CHALLENGES`, and run the tests, which check the
+  seeded diagrams for typos. Point them at SQLite so they don't create a
+  test database on whatever server `.env`'s `DATABASE_URL` names:
+  `DATABASE_URL=sqlite:///db.sqlite3 python manage.py test learn`.
 
 Both are plain Python data structures — add entries and re-run the
 matching `manage.py` command; both commands are idempotent, so re-running

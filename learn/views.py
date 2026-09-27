@@ -4,19 +4,23 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import services
 from .context_processors import _chapter_href
 from .models import (
     Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
-    MatchingChallenge, OrderingChallenge, Question, ReviewCard, Topic, UserBadge,
+    FlawChallenge, FlawPart, MatchingChallenge, OrderingChallenge, Question, ReviewCard,
+    Topic, UserBadge,
 )
 from .services import (
-    chapter_is_unlocked, due_review_cards, get_profile, record_coding_attempt,
-    record_design_attempt, record_matching_attempt, record_ordering_attempt,
-    record_quiz_answer,
+    all_flaws_found, answer_flaw_part, chapter_is_unlocked, due_review_cards, flaw_snapshot,
+    get_profile, inspect_flaw_part, new_flaw_run, record_coding_attempt,
+    record_design_attempt, record_flaw_attempt, record_matching_attempt,
+    record_ordering_attempt, record_quiz_answer,
 )
 import json
 
@@ -150,6 +154,7 @@ def dashboard(request):
         'continue_activities': (
             1 + continue_concept.design_challenges.count() + continue_concept.matching_challenges.count()
             + continue_concept.ordering_challenges.count() + continue_concept.coding_challenges.count()
+            + continue_concept.flaw_challenges.count()
         ) if continue_concept else 0,
     })
 
@@ -195,6 +200,7 @@ def concept_detail(request, concept_slug):
         'matching_challenges': concept.matching_challenges.all(),
         'ordering_challenges': concept.ordering_challenges.all(),
         'coding_challenges': concept.coding_challenges.all(),
+        'flaw_challenges': concept.flaw_challenges.all(),
     })
 
 
@@ -446,3 +452,99 @@ def coding_challenge(request, challenge_slug):
         'result': result,
         'submitted_code': submitted_code,
     })
+
+
+def _flaw_run_key(challenge):
+    return f'flaw_run_{challenge.id}'
+
+
+def _flaw_diagram(challenge):
+    """Pre-computes where each part's text sits so the template can draw the
+    SVG without arithmetic: box titles are centred (one or two lines), the
+    state tag hangs off a box's top-right corner or under an arrow's caption."""
+    nodes, edges = [], []
+    for part in challenge.parts.all():
+        g = part.geometry or {}
+        if part.kind == FlawPart.EDGE:
+            has_caption = bool(part.sublabel) and 'lx' in g and 'ly' in g
+            edges.append({
+                'key': part.key, 'label': part.label, 'd': g.get('d', ''),
+                'caption': part.sublabel if has_caption else '',
+                'lx': g.get('lx', 0), 'ly': g.get('ly', 0), 'tag_y': g.get('ly', 0) + 28,
+            })
+        else:
+            x, y, w, h = (g.get(k, 0) for k in ('x', 'y', 'w', 'h'))
+            mid = y + h / 2
+            nodes.append({
+                'key': part.key, 'label': part.label, 'sublabel': part.sublabel,
+                'x': x, 'y': y, 'w': w, 'h': h, 'cx': x + w / 2,
+                'title_y': mid - 3 if part.sublabel else mid + 5, 'sub_y': mid + 15,
+                'tag_x': x + w, 'tag_y': y - 5,
+            })
+    return nodes, edges
+
+
+@login_required
+def flaw_challenge(request, challenge_slug):
+    challenge = get_object_or_404(FlawChallenge.objects.select_related('concept__chapter__book'), slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        messages.error(request, "This chapter is still locked.")
+        return redirect('learn:dashboard')
+
+    # An unfinished review picks up where it left off, penalties included,
+    # so reloading the page can't wipe a wrong tap. A closed one starts over.
+    key = _flaw_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done'):
+        run = new_flaw_run()
+        request.session[key] = run
+
+    nodes, edges = _flaw_diagram(challenge)
+    return render(request, 'learn/flaw_challenge.html', {
+        'challenge': challenge, 'nodes': nodes, 'edges': edges,
+        'snapshot': flaw_snapshot(challenge, run),
+        'points': {
+            'found': services.POINTS_FLAW_FOUND, 'wrong': services.POINTS_FLAW_WRONG_REASON,
+            'healthy': services.POINTS_FLAW_HEALTHY_TAP, 'missed': services.POINTS_FLAW_MISSED,
+            'perfect': services.PERFECT_BONUS,
+        },
+    })
+
+
+@login_required
+@require_POST
+def flaw_move(request, challenge_slug):
+    """One move in a Spot the Flaw review, answered as JSON: `inspect` a
+    part, `answer` why a part is flawed, or `finish` the review. Finding the
+    last flaw finishes it too."""
+    challenge = get_object_or_404(FlawChallenge, slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        return JsonResponse({'error': 'This chapter is still locked.'}, status=403)
+
+    key = _flaw_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done'):
+        return JsonResponse({'error': 'This review has already closed. Reload the page to start a new one.'}, status=409)
+
+    action = request.POST.get('action')
+    part_key = request.POST.get('part', '')
+    if action == 'inspect':
+        result = inspect_flaw_part(challenge, run, part_key)
+    elif action == 'answer':
+        reason = request.POST.get('reason', '')
+        result = answer_flaw_part(challenge, run, part_key, int(reason)) if reason.isdigit() else None
+    elif action == 'finish':
+        result = {'verdict': 'finished', 'points': 0}
+    else:
+        result = None
+    if result is None:
+        return JsonResponse({'error': "That move doesn't fit this diagram."}, status=400)
+
+    finished = None
+    if action == 'finish' or all_flaws_found(challenge, run):
+        finished = record_flaw_attempt(request.user, challenge, run)
+        finished['new_badges'] = [b.name for b in finished['new_badges']]
+    request.session[key] = run
+    return JsonResponse({'result': result, 'finished': finished, 'snapshot': flaw_snapshot(challenge, run)})

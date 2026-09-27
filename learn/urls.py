@@ -18,4 +18,6 @@ urlpatterns = [
     path('match/<slug:challenge_slug>/', views.matching_challenge, name='matching_challenge'),
     path('order/<slug:challenge_slug>/', views.ordering_challenge, name='ordering_challenge'),
     path('code/<slug:challenge_slug>/', views.coding_challenge, name='coding_challenge'),
+    path('flaw/<slug:challenge_slug>/', views.flaw_challenge, name='flaw_challenge'),
+    path('flaw/<slug:challenge_slug>/move/', views.flaw_move, name='flaw_move'),
 ]

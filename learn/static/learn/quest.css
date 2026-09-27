@@ -1297,6 +1297,100 @@ input::placeholder { color: var(--ink-3); opacity: 1; }
 
 .admin-card { border-top: 3px solid var(--stamp); }
 
+/* Spot the flaw */
+
+.flaw-game [hidden] { display: none !important; }
+.game-head .page-head { margin-bottom: 0; }
+
+.tally { display: flex; flex-direction: column; align-items: flex-end; min-width: 7.5rem; padding: var(--s2) var(--s4); background: var(--card); border: 1px solid var(--card-edge); border-top: 3px solid var(--head-rule); border-radius: 0 0 var(--radius) var(--radius); box-shadow: var(--lift); }
+.tally .label { color: var(--ink-3); }
+.tally strong { font-size: var(--fs-2xl); line-height: 1.15; }
+
+.rules { list-style: none; display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
+.rules li { padding: 0.15rem 0.55rem; background: var(--card); border: 1px solid var(--card-edge); border-radius: 2px; color: var(--ink); }
+.rules .plus { color: var(--right); font-weight: 700; }
+.rules .minus { color: var(--wrong); font-weight: 700; }
+
+#flaw-verdict { margin-bottom: var(--s5); scroll-margin-top: 4.5rem; }
+#flaw-verdict:focus { outline: none; }
+
+.flaw-board { padding: var(--s4); display: grid; gap: var(--s4); }
+.flaw-board.is-busy .flaw-part, .flaw-board.is-busy .reason { cursor: progress; }
+@media (min-width: 640px) { .flaw-board { padding: var(--s5); } }
+
+.flaw-scroll-hint { display: none; align-items: center; gap: var(--s1); }
+@media (max-width: 800px) { .flaw-scroll-hint { display: flex; } }
+
+.flaw-canvas {
+  overflow-x: auto;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius);
+  background: var(--card) radial-gradient(var(--ruling) 1px, transparent 1.3px) 0 0 / 16px 16px;
+}
+.flaw-diagram { width: 100%; min-width: 760px; height: auto; }
+.flaw-diagram text { font-family: var(--font); pointer-events: none; }
+.flaw-arrowhead { fill: var(--ink-3); }
+
+.flaw-part { cursor: pointer; outline: none; }
+.flaw-node rect { fill: var(--card); stroke: var(--ink-3); stroke-width: 1.25; transition: stroke 120ms var(--ease), fill 120ms var(--ease); }
+.flaw-node__title { font-size: 14px; font-weight: 650; fill: var(--ink); }
+.flaw-node__sub { font-size: 12px; fill: var(--ink-3); }
+.flaw-edge__line { fill: none; stroke: var(--ink-3); stroke-width: 1.5; }
+.flaw-edge__hit { fill: none; stroke: transparent; stroke-width: 18; }
+.flaw-edge__caption { font-size: 12px; font-style: italic; fill: var(--ink-2); }
+.flaw-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; font-stretch: 75%; }
+
+.flaw-node:hover rect, .flaw-node:focus-visible rect { stroke: var(--cobalt); stroke-width: 2; }
+.flaw-edge:hover .flaw-edge__line, .flaw-edge:focus-visible .flaw-edge__line { stroke: var(--cobalt); stroke-width: 2.5; }
+.flaw-node:focus-visible rect { stroke-dasharray: 5 3; }
+.flaw-edge:focus-visible .flaw-edge__hit { stroke: var(--cobalt-tint); }
+
+.flaw-part.is-active rect { stroke: var(--cobalt); stroke-width: 2.5; fill: var(--cobalt-tint); }
+.flaw-part.is-active .flaw-edge__line { stroke: var(--cobalt); stroke-width: 2.5; }
+.flaw-part.is-found rect { fill: var(--right-tint); stroke: var(--right); stroke-width: 2; }
+.flaw-part.is-found .flaw-edge__line { stroke: var(--right); stroke-width: 2.5; }
+.flaw-part.is-found .flaw-tag { fill: var(--right); }
+.flaw-part.is-fine rect { fill: var(--card-back); stroke-dasharray: 3 3; }
+.flaw-part.is-fine .flaw-node__title { fill: var(--ink-3); }
+.flaw-part.is-fine .flaw-edge__line { stroke: var(--steel-edge); }
+.flaw-part.is-fine .flaw-tag { fill: var(--ink-3); }
+.flaw-part.is-missed rect { fill: var(--wrong-tint); stroke: var(--wrong); stroke-width: 2; stroke-dasharray: 5 3; }
+.flaw-part.is-missed .flaw-edge__line { stroke: var(--wrong); stroke-width: 2.5; stroke-dasharray: 6 4; }
+.flaw-part.is-missed .flaw-tag { fill: var(--wrong); }
+
+.flaw-panels { display: grid; gap: var(--s5); }
+@media (min-width: 960px) { .flaw-panels { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); } }
+.flaw-panel { display: grid; gap: var(--s3); align-content: start; }
+.flaw-panel .panel-label { margin-bottom: 0; }
+#flaw-inspector { scroll-margin-bottom: var(--s4); }
+
+.reasons { display: grid; gap: var(--s2); }
+.reasons:empty { display: none; }
+.reason {
+  text-align: left;
+  padding: var(--s3) var(--s4);
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius);
+  line-height: 1.4;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease), background-color 160ms var(--ease);
+}
+.reason:hover:not(:disabled) { border-color: var(--cobalt); background: var(--cobalt-tint); }
+.reason:disabled { text-decoration: line-through; color: var(--ink-3); background: var(--card-back); cursor: not-allowed; }
+
+.flaw-feedback .slip { align-items: flex-start; box-shadow: none; line-height: 1.45; }
+.slip--right { --slip-rule: var(--right); }
+.slip--wrong { --slip-rule: var(--wrong); }
+.slip__pts { flex: none; min-width: 2.6rem; font-size: var(--fs-md); }
+.slip--right .slip__pts { color: var(--right); }
+.slip--wrong .slip__pts { color: var(--wrong); }
+
+.flaw-pips { display: inline-flex; gap: 4px; vertical-align: middle; margin-left: var(--s2); }
+.flaw-pips i { width: 0.8rem; height: 0.8rem; border: 1.5px solid var(--ink-3); border-radius: 1px; }
+.flaw-pips i.is-on { background: var(--right); border-color: var(--right); }
+.flaw-pips i.is-miss { background: var(--wrong); border-color: var(--wrong); }
+
 /* Markdown (coding problem statements) */
 
 .markdown-body { line-height: 1.65; }

@@ -500,3 +500,80 @@ class CodingAttempt(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class FlawChallenge(models.Model):
+    """Spot the Flaw: an architecture diagram with a few design mistakes
+    planted in it. The learner taps the boxes and arrows they think are
+    wrong and then picks why. Which parts are flawed, and which reason is
+    right, stay on the server until the learner commits to an answer; see
+    services.inspect_flaw_part / answer_flaw_part."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='flaw_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the diagram, e.g. how many flaws are planted.')
+    canvas_width = models.PositiveIntegerField(default=1000, help_text='SVG viewBox width the part geometry is drawn in.')
+    canvas_height = models.PositiveIntegerField(default=430, help_text='SVG viewBox height the part geometry is drawn in.')
+
+    def __str__(self):
+        return self.title
+
+
+class FlawPart(models.Model):
+    """One tappable box (node) or arrow (edge) in a FlawChallenge diagram."""
+    NODE = 'node'
+    EDGE = 'edge'
+    KIND_CHOICES = [(NODE, 'Box'), (EDGE, 'Arrow')]
+
+    challenge = models.ForeignKey(FlawChallenge, on_delete=models.CASCADE, related_name='parts')
+    key = models.SlugField(max_length=40, help_text='Stable id within the diagram, used by the page and seed data.')
+    kind = models.CharField(max_length=4, choices=KIND_CHOICES, default=NODE)
+    label = models.CharField(max_length=100, help_text='Box title, or the spoken name of an arrow.')
+    sublabel = models.CharField(
+        max_length=100, blank=True,
+        help_text="Box: second line under the title. Arrow: caption drawn beside it (optional).",
+    )
+    geometry = models.JSONField(
+        default=dict,
+        help_text='Box: {"x", "y", "w", "h"}. Arrow: {"d": SVG path} plus {"lx", "ly"} if it has a caption.',
+    )
+    is_flaw = models.BooleanField(default=False)
+    explanation = models.TextField(
+        blank=True,
+        help_text="Healthy parts: why this part is fine. Flawed parts show their correct reason instead.",
+    )
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+        unique_together = [('challenge', 'key')]
+
+    def __str__(self):
+        return f'{self.challenge.title}: {self.label}'
+
+
+class FlawReason(models.Model):
+    """A candidate answer to 'why is this part wrong?' on a flawed FlawPart."""
+    part = models.ForeignKey(FlawPart, on_delete=models.CASCADE, related_name='reasons')
+    text = models.CharField(max_length=300)
+    is_correct = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class FlawAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='flaw_attempts')
+    challenge = models.ForeignKey(FlawChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

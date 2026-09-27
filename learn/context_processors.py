@@ -35,6 +35,7 @@ CHALLENGE_ROUTES = {
     'matching_challenge': ('MatchingChallenge', 'Matching'),
     'ordering_challenge': ('OrderingChallenge', 'Ordering'),
     'coding_challenge': ('CodingChallenge', 'Coding'),
+    'flaw_challenge': ('FlawChallenge', 'Spot the Flaw'),
 }
 
 
@@ -52,12 +53,13 @@ def _resolve_location(request):
     breadcrumb trail back up to it, from the resolved URL alone, so no view
     has to pass navigation context by hand."""
     from .models import (
-        Chapter, CodingChallenge, Concept, DesignChallenge, MatchingChallenge,
+        Chapter, CodingChallenge, Concept, DesignChallenge, FlawChallenge, MatchingChallenge,
         OrderingChallenge, Topic,
     )
     models = {
         'DesignChallenge': DesignChallenge, 'MatchingChallenge': MatchingChallenge,
         'OrderingChallenge': OrderingChallenge, 'CodingChallenge': CodingChallenge,
+        'FlawChallenge': FlawChallenge,
     }
     match = getattr(request, 'resolver_match', None)
     if not match or match.app_name != 'learn':

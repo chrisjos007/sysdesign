@@ -1,11 +1,13 @@
 """Gamification engine: XP, streaks, spaced repetition scheduling, mini-game scoring, badges."""
+import random
+
 from django.db.models import Count
 from django.utils import timezone
 
 from .code_runner import grade_submission
 from .models import (
     Attempt, Badge, Book, Chapter, ConceptMastery,
-    CodingAttempt, DesignAttempt, MatchingAttempt, OrderingAttempt,
+    CodingAttempt, DesignAttempt, FlawAttempt, MatchingAttempt, OrderingAttempt,
     ReviewCard, UserBadge, UserProfile,
 )
 
@@ -31,6 +33,12 @@ POINTS_ORDER_WRONG = 4
 # Coding-challenge scoring
 POINTS_TEST_PASSED = 12
 POINTS_TEST_FAILED = 3
+
+# Spot-the-flaw scoring
+POINTS_FLAW_FOUND = 25
+POINTS_FLAW_WRONG_REASON = 10
+POINTS_FLAW_HEALTHY_TAP = 10
+POINTS_FLAW_MISSED = 15
 
 PERFECT_BONUS = 25
 
@@ -280,6 +288,167 @@ def record_coding_attempt(user, challenge, code):
     }
 
 
+# ---------------------------------------------------------------------------
+# Spot the Flaw
+#
+# Unlike the other games, this one gives feedback on every tap, so a run is
+# a small state machine that the view keeps in the session instead of one
+# form submit at the end. The run only records what the learner has done
+# (flaws found, healthy parts tapped, wrong reasons tried) and the score is
+# recomputed from that. Whether a part is flawed, and which reason is right,
+# never reaches the page until the learner has committed to an answer.
+# ---------------------------------------------------------------------------
+
+def new_flaw_run():
+    return {'seed': random.randrange(1 << 30), 'found': [], 'cleared': [], 'wrong': {}, 'done': False}
+
+
+def _flaw_parts(challenge):
+    return {p.key: p for p in challenge.parts.prefetch_related('reasons')}
+
+
+def _flaw_note(part):
+    """What a part says once it's resolved: the fix for a flaw, or why a healthy part is fine."""
+    if part.is_flaw:
+        right = next((r for r in part.reasons.all() if r.is_correct), None)
+        return right.text if right else part.explanation
+    return part.explanation
+
+
+def _missed_keys(parts, run):
+    if not run['done']:
+        return []
+    return [k for k, p in parts.items() if p.is_flaw and k not in run['found']]
+
+
+def _flaw_is_perfect(parts, run):
+    flaw_keys = {k for k, p in parts.items() if p.is_flaw}
+    return bool(flaw_keys and set(run['found']) == flaw_keys
+                and not run['cleared'] and not any(run['wrong'].values()))
+
+
+def _flaw_score(parts, run):
+    score = (
+        len(run['found']) * POINTS_FLAW_FOUND
+        - len(run['cleared']) * POINTS_FLAW_HEALTHY_TAP
+        - sum(len(ids) for ids in run['wrong'].values()) * POINTS_FLAW_WRONG_REASON
+        - len(_missed_keys(parts, run)) * POINTS_FLAW_MISSED
+    )
+    if run['done'] and _flaw_is_perfect(parts, run):
+        score += PERFECT_BONUS
+    return score
+
+
+def flaw_snapshot(challenge, run):
+    """The public view of a run: the score so far and, for each part the
+    learner has resolved (or every part, once the review is closed), its
+    state and note. Unresolved parts are left out entirely."""
+    parts = _flaw_parts(challenge)
+    missed = set(_missed_keys(parts, run))
+    public = {}
+    for key, part in parts.items():
+        if key in run['found']:
+            state = 'found'
+        elif key in run['cleared']:
+            state = 'fine'
+        elif key in missed:
+            state = 'missed'
+        elif run['done']:
+            state = 'unchecked'
+        else:
+            continue
+        public[key] = {'state': state, 'note': _flaw_note(part)}
+    return {
+        'score': _flaw_score(parts, run),
+        'found': len(run['found']),
+        'flaws': sum(1 for p in parts.values() if p.is_flaw),
+        'done': run['done'],
+        'parts': public,
+    }
+
+
+def _reason_options(part, run):
+    reasons = list(part.reasons.all())
+    random.Random(f"{run['seed']}:{part.key}").shuffle(reasons)
+    tried = set(run['wrong'].get(part.key, []))
+    return [{'id': r.id, 'text': r.text, 'tried': r.id in tried} for r in reasons]
+
+
+def inspect_flaw_part(challenge, run, key):
+    """The learner tapped a part. A healthy part costs points on its first
+    tap and is marked fine; a flawed part asks them why it's wrong.
+    Returns None for a key that isn't in the diagram."""
+    part = _flaw_parts(challenge).get(key)
+    if part is None:
+        return None
+    if run['done'] or key in run['found'] or key in run['cleared']:
+        return {'verdict': 'resolved', 'points': 0}
+    if not part.is_flaw:
+        run['cleared'].append(key)
+        return {'verdict': 'fine', 'points': -POINTS_FLAW_HEALTHY_TAP}
+    return {'verdict': 'suspect', 'points': 0, 'reasons': _reason_options(part, run)}
+
+
+def answer_flaw_part(challenge, run, key, reason_id):
+    """The learner said why a flawed part is wrong. A wrong reason costs
+    points once and is crossed off; the right one marks the flaw found.
+    Returns None unless the reason belongs to a flawed part with that key."""
+    part = _flaw_parts(challenge).get(key)
+    if part is None or not part.is_flaw:
+        return None
+    reason = next((r for r in part.reasons.all() if r.id == reason_id), None)
+    if reason is None:
+        return None
+    if run['done'] or key in run['found']:
+        return {'verdict': 'resolved', 'points': 0}
+    if reason.is_correct:
+        run['found'].append(key)
+        return {'verdict': 'right', 'points': POINTS_FLAW_FOUND}
+    tried = run['wrong'].setdefault(key, [])
+    points = 0
+    if reason.id not in tried:
+        tried.append(reason.id)
+        points = -POINTS_FLAW_WRONG_REASON
+    return {'verdict': 'wrong', 'points': points, 'reasons': _reason_options(part, run)}
+
+
+def all_flaws_found(challenge, run):
+    return all(k in run['found'] for k, p in _flaw_parts(challenge).items() if p.is_flaw)
+
+
+def record_flaw_attempt(user, challenge, run):
+    """Closes the review: every flaw still hidden costs points, a clean run
+    earns the perfect bonus, and the attempt is filed like every other game."""
+    run['done'] = True
+    parts = _flaw_parts(challenge)
+    missed = _missed_keys(parts, run)
+    is_perfect = _flaw_is_perfect(parts, run)
+    score = _flaw_score(parts, run)
+
+    xp_awarded = max(0, score)
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {
+        'found': [parts[k].label for k in run['found'] if k in parts],
+        'missed': [parts[k].label for k in missed],
+        'healthy_taps': [parts[k].label for k in run['cleared'] if k in parts],
+        'wrong_reasons': sum(len(ids) for ids in run['wrong'].values()),
+    }
+    FlawAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -294,6 +463,7 @@ BADGE_DEFS = [
     ('matchmaker', 'Matchmaker', 'Get every match correct in a matching challenge.', '🧩'),
     ('sequencer', 'Sequencer', 'Put every step in exactly the right order.', '🔢'),
     ('coder', 'Coder', 'Pass every test case on a coding challenge.', '💻'),
+    ('flaw_finder', 'Flaw Finder', 'Find every planted flaw without a wrong tap or a wrong reason.', '🔍'),
     ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
@@ -355,6 +525,7 @@ def check_badges(user):
     has_perfect_match = MatchingAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_order = OrderingAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_coding = CodingAttempt.objects.filter(user=user, is_perfect=True).exists()
+    maybe('flaw_finder', FlawAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)
