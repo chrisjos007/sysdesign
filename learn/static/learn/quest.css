@@ -746,6 +746,15 @@ a.row-card:hover .row-card__title { color: var(--cobalt); }
 
 .notes-sheet__summary { font-size: var(--fs-lg); line-height: 1.6; color: var(--ink); max-width: 68ch; }
 
+/* Curriculum lessons: stage, study time, objectives and prerequisites. */
+.lesson-brief { display: grid; gap: var(--s3); margin-top: var(--s5); padding-top: var(--s4); border-top: 1px solid var(--ruling); }
+.lesson-brief__title { font-size: var(--fs-md); }
+.lesson-brief__objectives { padding-left: 1.2rem; color: var(--ink-2); max-width: 68ch; }
+.lesson-brief__objectives li + li { margin-top: var(--s2); }
+.lesson-brief__prereqs { max-width: 68ch; }
+.source-list { list-style: none; display: grid; gap: var(--s3); }
+.source-list a { overflow-wrap: anywhere; }
+
 .notes-toolbar {
   display: flex;
   flex-wrap: wrap;

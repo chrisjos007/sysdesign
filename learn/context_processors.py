@@ -17,15 +17,17 @@ def unlock_toggle(request):
     }
 
 
-# Short labels for the topic tab dividers. Full titles are long ("Operating
-# Systems & Linux Fundamentals") and a tab has room for one or two words;
+# Short labels for the topic tab dividers. Full titles are long ("Advanced:
+# Handle Distributed Failures") and a tab has room for one or two words;
 # anything not listed here falls back to its full title.
 TOPIC_TAB_LABELS = {
     'system-design-fundamentals': 'Fundamentals',
-    'distributed-systems-patterns': 'Building Blocks',
-    'databases-distributed-storage': 'Storage',
+    'scale-a-service': 'Scaling',
+    'distributed-failures': 'Failures',
+    'operate-reliably': 'Production',
+    'reason-about-guarantees': 'Guarantees',
     'system-design-case-studies': 'Case Studies',
-    'operating-systems-linux': 'OS & Linux',
+    'operating-systems-linux': 'OS',
     'python-internals': 'Python',
 }
 

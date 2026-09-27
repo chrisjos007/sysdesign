@@ -1,5 +1,9 @@
 {% extends "learn/base.html" %}
+{% load static %}
 {% block title %}{{ concept.title }} — SysDesign Quest{% endblock %}
+{% block head %}
+{% if request_lesson %}<link rel="stylesheet" href="{% static 'learn/request_lesson.css' %}">{% endif %}
+{% endblock %}
 {% block content %}
 <header class="page-head">
     <h1>{{ concept.title }}</h1>
@@ -10,6 +14,18 @@
     <article class="card card--head notes-sheet" aria-label="Notes">
         <div class="card__pad">
             <p class="notes-sheet__summary">{{ concept.summary }}</p>
+            {% if request_lesson %}{% include "learn/_request_lesson.html" %}{% elif concept.curriculum %}
+            {% with lesson=concept.curriculum %}
+            <section class="lesson-brief" aria-labelledby="lesson-brief-title">
+                <p class="meta"><span class="num">{{ lesson.id }}</span> · {{ lesson.stage|capfirst }}{% if lesson.type == 'case_study' %} case study{% endif %} · <span class="num">{{ lesson.minutes }}</span> minutes</p>
+                <h2 id="lesson-brief-title" class="lesson-brief__title">What you will be able to do</h2>
+                <ul class="lesson-brief__objectives">{% for objective in lesson.objectives %}<li>{{ objective }}</li>{% endfor %}</ul>
+                {% if lesson.prerequisites %}
+                <p class="lesson-brief__prereqs"><span class="meta">Builds on</span> {% for p in lesson.prerequisites %}<a href="{% url 'learn:concept_detail' p.slug %}">{{ p.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+                {% endif %}
+            </section>
+            {% endwith %}
+            {% endif %}
 
             {% if concept.notes_sections %}
             <div class="notes-toolbar">
@@ -76,6 +92,18 @@
             <div class="card__pad">
                 <h2 id="play-title">Play to learn</h2>
                 <div class="activities">
+                    {% if request_lesson %}
+                    <a href="#request-trace-title" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-order"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Follow a request</span><span class="activity__sub">Compare connection setup</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    <a href="#request-practice" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-study"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Trace a timeout</span><span class="activity__sub">Reason through two histories</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endif %}
                     <a href="{% url 'learn:concept_quiz' concept.slug %}" class="card activity activity--primary">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-quiz"/></svg></span>
                         <span class="activity__main">
@@ -151,11 +179,24 @@
                 {% endif %}
             </div>
         </section>
+
+        {% if concept.curriculum and not request_lesson %}
+        <section class="card side-card" aria-labelledby="sources-title">
+            <div class="card__pad">
+                <h2 id="sources-title">Sources</h2>
+                <ul class="source-list">
+                    {% for source in concept.curriculum.sources %}<li><a href="{{ source.url }}">{{ source.title }}</a> <span class="meta">{{ source.publisher }}</span></li>{% endfor %}
+                </ul>
+                {% if concept.curriculum.scope %}<p class="meta">{{ concept.curriculum.scope }}</p>{% endif %}
+            </div>
+        </section>
+        {% endif %}
     </aside>
 </div>
 {% endblock %}
 
 {% block scripts %}
+{% if request_lesson %}<script src="{% static 'learn/request_lesson.js' %}" defer></script>{% endif %}
 <script>
 (function () {
     var dataEl = document.getElementById('notes-sections-data');

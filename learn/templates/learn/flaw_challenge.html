@@ -6,7 +6,7 @@
     <header class="page-head">
         <h1>{{ challenge.title }}</h1>
         <p class="page-head__lede">{{ challenge.prompt }}</p>
-        {% if challenge.concept.source_note %}<p class="page-head__meta"><span>Source: {{ challenge.concept.chapter.book.title }} · {{ challenge.concept.source_note }}</span></p>{% endif %}
+        {% if challenge.concept.source_note %}<p class="page-head__meta"><span>Source: {{ challenge.concept.source_note }}</span></p>{% endif %}
     </header>
     <div class="tally">
         <span class="label">Score</span>

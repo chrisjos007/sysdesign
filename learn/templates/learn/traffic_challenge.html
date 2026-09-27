@@ -7,7 +7,7 @@
     <header class="page-head">
         <h1>{{ challenge.title }}</h1>
         <p class="page-head__lede">{{ challenge.prompt }}</p>
-        <p class="page-head__meta"><span>Source: {{ challenge.concept.chapter.book.title }} · {{ params.source|default:challenge.concept.source_note }}</span></p>
+        <p class="page-head__meta"><span>Source: {{ params.source|default:challenge.concept.source_note }}</span></p>
     </header>
     <div class="tally">
         <span class="label">Score</span>

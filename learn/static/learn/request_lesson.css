@@ -1,0 +1,60 @@
+/* Inherit the current Archivo / index-card interface from quest.css. */
+.request-lesson { margin-top: var(--s6); }
+.request-lesson [hidden] { display: none !important; }
+.request-lesson h2 { font-size: var(--fs-xl); }
+.request-lesson h3 { font-size: var(--fs-lg); }
+.request-lesson h4 { font-size: var(--fs-md); }
+.request-lesson p { max-width: 68ch; }
+.request-lesson__intro > * + * { margin-top: var(--s3); }
+.request-lesson__objectives { padding-left: 1.2rem; color: var(--ink-2); }
+.request-lesson__objectives li + li { margin-top: var(--s2); }
+.request-trace, .request-practice { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); }
+.request-trace > * + *, .request-practice > * + * { margin-top: var(--s4); }
+.request-trace code { overflow-wrap: anywhere; font-size: 0.9em; }
+.request-trace__controls { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.request-trace__controls .btn { min-height: 44px; padding: 0.55rem 0.75rem; font-size: var(--fs-sm); }
+.request-trace__controls [aria-pressed="true"] { background: var(--cobalt); border-color: var(--cobalt); color: white; }
+.request-trace__controls [aria-pressed="true"]:hover { background: var(--cobalt-press); }
+.request-trace__total { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s4); }
+.request-trace__total strong { font-size: var(--fs-xl); color: var(--cobalt); }
+.request-trace__total span { font-size: var(--fs-sm); color: var(--ink-2); }
+.request-trace__bar { display: flex; height: 12px; overflow: hidden; background: var(--card-back); }
+.request-trace__bar-segment { flex-basis: 0; min-width: 0; transition: flex-grow 240ms var(--ease); }
+.request-trace__bar-segment--dns { background: var(--srv-1); }
+.request-trace__bar-segment--tcp { background: var(--srv-2); }
+.request-trace__bar-segment--tls { background: var(--srv-3); }
+.request-trace__bar-segment--http { background: var(--srv-5); }
+.request-trace__steps { list-style: none; }
+.request-trace__steps > li { border-top: 1px solid var(--ruling); padding: var(--s3) 0; }
+.request-trace__steps > li:last-child { border-bottom: 1px solid var(--ruling); }
+.request-trace__row { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; gap: var(--s3); align-items: baseline; }
+.request-trace__number { color: var(--ink-3); font-size: var(--fs-sm); }
+.request-trace__job { display: block; color: var(--ink-2); font-size: var(--fs-sm); }
+.request-trace__cost { font-size: var(--fs-sm); font-weight: 600; }
+.request-trace__steps .is-reused .request-trace__cost { color: var(--cobalt); }
+.request-trace__detail { margin: var(--s2) 0 0 2.25rem; font-size: var(--fs-sm); }
+.request-lesson summary { cursor: pointer; color: var(--cobalt); padding: var(--s3) 0; min-height: 44px; }
+.request-lesson summary:hover { color: var(--cobalt-press); }
+.request-lesson details p + p { margin-top: var(--s3); }
+.request-trace__detail p { color: var(--ink-2); }
+.request-lesson__scope { color: var(--ink-3); font-size: var(--fs-sm); }
+.request-practice__answer { border-bottom: 1px solid var(--ruling); padding-bottom: var(--s2); }
+.request-practice__histories { display: grid; gap: var(--s5); margin: var(--s3) 0 var(--s5); }
+.request-practice__histories ol { padding-left: 1.2rem; margin-top: var(--s3); }
+.request-practice__histories li + li { margin-top: var(--s2); }
+.request-practice > .btn { min-height: 44px; }
+.request-lesson__sources { margin-top: var(--s6); }
+.request-lesson__sources ul { padding-left: 1.2rem; margin-top: var(--s3); }
+.request-lesson__sources a { display: inline-block; padding: var(--s2) 0; }
+.request-lesson__notes-heading { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); }
+@media (min-width: 1200px) {
+  .request-practice__histories { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .request-trace__row { gap: var(--s2); grid-template-columns: 1rem minmax(0, 1fr) auto; }
+  .request-trace__detail { margin-left: 1.5rem; }
+  .request-trace__cost { max-width: 5.5rem; text-align: right; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .request-trace__bar-segment { transition: none; }
+}
