@@ -9,19 +9,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import quorum, services
+from . import quorum, ring, services
 from .curriculum import DNS_TCP_TLS
 from .context_processors import _chapter_href
 from .models import (
     Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
     FlawChallenge, FlawPart, MatchingChallenge, OrderingChallenge, Question, QuorumChallenge,
-    ReviewCard, Topic, TrafficChallenge, UserBadge,
+    ReviewCard, RingChallenge, Topic, TrafficChallenge, UserBadge,
 )
 from .services import (
     all_flaws_found, answer_flaw_part, chapter_is_unlocked, due_review_cards, flaw_snapshot,
     get_profile, inspect_flaw_part, new_flaw_run, record_coding_attempt,
     record_design_attempt, record_flaw_attempt, record_matching_attempt,
-    record_ordering_attempt, record_quiz_answer, record_quorum_attempt, record_traffic_attempt,
+    record_ordering_attempt, record_quiz_answer, record_quorum_attempt, record_ring_attempt,
+    record_traffic_attempt,
 )
 import json
 
@@ -156,7 +157,7 @@ def dashboard(request):
             1 + continue_concept.design_challenges.count() + continue_concept.matching_challenges.count()
             + continue_concept.ordering_challenges.count() + continue_concept.coding_challenges.count()
             + continue_concept.flaw_challenges.count() + continue_concept.traffic_challenges.count()
-            + continue_concept.quorum_challenges.count()
+            + continue_concept.quorum_challenges.count() + continue_concept.ring_challenges.count()
         ) if continue_concept else 0,
     })
 
@@ -206,6 +207,7 @@ def concept_detail(request, concept_slug):
         'flaw_challenges': concept.flaw_challenges.all(),
         'traffic_challenges': concept.traffic_challenges.all(),
         'quorum_challenges': concept.quorum_challenges.all(),
+        'ring_challenges': concept.ring_challenges.all(),
     })
 
 
@@ -653,3 +655,80 @@ def quorum_move(request, challenge_slug):
         finished['new_badges'] = [b.name for b in finished['new_badges']]
     request.session[key] = run
     return JsonResponse({'result': result, 'finished': finished, 'snapshot': quorum.snapshot(challenge.tables, run)})
+
+
+def _ring_run_key(challenge):
+    return f'ring_run_{challenge.id}'
+
+
+@login_required
+def ring_challenge(request, challenge_slug):
+    challenge = get_object_or_404(RingChallenge.objects.select_related('concept__chapter__book'), slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        messages.error(request, "This chapter is still locked.")
+        return redirect('learn:dashboard')
+
+    # An unfinished run picks up where it left off, lock-ins and predictions
+    # included, so reloading can't wipe a miss. A finished one starts over.
+    key = _ring_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done') or not ring.run_fits(challenge.stages, run):
+        run = ring.new_run()
+        request.session[key] = run
+
+    return render(request, 'learn/ring_challenge.html', {
+        'challenge': challenge, 'snapshot': ring.snapshot(challenge.stages, run),
+        'ring_data': ring.ring_data(challenge.stages), 'keys': ring.KEYS, 'max_vnodes': ring.MAX_VNODES,
+        'rules': {
+            'balance': ring.BALANCE_POINTS, 'per_point': ring.POSITIONS_PER_POINT,
+            'missed': ring.MISSED_LOCK, 'right': ring.PREDICT_RIGHT, 'wrong': ring.PREDICT_WRONG,
+        },
+        'perfect_bonus': services.PERFECT_BONUS, 'points_per_xp': services.RING_POINTS_PER_XP,
+    })
+
+
+@login_required
+@require_POST
+def ring_move(request, challenge_slug):
+    """One move in a Ring Balancer run, answered as JSON: `lock` locks in `k`
+    virtual nodes per server (`weighted` = 1 gives them in proportion to
+    capacity), `answer` picks option `choice` for the waiting prediction, and
+    `next` opens the next stage once this one is cleared. The run closes when
+    the last stage clears."""
+    challenge = get_object_or_404(RingChallenge, slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        return JsonResponse({'error': 'This chapter is still locked.'}, status=403)
+
+    key = _ring_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done') or not ring.run_fits(challenge.stages, run):
+        return JsonResponse({'error': 'This run has already finished. Reload the page to play again.'}, status=409)
+
+    def whole(name):
+        raw = request.POST.get(name, '')
+        return int(raw) if raw.isdecimal() and len(raw) <= 4 else None
+
+    action = request.POST.get('action')
+    if action == 'lock':
+        weighted = request.POST.get('weighted', '0')
+        result = ring.lock(challenge.stages, run, whole('k'), weighted == '1') if weighted in ('0', '1') else None
+        error = f"That lock-in doesn't fit. Virtual nodes run from 1 to {ring.MAX_VNODES}, on a ring that's still to balance."
+    elif action == 'answer':
+        result = ring.answer(challenge.stages, run, whole('choice'))
+        error = "That answer doesn't fit. Pick one of the options on a prediction that's waiting."
+    elif action == 'next':
+        result = ring.advance(challenge.stages, run)
+        error = 'Clear this challenge first.'
+    else:
+        result, error = None, "That move doesn't fit this game."
+    if result is None:
+        return JsonResponse({'error': error}, status=400)
+
+    finished = None
+    if run['done']:
+        finished = record_ring_attempt(request.user, challenge, run)
+        finished['new_badges'] = [b.name for b in finished['new_badges']]
+    request.session[key] = run
+    return JsonResponse({'result': result, 'finished': finished, 'snapshot': ring.snapshot(challenge.stages, run)})

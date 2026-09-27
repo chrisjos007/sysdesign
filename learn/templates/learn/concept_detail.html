@@ -133,6 +133,13 @@
                         <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
                     </a>
                     {% endfor %}
+                    {% for rc in ring_challenges %}
+                    <a href="{% url 'learn:ring_challenge' rc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-ring"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ rc.title }}</span><span class="activity__sub">Ring Balancer</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
                     {% for fc in flaw_challenges %}
                     <a href="{% url 'learn:flaw_challenge' fc.slug %}" class="card activity">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-flaw"/></svg></span>
