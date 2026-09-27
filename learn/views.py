@@ -200,6 +200,7 @@ def concept_detail(request, concept_slug):
         'mastery': mastery,
         'question_count': concept.questions.count(),
         'request_lesson': DNS_TCP_TLS if concept.slug == DNS_TCP_TLS['slug'] else None,
+        'http_api_lesson': concept.slug == 'http-api-design',
         'design_challenges': concept.design_challenges.all(),
         'matching_challenges': concept.matching_challenges.all(),
         'ordering_challenges': concept.ordering_challenges.all(),

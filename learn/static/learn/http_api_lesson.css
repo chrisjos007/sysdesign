@@ -1,0 +1,35 @@
+/* sd-02 extends the app's index-card surfaces and Archivo typography. */
+.http-lesson { margin-top: var(--s6); }
+.http-lesson [hidden] { display: none !important; }
+.http-lesson h2 { font-size: var(--fs-xl); }
+.http-lesson h3 { font-size: var(--fs-lg); }
+.http-lesson h4 { font-size: var(--fs-md); }
+.http-lesson > p { margin-top: var(--s3); }
+.http-lesson p { max-width: 68ch; }
+.http-lab { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); scroll-margin-top: 5rem; }
+.http-lab > * + * { margin-top: var(--s4); }
+.http-lab__controls { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.http-lab .btn { min-height: 44px; font-size: var(--fs-sm); padding: 0.55rem 0.75rem; white-space: normal; }
+.http-lab [data-method][aria-pressed="true"] { color: white; background: var(--cobalt); border-color: var(--cobalt); }
+.http-lab [data-method][aria-pressed="true"]:hover { background: var(--cobalt-press); }
+.http-lab__facts { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s6); }
+.http-lab__facts dt { color: var(--ink-3); font-size: var(--fs-sm); }
+.http-lab__facts dd { margin: var(--s1) 0 0; font-weight: 600; }
+.http-lab__wire { margin: var(--s3) 0; padding: var(--s4); background: var(--card-back); border: 1px solid var(--card-edge); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); line-height: 1.6; }
+.http-lab code { overflow-wrap: anywhere; }
+.http-lab__result { border-top: 1px solid var(--ruling); padding-top: var(--s4); }
+.http-lab__result p + p { margin-top: var(--s3); }
+.http-lab__server { padding: var(--s3) 0; border-top: 1px solid var(--ruling); border-bottom: 1px solid var(--ruling); overflow-wrap: anywhere; }
+.http-lab__server strong { color: var(--cobalt); }
+.http-lab__editors { display: grid; gap: var(--s5); }
+.http-lab__editors form { min-width: 0; }
+.http-lab__editors form > * + * { margin-top: var(--s3); }
+.http-lab__editors label { display: block; font-size: var(--fs-sm); }
+.http-lab__editors input { display: block; width: 100%; min-width: 0; min-height: 44px; padding: var(--s2) var(--s3); border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--card); }
+.http-lab__editors input:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+.http-lesson summary { color: var(--cobalt); cursor: pointer; min-height: 44px; padding: var(--s3) 0; }
+.http-lesson summary:hover { color: var(--cobalt-press); }
+.http-lesson details p + p { margin-top: var(--s3); }
+.http-lesson__scope { font-size: var(--fs-sm); color: var(--ink-3); padding-top: var(--s5); }
+.http-lesson__notes-heading { border-top: 1px solid var(--card-edge); margin-top: var(--s6); padding-top: var(--s5); }
+@media (min-width: 1200px) { .http-lab__editors { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

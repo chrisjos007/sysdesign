@@ -24,6 +24,11 @@ What the app takes from each item:
 - **Games.** Each case study's reference graph is an Architecture Builder in
   `seed_games.py`, with the builder brief's wrong turns as its distractors.
   Every lesson has at least one matching, ordering or other game.
+- **Interactive walkthroughs.** sd-01 compares connection setup costs. sd-02
+  explores method semantics and retries, asynchronous acceptance versus
+  completion, and conditional edits with ETag/If-Match. Both are unscored
+  browser exercises; they do not send actual API requests or award mastery.
+  Existing quiz attempts continue to drive XP and review scheduling.
 
 The app does not store curriculum-wide completion records or enforce knowledge
 prerequisites; stages unlock by XP level instead.
