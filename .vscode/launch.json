@@ -10,11 +10,24 @@
             "type": "debugpy",
             "request": "launch",
             "args": [
-                "runserver"
+                "runserver",
+                "--noreload"
             ],
             "django": true,
             "autoStartBrowser": false,
-            "program": "${workspaceFolder}\\manage.py"
+            "program": "${workspaceFolder}\\manage.py",
+            // Without this, debugpy auto-attaches to every child Python
+            // process the server spawns -- including the coding-challenge
+            // grading subprocess in learn/code_runner.py -- which prints its
+            // own "Debugger warning: frozen modules..." banner into that
+            // child's stdout/stderr and breaks grading (every test case
+            // fails since the real program output gets pushed out/mixed in).
+            // --noreload above removes the one legitimate case (Django's
+            // autoreloader re-exec) this setting would otherwise be needed
+            // for, so this has no real downside beyond restarting the debug
+            // session manually after code changes instead of relying on
+            // autoreload-while-debugging.
+            "subProcess": false
         }
     ]
 }

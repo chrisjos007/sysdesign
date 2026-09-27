@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pattern Deck Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap">
+<style>
+/* Game Lab. Uses the app's "Leitner File" tokens from learn/static/learn/quest.css:
+   steel cabinet ground, white card stock, cobalt acts, index red means due. */
+:root {
+  --steel: #d4d8d0; --steel-2: #c6cbc2; --steel-3: #b3b9af; --steel-edge: #a3aa9f;
+  --enamel: #333a36; --enamel-2: #414944; --enamel-text: #eef0eb; --enamel-muted: #b9c0b8;
+  --card: #fdfdfb; --card-back: #f1f3ef; --ruling: #dfe7f3; --card-edge: #c3c9c0; --head-rule: #7f9bd1;
+  --ink: #1c1f1e; --ink-2: #434a46; --ink-3: #5f6762;
+  --cobalt: #2448c4; --cobalt-press: #1b379a; --cobalt-tint: #e6ecfb;
+  --due: #c42b3a; --due-tint: #fbe9eb;
+  --right: #2e7a4d; --right-tint: #e5f2ea;
+  --wrong: #a64a10; --wrong-tint: #f8ece2; --wrong-on-enamel: #f2a36f; --right-on-enamel: #8fd3a8;
+  --stamp: #8a5a00;
+  --stock-1: #ecd36a; --stock-2: #eaa58c; --stock-3: #a9d3b5; --stock-4: #a9c4e6; --stock-5: #c7b3dd; --stock-6: #e3c39a;
+  --stock: var(--card);
+  /* Deepened tab-divider stock, for series that need to read on white */
+  --srv-1: #3a67a8; --srv-2: #c0613f; --srv-3: #3f8a5a; --srv-4: #a8841a; --srv-5: #7a58a8;
+  --font: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  --fs-xs: 0.75rem; --fs-sm: 0.875rem; --fs-md: 1rem; --fs-lg: 1.125rem; --fs-xl: 1.375rem; --fs-2xl: 1.75rem; --fs-3xl: 2.125rem;
+  --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem;
+  --radius: 3px;
+  --lift: 0 1px 1px rgba(28, 31, 30, 0.08), 0 2px 6px rgba(28, 31, 30, 0.08);
+  --lift-hover: 0 2px 3px rgba(28, 31, 30, 0.1), 0 6px 14px rgba(28, 31, 30, 0.12);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --page: 80rem;
+  --gutter: 1rem;
+  color-scheme: light;
+}
+@media (min-width: 640px) { :root { --gutter: 1.5rem; } }
+@media (min-width: 1024px) { :root { --gutter: 2.5rem; } }
+
+[data-stock="1"] { --stock: var(--stock-1); }
+[data-stock="2"] { --stock: var(--stock-2); }
+[data-stock="3"] { --stock: var(--stock-3); }
+[data-stock="4"] { --stock: var(--stock-4); }
+[data-stock="5"] { --stock: var(--stock-5); }
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--steel); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--steel); color: var(--ink); font-family: var(--font);
+  font-size: var(--fs-md); line-height: 1.55; font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+.label { font-stretch: 75%; font-weight: 650; font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; }
+.meta { color: var(--ink-3); font-size: var(--fs-sm); }
+.mono { font-family: var(--mono); }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Drawer front ---------- */
+.drawer-front { background: var(--enamel); color: var(--enamel-text); border-bottom: 1px solid #202522; box-shadow: inset 0 1px 0 rgba(255,255,255,0.07); }
+.drawer-front__inner { max-width: var(--page); margin: 0 auto; padding: var(--s3) var(--gutter); display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3) var(--s4); }
+.label-holder { display: inline-flex; padding: 3px; border-radius: 2px; background: linear-gradient(#8f968f, #6d746e); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }
+.label-holder__card { display: block; background: var(--card); color: var(--ink); padding: 0.3rem 0.7rem 0.25rem; font-stretch: 75%; font-weight: 800; font-size: 0.9375rem; letter-spacing: 0.09em; text-transform: uppercase; line-height: 1.1; border-bottom: 2px solid var(--head-rule); }
+.front-title { font-stretch: 80%; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--fs-sm); color: var(--enamel-muted); }
+.readout { margin-left: auto; display: flex; gap: var(--s5); font-size: var(--fs-sm); }
+.readout__item { display: flex; gap: var(--s2); white-space: nowrap; }
+.readout__muted { color: var(--enamel-muted); }
+
+/* ---------- Tabs ---------- */
+.tabs { background: var(--steel); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; }
+.tabs__rail { max-width: var(--page); margin: 0 auto; padding: var(--s3) var(--gutter) 0; display: flex; align-items: flex-end; gap: 3px; overflow-x: auto; scrollbar-width: none; }
+.tabs__rail::-webkit-scrollbar { display: none; }
+.tabs__band { height: 4px; background: var(--stock); border-top: 1px solid rgba(28,31,30,0.12); }
+.tab {
+  --tab-bg: color-mix(in srgb, var(--stock) 38%, var(--steel-2));
+  flex: none; display: flex; align-items: baseline; gap: 0.4rem; padding: 0.55rem 1.1rem 0.45rem;
+  background: var(--tab-bg); color: var(--ink-2); border: 0; cursor: pointer;
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 100%, 0 100%);
+  font-stretch: 80%; font-weight: 650; font-size: var(--fs-sm); letter-spacing: 0.02em; white-space: nowrap;
+  transform: translateY(3px); transition: transform 180ms var(--ease), background-color 180ms var(--ease);
+}
+.tab:hover { transform: translateY(0); color: var(--ink); }
+.tab:focus-visible { outline-offset: -3px; }
+.tab__no { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 600; }
+.tab[aria-selected="true"] { --tab-bg: var(--stock); color: var(--ink); transform: translateY(0); padding-top: 0.7rem; }
+
+/* ---------- Page ---------- */
+.page { max-width: var(--page); margin: 0 auto; padding-inline: var(--gutter); padding-block: var(--s5) var(--s7); }
+.lab-note { font-size: var(--fs-sm); color: var(--ink-2); max-width: 72ch; margin-bottom: var(--s5); }
+.game-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s4); margin-bottom: var(--s4); }
+.game-head__text { max-width: 62rem; }
+.game-head h2 { font-size: var(--fs-3xl); letter-spacing: -0.02em; margin-top: var(--s1); }
+.src { color: var(--ink-3); }
+.lede { margin-top: var(--s2); color: var(--ink-2); font-size: var(--fs-lg); max-width: 64ch; }
+.tally { display: flex; flex-direction: column; align-items: flex-end; min-width: 7.5rem; padding: var(--s2) var(--s4); background: var(--card); border: 1px solid var(--card-edge); border-top: 3px solid var(--head-rule); border-radius: var(--radius); box-shadow: var(--lift); }
+.tally .label { color: var(--ink-3); }
+.tally strong { font-size: var(--fs-2xl); line-height: 1.15; }
+.rules { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s4); }
+.rules li { font-size: var(--fs-sm); padding: 0.2rem 0.6rem; background: var(--card-back); border: 1px solid var(--card-edge); border-radius: 2px; }
+.plus { color: var(--right); font-weight: 700; }
+.minus { color: var(--wrong); font-weight: 700; }
+
+.card { position: relative; background: var(--card); border: 1px solid var(--card-edge); border-radius: var(--radius); box-shadow: var(--lift); }
+.game-card { padding: var(--s4); display: grid; gap: var(--s4); }
+@media (min-width: 640px) { .game-card { padding: var(--s5); } }
+.split { display: grid; gap: var(--s5); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 960px) { .split { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); } }
+.stack { display: grid; gap: var(--s3); align-content: start; }
+.section-label { color: var(--ink-3); margin-bottom: var(--s2); display: block; }
+
+/* ---------- Controls ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 2.75rem; padding: 0 1.15rem; border: 1px solid transparent; border-radius: var(--radius); font-weight: 650; line-height: 1; cursor: pointer; white-space: nowrap; transition: background-color 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease), transform 120ms var(--ease); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn--primary { background: var(--cobalt); color: #fff; }
+.btn--primary:hover:not(:disabled) { background: var(--cobalt-press); }
+.btn--quiet { background: var(--card); color: var(--ink); border-color: var(--card-edge); }
+.btn--quiet:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn--sm { min-height: 2.25rem; padding: 0 0.8rem; font-size: var(--fs-sm); }
+.btn-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+
+.stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--card); overflow: hidden; }
+.stepper button { width: 2.5rem; min-height: 2.5rem; border: 0; background: var(--card-back); cursor: pointer; font-size: 1.125rem; font-weight: 600; }
+.stepper button:hover:not(:disabled) { background: var(--cobalt-tint); color: var(--cobalt); }
+.stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
+.stepper output { min-width: 2.75rem; display: grid; place-items: center; font-weight: 700; border-inline: 1px solid var(--card-edge); padding: 0 0.3rem; }
+
+.seg { display: inline-flex; border: 1px solid var(--card-edge); border-radius: var(--radius); overflow: hidden; background: var(--card); }
+.seg button { border: 0; background: transparent; padding: 0 0.9rem; min-height: 2.5rem; cursor: pointer; font-weight: 600; font-size: var(--fs-sm); color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--card-edge); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.seg button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-height: 2rem; }
+.check { display: flex; gap: var(--s2); align-items: flex-start; font-size: var(--fs-sm); cursor: pointer; }
+.check input { width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; accent-color: var(--cobalt); flex: none; }
+
+.slip { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) var(--s4); padding-top: calc(var(--s3) + 3px); background: linear-gradient(var(--slip-rule, var(--head-rule)), var(--slip-rule, var(--head-rule))) top / 100% 3px no-repeat, var(--card); border: 1px solid var(--card-edge); border-radius: var(--radius); font-size: var(--fs-sm); line-height: 1.45; }
+.slip strong.pts { flex: none; min-width: 2.6rem; font-size: var(--fs-md); }
+.slip--right { --slip-rule: var(--right); }
+.slip--right strong.pts { color: var(--right); }
+.slip--wrong { --slip-rule: var(--wrong); }
+.slip--wrong strong.pts { color: var(--wrong); }
+.slip ul { list-style: disc; padding-left: 1.1rem; margin-top: var(--s2); display: grid; gap: var(--s1); }
+
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 1px; background: #202522; border: 1px solid #202522; border-radius: var(--radius); overflow: hidden; }
+.gauge { background: var(--enamel); color: var(--enamel-text); padding: var(--s2) var(--s3); }
+.gauge .label { color: var(--enamel-muted); display: block; }
+.gauge strong { display: block; font-size: var(--fs-xl); line-height: 1.25; }
+.gauge.is-bad strong { color: var(--wrong-on-enamel); }
+.gauge.is-good strong { color: var(--right-on-enamel); }
+
+.chip { display: inline-flex; align-items: center; padding: 0.15rem 0.55rem; border: 1px solid var(--card-edge); background: var(--card); border-radius: 2px; font-weight: 650; font-size: var(--fs-sm); white-space: nowrap; }
+.chip--ok { border-color: var(--right); color: var(--right); background: var(--right-tint); }
+.chip--warn { border-color: var(--wrong); color: var(--wrong); background: var(--wrong-tint); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+.say { padding: var(--s3) var(--s4); background: var(--card-back); border-left: 3px solid var(--head-rule); min-height: 3.2rem; }
+
+/* ---------- Spot the Flaw ---------- */
+.diagram-wrap { overflow-x: auto; border: 1px solid var(--card-edge); border-radius: var(--radius); background: var(--card) radial-gradient(var(--ruling) 1px, transparent 1.3px) 0 0 / 16px 16px; }
+.diagram { display: block; width: 100%; min-width: 760px; height: auto; }
+.diagram text { font-family: var(--font); }
+.hit { cursor: pointer; outline: none; }
+.node rect { fill: var(--card); stroke: var(--ink-3); stroke-width: 1.25; transition: stroke 120ms; }
+.node:hover rect, .node:focus-visible rect { stroke: var(--cobalt); stroke-width: 2; }
+.node .t1 { font-size: 14px; font-weight: 650; fill: var(--ink); }
+.node .t2 { font-size: 12px; fill: var(--ink-3); }
+.edge__line { fill: none; stroke: var(--ink-3); stroke-width: 1.5; }
+.edge__hit { fill: none; stroke: transparent; stroke-width: 18; }
+.edge:hover .edge__line, .edge:focus-visible .edge__line { stroke: var(--cobalt); stroke-width: 2.5; }
+.edge__label { font-size: 12px; font-style: italic; fill: var(--ink-2); }
+.tag { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; font-stretch: 75%; }
+.is-sel rect { stroke: var(--cobalt); stroke-width: 2.5; }
+.is-sel .edge__line { stroke: var(--cobalt); stroke-width: 2.5; }
+.is-found rect { fill: var(--right-tint); stroke: var(--right); stroke-width: 2; }
+.is-found .edge__line { stroke: var(--right); stroke-width: 2.5; }
+.is-found .tag { fill: var(--right); }
+.is-ok rect { fill: var(--card-back); stroke-dasharray: 3 3; }
+.is-ok .t1 { fill: var(--ink-3); }
+.is-ok .edge__line { stroke: var(--steel-edge); }
+.is-ok .tag { fill: var(--ink-3); }
+.is-missed rect { fill: var(--wrong-tint); stroke: var(--wrong); stroke-width: 2; stroke-dasharray: 5 3; }
+.is-missed .edge__line { stroke: var(--wrong); stroke-width: 2.5; stroke-dasharray: 6 4; }
+.is-missed .tag { fill: var(--wrong); }
+.reasons { display: grid; gap: var(--s2); }
+.reason { text-align: left; padding: var(--s3) var(--s4); background: var(--card); border: 1px solid var(--card-edge); border-radius: var(--radius); cursor: pointer; line-height: 1.4; }
+.reason:hover:not(:disabled) { border-color: var(--cobalt); background: var(--cobalt-tint); }
+.reason:disabled { text-decoration: line-through; color: var(--ink-3); background: var(--card-back); cursor: not-allowed; }
+.progress-pips { display: inline-flex; gap: 4px; vertical-align: middle; margin-left: var(--s2); }
+.progress-pips i { width: 0.8rem; height: 0.8rem; border: 1.5px solid var(--ink-3); border-radius: 1px; }
+.progress-pips i.on { background: var(--right); border-color: var(--right); }
+.progress-pips i.miss { background: var(--wrong); border-color: var(--wrong); }
+
+/* ---------- Traffic Day ---------- */
+.chart { display: block; width: 100%; height: 320px; background: var(--card); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+@media (max-width: 640px) { .chart { height: 280px; } }
+.legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); font-size: var(--fs-xs); color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.legend i { display: inline-block; width: 1rem; height: 0; border-top: 2px solid; }
+.legend i.box { height: 0.7rem; width: 0.7rem; border: 0; }
+.topo { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--s2); }
+.tn { flex: 1 1 8rem; min-width: 0; padding: var(--s2) var(--s3); background: var(--card-back); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+.tn.is-off { opacity: 0.55; border-style: dashed; }
+.tn__name { display: block; font-weight: 650; font-size: var(--fs-sm); }
+.tn__val { display: block; font-size: var(--fs-xs); color: var(--ink-3); }
+.util { height: 6px; background: var(--steel-2); margin-top: 6px; position: relative; overflow: hidden; border-radius: 1px; }
+.util i { position: absolute; inset: 0 auto 0 0; background: var(--ink-2); transition: width 120ms linear; }
+.util.warn i { background: var(--stamp); }
+.util.hot i { background: var(--wrong); }
+.controls { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.ctl { display: grid; gap: var(--s1); align-content: start; }
+.ctl .label { color: var(--ink-3); }
+.events { display: grid; gap: var(--s1); font-size: var(--fs-sm); color: var(--ink-2); }
+.events li { padding: 0.3rem 0; border-bottom: 1px solid var(--ruling); }
+.events li.bad { color: var(--wrong); }
+
+/* ---------- Quorum Casino ---------- */
+.reps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.replica { background: var(--card); border: 1px solid var(--card-edge); border-top: 3px solid var(--head-rule); border-radius: var(--radius); padding: var(--s3); transition: box-shadow 160ms var(--ease), border-color 160ms; }
+.replica__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
+.replica__id { font-size: var(--fs-2xl); font-weight: 800; font-stretch: 80%; line-height: 1; }
+.replica__val { font-size: var(--fs-lg); font-weight: 700; margin-top: var(--s2); }
+.replica.is-cut { border-style: dashed; background: var(--card-back); }
+.replica.is-down { background: repeating-linear-gradient(135deg, var(--card-back) 0 6px, var(--steel-2) 6px 7px); color: var(--ink-3); }
+.replica.is-read { border-color: var(--cobalt); box-shadow: 0 0 0 2px var(--cobalt); }
+.stat { font-size: var(--fs-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; font-stretch: 75%; color: var(--right); }
+.is-cut .stat, .is-down .stat { color: var(--wrong); }
+.bet { display: grid; gap: var(--s3); padding: var(--s4); border: 1px solid var(--cobalt); border-radius: var(--radius); background: var(--cobalt-tint); }
+.bet__q { font-weight: 650; font-size: var(--fs-lg); }
+.bet__row { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s3); align-items: center; }
+.bet__val strong { font-size: var(--fs-xl); }
+.qlog { display: grid; font-size: var(--fs-sm); color: var(--ink-2); max-height: 15rem; overflow-y: auto; }
+.qlog li { padding: 0.3rem 0; border-bottom: 1px solid var(--ruling); }
+
+/* ---------- Ring Balancer ---------- */
+.ring-canvas-wrap { display: grid; place-items: center; }
+#ring-canvas { display: block; max-width: 100%; }
+.lbars { display: grid; gap: var(--s2); }
+.lbar { display: grid; grid-template-columns: 4.5rem 1fr 3rem; align-items: center; gap: var(--s2); font-size: var(--fs-sm); }
+.lbar__name { display: flex; align-items: center; gap: 0.35rem; font-weight: 650; white-space: nowrap; }
+.lbar__name i { width: 0.7rem; height: 0.7rem; border-radius: 1px; flex: none; }
+.lbar__track { position: relative; height: 0.85rem; background: var(--card-back); border: 1px solid var(--card-edge); }
+.lbar__fill { position: absolute; inset: 0 auto 0 0; transition: width 200ms var(--ease); }
+.lbar__fair { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.lbar__val { text-align: right; font-weight: 650; }
+.lbar.is-down { color: var(--ink-3); }
+.task { padding: var(--s3) var(--s4); background: var(--card-back); border-left: 3px solid var(--stock-2); }
+.task h3 { font-size: var(--fs-lg); }
+.task p { margin-top: var(--s1); color: var(--ink-2); font-size: var(--fs-sm); }
+.vn-row { display: grid; grid-template-columns: 1fr 3.5rem; gap: var(--s3); align-items: center; }
+.vn-row output { font-weight: 700; text-align: right; }
+
+/* ---------- Bit Budget ---------- */
+.bitbar { display: grid; gap: 1px; background: var(--ink-3); border: 1px solid var(--ink-3); }
+.bitbar span { height: 2.25rem; background: var(--card); }
+.bitbar .f-sign { background: repeating-linear-gradient(135deg, var(--card) 0 3px, var(--ink-3) 3px 4px); }
+.bitbar .f-ts { background: var(--srv-1); }
+.bitbar .f-dc { background: var(--srv-2); }
+.bitbar .f-m { background: var(--srv-3); }
+.bitbar .f-seq { background: var(--srv-4); }
+.bitbar .f-free { background: var(--card-back); }
+.bitscale { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px; font-family: var(--mono); }
+.fields { display: grid; gap: var(--s2); }
+.field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s1) var(--s3); align-items: center; padding: var(--s2) var(--s3); background: var(--card-back); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+.field__name { display: flex; align-items: center; gap: 0.4rem; font-weight: 650; }
+.field__name i { width: 0.8rem; height: 0.8rem; border-radius: 1px; }
+.field__gives { grid-column: 1 / -1; font-size: var(--fs-sm); color: var(--ink-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s3); }
+.field__gives .need { color: var(--ink-3); }
+.field__gives .need.ok { color: var(--right); font-weight: 650; }
+.field__gives .need.bad { color: var(--wrong); font-weight: 650; }
+.spec { padding: var(--s3) var(--s4); background: var(--card); border: 1px solid var(--card-edge); border-top: 3px solid var(--stock-2); border-radius: var(--radius); }
+.spec h3 { font-size: var(--fs-lg); }
+.spec ul { margin-top: var(--s2); display: grid; gap: 0.2rem; font-size: var(--fs-sm); list-style: square; padding-left: 1.1rem; }
+.clock { font-family: var(--mono); font-size: var(--fs-sm); background: var(--enamel); color: var(--enamel-text); padding: var(--s3) var(--s4); border-radius: var(--radius); overflow-x: auto; line-height: 1.7; }
+.clock .back { color: var(--wrong-on-enamel); }
+
+/* ---------- Estimathon ---------- */
+.assume { display: grid; gap: 0.2rem; list-style: square; padding-left: 1.1rem; font-size: var(--fs-sm); color: var(--ink-2); }
+.logaxis { position: relative; height: 3.5rem; margin: var(--s2) 1.75rem 0; }
+.logaxis__line { position: absolute; left: 0; right: 0; top: 1.4rem; height: 1px; background: var(--ink-3); }
+.logaxis__tick { position: absolute; top: 1rem; width: 1px; height: 0.8rem; background: var(--ink-3); }
+.logaxis__lab { position: absolute; top: 2rem; transform: translateX(-50%); font-size: var(--fs-xs); color: var(--ink-3); white-space: nowrap; }
+.logaxis__range { position: absolute; top: 0.9rem; height: 1rem; background: color-mix(in srgb, var(--cobalt) 22%, transparent); border: 2px solid var(--cobalt); border-radius: 2px; }
+.logaxis__truth { position: absolute; top: 0.2rem; width: 3px; height: 2.4rem; background: var(--ink); transform: translateX(-1px); }
+.logaxis__truth::after { content: attr(data-label); position: absolute; top: -1.35rem; left: 50%; transform: translateX(-50%); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
+.range-row { display: grid; grid-template-columns: 3.2rem 1fr 6.5rem; gap: var(--s3); align-items: center; }
+.range-row output { text-align: right; font-weight: 700; }
+
+/* ---------- Pattern Deck ---------- */
+.arena { display: grid; gap: var(--s4); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) { .arena { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.side { padding: var(--s4); border: 1px solid var(--card-edge); border-radius: var(--radius); display: grid; gap: var(--s2); align-content: start; }
+.side--foe { background: var(--enamel); color: var(--enamel-text); border-color: #202522; }
+.side--foe .meta { color: var(--enamel-muted); }
+.side h3 { font-size: var(--fs-xl); }
+.hp { position: relative; height: 0.9rem; background: var(--steel-2); border: 1px solid var(--card-edge); overflow: hidden; }
+.side--foe .hp { background: #252a27; border-color: #4c5550; }
+.hp i { position: absolute; inset: 0 auto 0 0; background: var(--right); transition: width 240ms var(--ease); }
+.side--foe .hp i { background: var(--wrong-on-enamel); }
+.intent { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2); padding: var(--s2) var(--s3); background: var(--enamel-2); border-radius: 2px; }
+.intent strong { font-size: var(--fs-lg); }
+.pips { display: inline-flex; gap: 4px; vertical-align: middle; }
+.pips i { width: 0.9rem; height: 0.9rem; border: 1.5px solid var(--cobalt); border-radius: 1px; }
+.pips i.on { background: var(--cobalt); }
+.hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.75rem), 1fr)); gap: var(--s3); }
+.pwrap { display: grid; gap: var(--s1); grid-template-rows: 1fr auto; }
+.pcard {
+  --kind: var(--head-rule);
+  position: relative; display: flex; flex-direction: column; gap: 0.35rem; width: 100%; text-align: left;
+  padding: var(--s3); background: var(--card); border: 1px solid var(--card-edge); border-top: 4px solid var(--kind);
+  border-radius: var(--radius); box-shadow: var(--lift); cursor: pointer; line-height: 1.35;
+  transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.pcard:hover:not(:disabled) { transform: translateY(-3px); box-shadow: var(--lift-hover); }
+.pcard:disabled { opacity: 0.5; cursor: not-allowed; }
+.pcard[data-kind="Attack"] { --kind: var(--cobalt); }
+.pcard[data-kind="Power"] { --kind: var(--srv-5); }
+.pcard__top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
+.pcard__name { font-weight: 700; font-size: var(--fs-md); }
+.pcard__cost { flex: none; font-weight: 800; color: var(--cobalt); font-size: var(--fs-sm); }
+.pcard__kind { color: var(--ink-3); }
+.pcard__text { font-size: var(--fs-sm); color: var(--ink-2); }
+.pcard__foot { margin-top: auto; display: flex; justify-content: space-between; gap: var(--s2); font-size: var(--fs-xs); color: var(--ink-3); }
+.pcard.is-rusty { background: #f7f5f0; }
+.rust { color: var(--due); font-weight: 700; }
+.sharp { color: var(--right); font-weight: 650; }
+.review { display: grid; gap: var(--s2); padding: var(--s4); border: 1px solid var(--due); border-top-width: 3px; border-radius: var(--radius); background: var(--due-tint); }
+.review .reason { background: var(--card); }
+.dlog { display: grid; font-size: var(--fs-sm); color: var(--ink-2); max-height: 11rem; overflow-y: auto; }
+.dlog li { padding: 0.25rem 0; border-bottom: 1px solid var(--ruling); }
+.powers { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+@media (max-width: 640px) {
+  .game-head h2 { font-size: var(--fs-2xl); }
+  .lede { font-size: var(--fs-md); }
+  .readout { gap: var(--s4); }
+  .reps { gap: var(--s2); }
+  .replica { padding: var(--s2); }
+  .range-row { grid-template-columns: 2.8rem 1fr 5.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="drawer-front">
+  <div class="drawer-front__inner">
+    <span class="label-holder"><span class="label-holder__card">SysDesign Quest</span></span>
+    <span class="front-title">Game Lab prototype</span>
+    <div class="readout">
+      <span class="readout__item" hidden><span class="readout__muted">Lab score</span><strong id="lab-total">0</strong></span>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <p class="lab-note">Standalone prototype for idea 21 in <code>docs/games/README.md</code>. Scores are not saved. <a href="game-lab.html">Open all seven games</a>.</p>
+
+  <section class="game" id="panel-deck" data-game="deck" data-stock="5">
+    <div class="game-head">
+      <div class="game-head__text">
+        <p class="label src">Boss fight · draws on Chapters 1, 4, 5 and 10</p>
+        <h2>Pattern Deck</h2>
+        <p class="lede">Your cards are design patterns. Cards whose concept is due in Daily Review are rusty and hit at half strength. Answer a review question to sharpen one; miss it and the card is gone for the fight.</p>
+      </div>
+      <div class="tally"><span class="label">Score</span><strong id="score-deck">0</strong></div>
+    </div>
+    <ul class="rules">
+      <li>3 energy and 5 cards a turn</li>
+      <li><span class="plus">+150</span> win, <span class="plus">+3</span> per DB health left</li>
+      <li><span class="minus">−100</span> if the database falls over</li>
+      <li><span class="minus">−30</span> per bigger DB server bought</li>
+    </ul>
+    <div class="card game-card">
+      <div class="arena">
+        <div class="side side--foe">
+          <p class="label meta">Boss</p>
+          <h3>The Thundering Herd</h3>
+          <p class="meta">A crowd of requests that all miss the cache at once.</p>
+          <div class="hp" role="img" id="d-foe-hp-label"><i id="d-foe-hp"></i></div>
+          <p class="meta"><span id="d-foe-load"></span></p>
+          <div class="intent"><span class="label meta">Next move</span><strong id="d-intent"></strong><span class="meta" id="d-intent-note"></span></div>
+        </div>
+        <div class="side">
+          <p class="label meta">Your system</p>
+          <h3>Database</h3>
+          <div class="hp" role="img" id="d-hp-label"><i id="d-hp"></i></div>
+          <p class="meta"><span id="d-hp-text"></span> · Block <strong id="d-block">0</strong> · Energy <span class="pips" id="d-energy"></span></p>
+          <div class="powers" id="d-powers"></div>
+        </div>
+      </div>
+      <div class="review" id="d-review" hidden></div>
+      <div class="hand" id="d-hand"></div>
+      <div class="btn-row">
+        <button class="btn btn--primary" id="d-end" type="button">End turn</button>
+        <button class="btn btn--quiet" id="d-restart" type="button">Restart fight</button>
+        <span class="meta" id="d-piles"></span>
+      </div>
+      <div id="d-feedback" aria-live="polite"></div>
+      <div>
+        <span class="label section-label">Fight log</span>
+        <ol class="dlog" id="d-log"></ol>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+
+(() => {
+'use strict';
+
+/* ---------- Shared helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const nf = new Intl.NumberFormat('en-US');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const TAU = Math.PI * 2;
+const SVG = 'http://www.w3.org/2000/svg';
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'style') e.setAttribute('style', v);
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return e;
+}
+function s(tag, attrs) {
+  const e = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  return e;
+}
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const plain = v => (v < 0 ? '−' + nf.format(Math.abs(v)) : nf.format(v));
+const signed = v => (v > 0 ? '+' + nf.format(v) : v < 0 ? '−' + nf.format(Math.abs(v)) : '0');
+
+const scores = {};
+function setScore(game, v) {
+  scores[game] = v;
+  const e = document.getElementById('score-' + game);
+  if (e) e.textContent = plain(v);
+  $('#lab-total').textContent = plain(Object.values(scores).reduce((a, b) => a + b, 0));
+}
+
+function slip(target, kind, pts, text, list) {
+  const node = h('div', { class: 'slip slip--' + kind },
+    pts == null ? null : h('strong', { class: 'pts' }, signed(pts)),
+    h('div', {}, h('span', {}, text), list ? h('ul', {}, list.map(t => h('li', {}, t))) : null));
+  target.replaceChildren(node);
+}
+
+function stepper({ label, min, max, value, onChange }) {
+  let val = value;
+  const out = h('output', {}, String(val));
+  const dec = h('button', { type: 'button', 'aria-label': 'Fewer ' + label, onclick: () => set(val - 1) }, '−');
+  const inc = h('button', { type: 'button', 'aria-label': 'More ' + label, onclick: () => set(val + 1) }, '+');
+  const api = { el: h('div', { class: 'stepper' }, dec, out, inc), max, min, get: () => val, set, sync };
+  function sync() {
+    out.textContent = String(val);
+    dec.disabled = val <= api.min;
+    inc.disabled = val >= (typeof api.max === 'function' ? api.max() : api.max);
+  }
+  function set(v, silent) {
+    const hi = typeof api.max === 'function' ? api.max() : api.max;
+    v = clamp(v, api.min, hi);
+    if (v === val && !silent) return;
+    val = v; sync();
+    if (!silent) onChange(val);
+  }
+  sync();
+  return api;
+}
+
+function seg({ options, value, onChange, label }) {
+  let val = value;
+  const el = h('div', { class: 'seg', role: 'group', 'aria-label': label });
+  const btns = options.map(o => h('button', { type: 'button', 'aria-pressed': String(o.v === val), onclick: () => set(o.v) }, o.label));
+  el.append(...btns);
+  function set(v, silent) {
+    val = v;
+    btns.forEach((b, i) => b.setAttribute('aria-pressed', String(options[i].v === v)));
+    if (!silent) onChange(v);
+  }
+  return { el, set, get: () => val, disable: d => btns.forEach(b => { b.disabled = d; }) };
+}
+
+function sizeCanvas(cv, w, hgt) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, hgt);
+  return g;
+}
+
+const onShow = {};
+
+/* =====================================================================
+   7. Pattern Deck
+   ===================================================================== */
+function initDeck() {
+  const QUESTIONS = {
+    ring: { q: 'What problem does consistent hashing solve compared to naive hash % N sharding?',
+      a: ['It makes hashing faster', 'It minimizes key remapping when servers are added or removed', 'It encrypts the keys', 'It removes the need for replication'], c: 1 },
+    queue: { q: 'Why put a message queue between the app and the third-party notification providers?',
+      a: ['To encrypt the notification content', 'To decouple producers from consumers and absorb traffic spikes', 'Queues are required by Apple and Google', 'To avoid needing a database'], c: 1 },
+    cache: { q: 'In the cache-aside (lazy-loading) pattern, what happens on a cache miss?',
+      a: ['The application reads from the database, then writes the result into the cache', 'The cache automatically fetches from the database on its own', 'The request fails until the cache is manually refreshed', 'The database is bypassed entirely for that request'], c: 0 },
+  };
+  const SCHEDULE = { ring: -3, queue: 0, cache: -1, backoff: 2, replica: 5, limiter: 1, scale: 9 };
+  const CARDS = {
+    ring: { name: 'Consistent Hashing', cost: 2, kind: 'Power', src: 'Ch. 5',
+      text: sh => 'Stays in play. A lost cache node only misses its own slice of keys: "Cache node lost" deals ' + (sh ? 75 : 40) + '% less. Deal ' + (sh ? 4 : 2) + '.' },
+    backoff: { name: 'Exponential Backoff', cost: 1, kind: 'Power', src: 'Ch. 10',
+      text: sh => 'Stays in play. Retries spread out: each retry hit deals ' + (sh ? 50 : 25) + '% less.' },
+    queue: { name: 'Message Queue', cost: 1, kind: 'Skill', src: 'Ch. 10',
+      text: sh => 'Absorb this turn\'s attack and drain it evenly over ' + (sh ? 3 : 2) + ' turns.' },
+    replica: { name: 'Read Replica', cost: 1, kind: 'Skill', src: 'Ch. 1', text: sh => 'Block ' + (sh ? 10 : 5) + '.' },
+    cache: { name: 'Cache', cost: 1, kind: 'Attack', src: 'Ch. 1',
+      text: sh => 'Deal ' + (sh ? 9 : 5) + '. If a hot key is coming, also block ' + (sh ? 15 : 8) + ': one key fits in memory.' },
+    limiter: { name: 'Rate Limiter', cost: 1, kind: 'Attack', src: 'Ch. 4', text: sh => 'Block ' + (sh ? 6 : 3) + '. Deal ' + (sh ? 4 : 2) + '.' },
+    scale: { name: 'Bigger DB Server', cost: 2, kind: 'Skill', src: 'Ch. 1',
+      text: () => 'Restore ' + [12, 6, 0][Math.min(st.scaled, 2)] + ' health. Costs $300. Vertical scaling has a ceiling.' },
+  };
+  const DECK = ['ring', 'backoff', 'queue', 'replica', 'replica', 'cache', 'cache', 'limiter', 'limiter', 'scale'];
+  const INTENTS = [
+    { kind: 'miss', label: 'Cache node lost', dmg: 30, note: 'Its keys all miss and stampede the database.' },
+    { kind: 'retry', label: 'Retry storm', hits: 4, dmg: 6, note: 'Failed clients all retry at the same moment.' },
+    { kind: 'hot', label: 'Hot key', dmg: 22, note: 'A viral post: thousands of reads for one key.' },
+    { kind: 'regroup', label: 'Regroup', note: 'Gains 8 Load. Its next attack deals 4 more.' },
+  ];
+  const MAX_HP = 60, MAX_LOAD = 45;
+  let st, sched, uid = 0;
+
+  function fresh() {
+    sched = { ...SCHEDULE };
+    st = { hp: MAX_HP, load: MAX_LOAD, energy: 3, block: 0, turn: 1, intent: 0, enrage: 0, queued: 0, backlog: [], powers: {},
+      draw: shuffle(DECK.map(id => ({ uid: ++uid, id }))), hand: [], discard: [], scaled: 0, over: false, reviewing: null };
+    $('#d-log').replaceChildren(); $('#d-feedback').replaceChildren(); $('#d-review').hidden = true;
+    setScore('deck', 0);
+    drawCards(5);
+    log('Turn 1. The Herd is gathering.');
+    paint();
+  }
+  const sharp = id => sched[id] > 0;
+  function dueText(id) {
+    const d = sched[id];
+    if (d > 0) return 'Next review in ' + d + (d === 1 ? ' day' : ' days');
+    if (d === 0) return 'Due today';
+    return 'Due ' + -d + (d === -1 ? ' day ago' : ' days ago');
+  }
+  function drawCards(n) {
+    for (let i = 0; i < n; i++) {
+      if (!st.draw.length) { st.draw = shuffle(st.discard); st.discard = []; }
+      if (!st.draw.length) return;
+      st.hand.push(st.draw.pop());
+    }
+  }
+  function log(t) { $('#d-log').prepend(h('li', {}, t)); }
+  function incoming() {
+    const it = INTENTS[st.intent % INTENTS.length];
+    let hits = [];
+    if (it.kind === 'miss') hits = [it.dmg * (1 - (st.powers.ring || 0))];
+    if (it.kind === 'retry') hits = Array(it.hits).fill(it.dmg * (1 - (st.powers.backoff || 0)));
+    if (it.kind === 'hot') hits = [it.dmg];
+    hits = hits.map(Math.round);
+    if (hits.length && st.enrage) hits[0] += st.enrage;
+    return { it, hits };
+  }
+  function paint() {
+    const { it, hits } = incoming();
+    $('#d-foe-hp').style.width = Math.max(0, (st.load / (MAX_LOAD + 16)) * 100) + '%';
+    $('#d-foe-hp-label').setAttribute('aria-label', 'Herd load ' + st.load);
+    $('#d-foe-load').textContent = 'Load ' + Math.max(0, st.load) + ' · Turn ' + st.turn;
+    $('#d-intent').textContent = it.label + (hits.length ? ': ' + (hits.length > 1 ? hits.length + ' × ' + hits[1] + (st.enrage ? ' (first +' + st.enrage + ')' : '') : hits[0]) : '');
+    $('#d-intent-note').textContent = it.note;
+    $('#d-hp').style.width = Math.max(0, (st.hp / MAX_HP) * 100) + '%';
+    $('#d-hp-label').setAttribute('aria-label', 'Database health ' + st.hp + ' of ' + MAX_HP);
+    $('#d-hp-text').textContent = 'Health ' + Math.max(0, st.hp) + ' / ' + MAX_HP;
+    $('#d-block').textContent = String(st.block);
+    $('#d-energy').replaceChildren(...[0, 1, 2].map(i => h('i', { class: i < st.energy ? 'on' : '' })));
+    const chips = [];
+    if (st.powers.ring) chips.push('Consistent Hashing: cache-miss hits −' + Math.round(st.powers.ring * 100) + '%');
+    if (st.powers.backoff) chips.push('Exponential Backoff: retry hits −' + Math.round(st.powers.backoff * 100) + '%');
+    if (st.queued) chips.push('Queue ready: this turn drains over ' + st.queued + ' turns');
+    if (st.backlog.some(Boolean)) chips.push('Queued damage: ' + st.backlog.map((v, i) => (v ? v + (i ? ' in ' + (i + 1) + ' turns' : ' next turn') : null)).filter(Boolean).join(', '));
+    $('#d-powers').replaceChildren(...chips.map(c => h('span', { class: 'chip' }, c)));
+    $('#d-hand').replaceChildren(...st.hand.map(card => {
+      const def = CARDS[card.id], sh = sharp(card.id);
+      const cantPlay = st.over || st.energy < def.cost || !!st.reviewing;
+      return h('div', { class: 'pwrap' },
+        h('button', { type: 'button', class: 'pcard' + (sh ? '' : ' is-rusty'), 'data-kind': def.kind, disabled: cantPlay, onclick: () => play(card) },
+          h('span', { class: 'pcard__top' }, h('span', { class: 'pcard__name' }, def.name), h('span', { class: 'pcard__cost' }, def.cost + ' energy')),
+          h('span', { class: 'label pcard__kind' }, def.kind + ' · ' + def.src),
+          h('span', { class: 'pcard__text' }, def.text(sh)),
+          h('span', { class: 'pcard__foot' }, h('span', { class: sh ? 'sharp' : 'rust' }, sh ? 'Sharp' : 'Rusty'), h('span', {}, dueText(card.id)))),
+        !sh && QUESTIONS[card.id] && !st.over ? h('button', { type: 'button', class: 'btn btn--quiet btn--sm', disabled: !!st.reviewing, onclick: () => review(card) }, 'Review to sharpen') : null);
+    }));
+    $('#d-end').disabled = st.over || !!st.reviewing;
+    $('#d-piles').textContent = 'Draw pile ' + st.draw.length + ' · Discard ' + st.discard.length;
+  }
+  function hitFoe(n) { st.load -= n; }
+  function play(card) {
+    const def = CARDS[card.id], sh = sharp(card.id);
+    if (st.energy < def.cost || st.over) return;
+    st.energy -= def.cost;
+    st.hand = st.hand.filter(c => c !== card);
+    const it = INTENTS[st.intent % INTENTS.length];
+    let note = '';
+    switch (card.id) {
+      case 'ring': st.powers.ring = Math.max(st.powers.ring || 0, sh ? 0.75 : 0.4); hitFoe(sh ? 4 : 2); break;
+      case 'backoff': st.powers.backoff = Math.max(st.powers.backoff || 0, sh ? 0.5 : 0.25); break;
+      case 'queue': st.queued = Math.max(st.queued, sh ? 3 : 2); break;
+      case 'replica': st.block += sh ? 10 : 5; break;
+      case 'cache': hitFoe(sh ? 9 : 5); if (it.kind === 'hot') { st.block += sh ? 15 : 8; note = ' The hot key sits in memory.'; } break;
+      case 'limiter': st.block += sh ? 6 : 3; hitFoe(sh ? 4 : 2); break;
+      case 'scale': { const heal = [12, 6, 0][Math.min(st.scaled, 2)]; st.hp = Math.min(MAX_HP, st.hp + heal); st.scaled++; note = ' Restored ' + heal + '.'; break; }
+    }
+    if (def.kind === 'Power') { /* stays in play */ } else st.discard.push(card);
+    log('Played ' + def.name + (sh ? '' : ' (rusty)') + '.' + note);
+    if (st.load <= 0) return win();
+    paint();
+  }
+  function review(card) {
+    const q = QUESTIONS[card.id];
+    st.reviewing = card;
+    const box = $('#d-review');
+    box.hidden = false;
+    box.replaceChildren(h('p', { class: 'label', style: 'color: var(--due)' }, 'Daily Review · ' + CARDS[card.id].name),
+      h('p', {}, h('strong', {}, q.q)),
+      h('div', { class: 'reasons' }, q.a.map((a, i) => h('button', { type: 'button', class: 'reason', onclick: () => {
+        box.hidden = true; st.reviewing = null;
+        if (i === q.c) {
+          sched[card.id] = 4;
+          slip($('#d-feedback'), 'right', null, 'Sharpened. ' + CARDS[card.id].name + ' hits at full strength for the rest of the fight, and its next review moves 4 days out.');
+          log('Reviewed ' + CARDS[card.id].name + ': correct, card sharpened.');
+        } else {
+          st.hand = st.hand.filter(c => c !== card);
+          slip($('#d-feedback'), 'wrong', null, 'The answer was: ' + q.a[q.c] + '. This copy of ' + CARDS[card.id].name + ' is gone for the fight.');
+          log('Reviewed ' + CARDS[card.id].name + ': wrong, card lost.');
+        }
+        paint();
+      } }, a))));
+    paint();
+  }
+  function endTurn() {
+    if (st.over) return;
+    const { it, hits: raw } = incoming();
+    let hits = raw.slice();
+    if (it.kind === 'regroup') { st.load += 8; st.enrage += 4; log('The Herd regroups: +8 Load.'); }
+    else if (hits.length) st.enrage = 0;
+    const due = st.backlog.shift() || 0;
+    if (st.queued && hits.length) {
+      const total = hits.reduce((a, b) => a + b, 0), n = st.queued;
+      const part = Math.floor(total / n);
+      const parts = Array(n).fill(part); parts[0] += total - part * n;
+      hits = [parts[0]];
+      for (let i = 1; i < n; i++) st.backlog[i - 1] = (st.backlog[i - 1] || 0) + parts[i];
+      log('The queue absorbed ' + total + ' and drains it over ' + n + ' turns.');
+    }
+    if (due) hits.push(due);
+    let dmg = 0;
+    hits.forEach(x => { const b = Math.min(st.block, x); st.block -= b; dmg += x - b; });
+    st.hp -= dmg;
+    if (hits.length) log(it.label + (due ? ' plus queued backlog' : '') + ': ' + hits.join(' + ') + ' incoming, ' + dmg + ' got through.');
+    st.queued = 0;
+    if (st.hp <= 0) return lose();
+    st.turn++; st.intent++; st.block = 0; st.energy = 3;
+    st.discard.push(...st.hand); st.hand = [];
+    drawCards(5);
+    log('Turn ' + st.turn + '.');
+    paint();
+  }
+  function win() {
+    st.over = true;
+    const score = 150 + st.hp * 3 - st.scaled * 30;
+    setScore('deck', score);
+    slip($('#d-feedback'), 'right', score, 'The Herd disperses on turn ' + st.turn + '. 150 for the win + ' + st.hp + ' health × 3' + (st.scaled ? ' − ' + st.scaled * 30 + ' for bigger servers' : '') + '.');
+    log('Victory.');
+    paint();
+  }
+  function lose() {
+    st.over = true;
+    const score = -100 - st.scaled * 30;
+    setScore('deck', score);
+    slip($('#d-feedback'), 'wrong', score, 'The database fell over on turn ' + st.turn + '. Consistent Hashing blunts cache-node losses and Backoff blunts retry storms. Play them early, and sharpen rusty cards before you rely on them.');
+    log('Defeat.');
+    paint();
+  }
+  $('#d-end').addEventListener('click', endTurn);
+  $('#d-restart').addEventListener('click', fresh);
+  fresh();
+}
+
+/* ---------- Boot ---------- */
+initDeck();
+if (onShow.deck) onShow.deck();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (onShow.deck) onShow.deck(); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "learn/static/learn/quest.css"
+        ],
+        "createdAt": "2026-09-27T06:07:24.317Z",
+        "reason": "Claude triage: .tally squares its top corners (border-radius: 0 0 r r) under the 3px head rule, matching the file's index-card head-rule convention used by .card--head and .verdict"
+      }
+    ]
+  }
+}

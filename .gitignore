@@ -224,3 +224,18 @@ db.sqlite3
 db.sqlite3-journal*
 staticfiles/
 .env
+
+# Scratch puzzle files kept locally, not part of the app
+try.py
+file.doc
+file.docx
+file.html
+table.csv
+testfile.tmp
+
+# Agent tool state: per-machine worktrees, caches and logs
+.claude/worktrees/
+.claude/settings.local.json
+.impeccable/hook.cache.json
+.impeccable/live/
+.impeccable/questions/

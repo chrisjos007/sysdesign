@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "django-local",
+      "runtimeExecutable": "venv/Scripts/python.exe",
+      "runtimeArgs": ["manage.py", "runserver", "127.0.0.1:8000"],
+      "env": { "DATABASE_URL": "sqlite:///db.sqlite3" },
+      "port": 8000
+    },
+    {
+      "name": "django-local-8001",
+      "runtimeExecutable": "venv/Scripts/python.exe",
+      "runtimeArgs": ["manage.py", "runserver", "127.0.0.1:8001"],
+      "env": { "DATABASE_URL": "sqlite:///db.sqlite3" },
+      "port": 8001
+    }
+  ]
+}
