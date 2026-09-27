@@ -5,11 +5,13 @@ from django.urls import reverse
 import json
 from unittest import mock
 
-from . import quorum, traffic
-from .management.commands.seed_games import FLAW_CHALLENGES, QUORUM_CHALLENGES, TRAFFIC_CHALLENGES
+from . import quorum, ring, traffic
+from .management.commands.seed_games import (
+    FLAW_CHALLENGES, QUORUM_CHALLENGES, RING_CHALLENGES, TRAFFIC_CHALLENGES,
+)
 from .models import (
     Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason, QuorumAttempt,
-    QuorumChallenge, Topic, TrafficAttempt, TrafficChallenge, UserBadge,
+    QuorumChallenge, RingAttempt, RingChallenge, Topic, TrafficAttempt, TrafficChallenge, UserBadge,
 )
 
 
@@ -468,3 +470,223 @@ class QuorumSeedDataTests(TestCase):
         problems = quorum.validate_tables([table])
         self.assertEqual(len(problems), 5, problems)
         self.assertEqual(quorum.validate_tables([]), ['There must be at least one table.'])
+
+
+class RingBalancerTests(TestCase):
+    """Plays the seeded three-challenge ring through the move endpoint."""
+
+    # From the seed: the four-server ring first balances at 6 virtual nodes
+    # each (24 positions, 5 points of memory), and the five-server ring with
+    # S5 at twice the capacity first balances at 30 per unit of capacity
+    # (180 positions, 36 points). RingSeedDataTests pins these down.
+    FIRST_K, BIG_K = 6, 30
+
+    def setUp(self):
+        book = Book.objects.create(slug='b', title='Book')
+        topic = Topic.objects.create(slug='t', title='Topic')
+        self.chapter = Chapter.objects.create(book=book, topic=topic, slug='c', title='Chapter', unlock_level=1)
+        concept = Concept.objects.create(chapter=self.chapter, slug='k', title='Concept', summary='s')
+        spec = RING_CHALLENGES[0]
+        self.challenge = RingChallenge.objects.create(
+            concept=concept, slug='ring', title=spec['title'], prompt=spec['prompt'],
+            source=spec['source'], stages=spec['stages'])
+        self.user = get_user_model().objects.create_user('player', password='pw-for-tests-only')
+        self.client.force_login(self.user)
+        self.page_url = reverse('learn:ring_challenge', args=['ring'])
+        self.move_url = reverse('learn:ring_move', args=['ring'])
+        self.snap = self.client.get(self.page_url).context['snapshot']  # starts the run
+
+    def move(self, **data):
+        return self.client.post(self.move_url, data)
+
+    def act(self, **data):
+        body = self.move(**data).json()
+        self.snap = body['snapshot']
+        return body
+
+    def lock(self, k, weighted=False):
+        return self.act(action='lock', k=k, weighted='1' if weighted else '0')
+
+    def to_predictions(self):
+        self.lock(self.FIRST_K)
+        self.act(action='next')
+
+    def to_big_box(self, answers=(0, 1)):
+        self.to_predictions()
+        for choice in answers:
+            self.act(action='answer', choice=choice)
+        self.act(action='next')
+
+    def test_page_draws_the_ring_and_nothing_to_come(self):
+        html = self.client.get(self.page_url).content.decode()
+        self.assertIn('id="rb-ring"', html)
+        self.assertIn('Challenge 1: Even out the load', html)
+        self.assertIn('per 5 ring positions', html)
+        for later in ('About three quarters', 'S3 is about to crash', 'Challenge 3', '"answer"'):
+            self.assertNotIn(later, html)
+        data = self.client.get(self.page_url).context['ring_data']
+        self.assertEqual(len(data['keys']), ring.KEYS)
+        self.assertEqual({sid: len(v) for sid, v in data['vnodes'].items()},
+                         {'S1': 200, 'S2': 200, 'S3': 200, 'S4': 200, 'S5': 400})
+
+    def test_unbalanced_lock_in_costs_and_says_why(self):
+        body = self.lock(self.FIRST_K - 1)
+        self.assertEqual(body['result'], {'verdict': 'unbalanced', 'points': -20})
+        self.assertEqual(self.snap['feedback']['text'],
+                         'Not balanced yet. The busiest server is still more than 25% over its fair share.')
+        self.assertEqual((self.snap['score'], self.snap['cleared'], self.snap['k']), (-20, False, self.FIRST_K - 1))
+        self.assertEqual(self.move(action='next').status_code, 400)
+
+    def test_balanced_lock_in_pays_less_the_memory(self):
+        body = self.lock(self.FIRST_K)
+        self.assertEqual(body['result'], {'verdict': 'balanced', 'points': 95})
+        self.assertTrue(self.snap['feedback']['text'].startswith(
+            'Balanced with 24 ring positions (6 per server): +100, minus 5 for routing-table memory.'))
+        self.assertTrue(self.snap['cleared'])
+        self.assertEqual(self.move(action='lock', k=50, weighted='0').status_code, 400)
+        self.act(action='next')
+        self.assertEqual((self.snap['stage'], self.snap['kind'], self.snap['k']), (2, 'predict', self.FIRST_K))
+
+    def test_predictions_show_the_moves_but_not_the_answer(self):
+        self.to_predictions()
+        self.assertEqual(self.snap['question']['options'][0], 'About a quarter, only the keys S3 owned')
+        self.assertNotIn('answer', self.snap['question'])
+        self.assertEqual((self.snap['scheme'], self.snap['down'], self.snap['moved_from']), ('ring', [], None))
+
+        s3 = ring.counts(self.challenge.stages[1], self.FIRST_K)['S3']
+        self.assertEqual(self.act(action='answer', choice=0)['result'], {'verdict': 'right', 'points': 50})
+        self.assertIn(f'Right: about a quarter, only the keys S3 owned. {s3} of 2,000 keys', self.snap['feedback']['text'])
+        self.assertEqual((self.snap['down'], self.snap['moved_from']), (['S3'], {'scheme': 'ring', 'down': []}))
+        self.assertIn('Now the same crash under hash(key) % N.', self.snap['text'])
+
+        self.assertEqual(self.act(action='answer', choice=0)['result'], {'verdict': 'wrong', 'points': -25})
+        self.assertTrue(self.snap['feedback']['text'].startswith(
+            'Not quite. The answer is about three quarters: 1,502 of 2,000 keys (75.1%) changed server'))
+        self.assertEqual((self.snap['scheme'], self.snap['cleared'], self.snap['question']), ('mod', True, None))
+        self.assertEqual(self.snap['score'], 95 + 50 - 25)
+        self.assertEqual(self.move(action='answer', choice=1).status_code, 400)
+
+    def test_a_bigger_box_needs_weighted_virtual_nodes(self):
+        self.to_big_box()
+        self.assertEqual([s['id'] for s in self.snap['servers']], ['S1', 'S2', 'S3', 'S4', 'S5'])
+        self.assertEqual((self.snap['weights'], self.snap['k'], self.snap['down']), (True, self.FIRST_K, []))
+        self.lock(self.BIG_K)
+        self.assertEqual(self.snap['feedback']['text'], 'Not balanced yet. S5 has twice the memory but the same '
+                                                        'number of ring positions as everyone else.')
+        body = self.lock(self.BIG_K, weighted=True)
+        self.assertEqual(body['result'], {'verdict': 'balanced', 'points': 64})
+        self.assertIn('Balanced with 180 ring positions (30 per unit of capacity)', self.snap['feedback']['text'])
+        self.assertFalse(body['finished']['is_perfect'])
+
+    def test_clean_run_earns_bonus_and_badge(self):
+        self.to_big_box()
+        finished = self.lock(self.BIG_K, weighted=True)['finished']
+        self.assertTrue(self.snap['done'])
+        self.assertEqual(finished['score'], 95 + 50 + 50 + 64)
+        self.assertTrue(finished['is_perfect'])
+        self.assertEqual(finished['xp_awarded'], 259 // 2 + 25)
+        self.assertIn('Ring Master', finished['new_badges'])
+        self.assertEqual([s['points'] for s in finished['detail']['stages']], [95, 100, 64])
+        attempt = RingAttempt.objects.get(user=self.user)
+        self.assertEqual((attempt.score, attempt.xp_awarded, attempt.is_perfect), (259, 154, True))
+        self.assertEqual(attempt.detail['stages'][2]['positions'], 180)
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.xp, 154)
+
+    def test_negative_score_earns_no_xp(self):
+        self.lock(1)
+        self.lock(ring.MAX_VNODES)  # 800 positions: 100 - 160
+        self.act(action='next')
+        self.act(action='answer', choice=2)
+        self.act(action='answer', choice=2)
+        self.act(action='next')
+        finished = self.lock(ring.MAX_VNODES, weighted=True)['finished']
+        self.assertEqual(finished['score'], -20 - 60 - 25 - 25 - 140)
+        self.assertEqual(finished['xp_awarded'], 0)
+        self.assertEqual((finished['detail']['misses'], finished['detail']['wrong']), (1, 2))
+        self.assertFalse(UserBadge.objects.filter(user=self.user, badge__slug='ring_master').exists())
+
+    def test_moves_that_do_not_fit_are_rejected(self):
+        for k in ('0', '201', '-3', 'x', '', '6.5', '99999'):
+            self.assertEqual(self.move(action='lock', k=k, weighted='0').status_code, 400, k)
+        self.assertEqual(self.move(action='lock', k=6, weighted='1').status_code, 400)  # no weights here
+        self.assertEqual(self.move(action='lock', k=6, weighted='yes').status_code, 400)
+        self.assertEqual(self.move(action='answer', choice=0).status_code, 400)  # nothing to predict yet
+        self.assertEqual(self.move(action='next').status_code, 400)
+        self.assertEqual(self.move(action='explode').status_code, 400)
+        self.assertEqual(self.client.get(self.move_url).status_code, 405)
+        self.to_predictions()
+        for choice in ('3', '-1', 'a', ''):
+            self.assertEqual(self.move(action='answer', choice=choice).status_code, 400, choice)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot']['score'], 95)
+
+    def test_reloading_keeps_a_miss(self):
+        self.lock(1)
+        page = self.client.get(self.page_url).context['snapshot']
+        self.assertEqual(page, self.snap)
+        self.assertEqual((page['score'], page['k']), (-20, 1))
+
+    def test_finished_run_refuses_moves_until_reloaded(self):
+        self.to_big_box()
+        self.lock(self.BIG_K, weighted=True)
+        self.assertEqual(self.move(action='next').status_code, 409)
+        fresh = self.client.get(self.page_url).context['snapshot']
+        self.assertEqual((fresh['stage'], fresh['score'], fresh['done'], fresh['k']), (1, 0, False, 1))
+
+    def test_run_from_older_stages_starts_over(self):
+        session = self.client.session
+        session[f'ring_run_{self.challenge.id}'] = {'stage': 7, 'locks': [], 'answers': [], 'done': False}
+        session.save()
+        self.assertEqual(self.move(action='next').status_code, 409)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot']['stage'], 1)
+
+    def test_locked_chapter_blocks_play(self):
+        self.chapter.unlock_level = 99
+        self.chapter.save()
+        self.assertRedirects(self.client.get(self.page_url), reverse('learn:dashboard'))
+        self.assertEqual(self.move(action='next').status_code, 403)
+
+    def test_concept_page_lists_the_challenge(self):
+        html = self.client.get(reverse('learn:concept_detail', args=['k'])).content.decode()
+        self.assertIn(self.page_url, html)
+        self.assertIn('Ring Balancer', html)
+
+
+class RingSeedDataTests(TestCase):
+    def test_seeded_stages_play(self):
+        for spec in RING_CHALLENGES:
+            self.assertEqual(ring.validate_stages(spec['stages']), [], spec['slug'])
+
+    def test_seeded_rings_teach_what_they_say(self):
+        first, predict, big = RING_CHALLENGES[0]['stages']
+        passes = [k for k in range(1, ring.MAX_VNODES + 1) if ring.is_balanced(first, ring.counts(first, k))]
+        self.assertEqual(passes[0], RingBalancerTests.FIRST_K)
+        # Whatever balanced ring carries into the crash, the seeded answers hold:
+        # nearer a quarter of the keys move on the ring, nearer three quarters under hash % N.
+        for k in passes:
+            on_ring = sum(1 for a, b in zip(ring.owners(predict, k), ring.owners(predict, k, down=('S3',))) if a != b)
+            self.assertLess(on_ring, ring.KEYS / 2, k)
+        mod = sum(1 for a, b in zip(ring.owners(predict, 1, scheme='mod'),
+                                    ring.owners(predict, 1, scheme='mod', down=('S3',))) if a != b)
+        self.assertTrue(ring.KEYS / 2 < mod < ring.KEYS * 7 / 8)
+        # Only weighting by capacity balances the bigger box.
+        self.assertFalse(any(ring.is_balanced(big, ring.counts(big, k)) for k in range(1, ring.MAX_VNODES + 1)))
+        weighted = [k for k in range(1, ring.MAX_VNODES + 1) if ring.is_balanced(big, ring.counts(big, k, True))]
+        self.assertEqual(weighted[0], RingBalancerTests.BIG_K)
+
+    def test_validation_catches_broken_stages(self):
+        four = [dict(id=f'S{i}', w=1) for i in range(1, 5)]
+        stages = [
+            dict(t='predict', title='P', text='t', servers=four, questions=[
+                dict(ask='a', after='b', scheme='ring', crash='S9', options=['x', 'y'], answer=0),
+                dict(ask='a', after='b', scheme='hash', crash='S1', options=['x', 'y'], answer=2),
+            ]),
+            dict(t='balance', title='B', text='t', servers=four, rule='fairest', within=25, weights=False, done='d'),
+            dict(t='balance', title='B', text='t', servers=four, rule='busiest', within=1, weights=False, done='d'),
+            dict(t='balance', title='B', text='t', servers=[dict(id='S1', w=0)], rule='busiest', within=25,
+                 weights=False, done='d'),
+            dict(t='shuffle', title='S', text='t', servers=[dict(id=f'X{i}', w=1) for i in range(3)]),
+        ]
+        problems = ring.validate_stages(stages)
+        self.assertEqual(len(problems), 8, problems)
+        self.assertEqual(ring.validate_stages([]), ['There must be at least one stage.'])

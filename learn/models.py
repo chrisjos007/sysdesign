@@ -650,3 +650,35 @@ class QuorumAttempt(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class RingChallenge(models.Model):
+    """Ring Balancer: cache keys on a consistent-hash ring. The learner adds
+    virtual nodes to even out the load, predicts how many keys move when a
+    server crashes, and makes room for a bigger machine. `stages` is the
+    script; learn/ring.py plays it and documents its shape."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='ring_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the ring.')
+    source = models.CharField(max_length=255, blank=True, help_text='Chapters this is drawn from.')
+    stages = models.JSONField(
+        default=list,
+        help_text='A list of balance and predict stages. See learn/ring.py.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class RingAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ring_attempts')
+    challenge = models.ForeignKey(RingChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

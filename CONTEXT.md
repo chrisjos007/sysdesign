@@ -3,6 +3,58 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-27 session: added Ring Balancer (9th play-to-learn activity)
+
+Ported idea 16 from `docs/games/prototypes/ring-balancer.html`: three
+challenges on one ring of 2,000 cache keys (even out four servers, predict the
+keys a crash moves on the ring and under hash % N, weight a double-capacity
+S5). Its scoring is the prototype's.
+
+- **One copy of the hash.** `learn/ring.py` hashes keys and virtual nodes
+  (the prototype's FNV-1a + MurmurHash3 finalizer) and sends every position to
+  the page as data (`ring_data`, about 3,200 integers). The page works out
+  owners itself to redraw as the slider moves; the server recounts them to
+  score a lock-in. Both use the same rule (first position at or clockwise
+  after the key; ties by server order, then virtual node). A browser check
+  drove the real slider through k = 1..200 on all three rings and hashed the
+  per-server counts and pass/fail: identical to Python.
+- **Server-authoritative runs**, like Quorum Casino: the run
+  (`ring_run_<id>` in the session) holds only lock-ins (k, weighted) and
+  prediction choices; score, feedback and scene are rebuilt. `POST
+  ring/<slug>/move/` takes `lock`, `answer` or `next`. The page never holds a
+  prediction's answer, and a reload can't wipe a miss.
+- **Models** (migration `0012_ringchallenge`, which depends on the
+  curriculum's `0011`): `RingChallenge.stages` JSON plus `source`;
+  `RingAttempt` like the other attempts, with a line per stage in `detail`.
+- **Scoring:** +100 per balanced ring − round(positions / 5), −20 per
+  unbalanced lock-in, +50 / −25 per prediction. Balance is judged on key
+  counts in whole numbers, so no rounding tips a borderline ring; the page
+  shows over/under percentages rounded up, so a readout within the target
+  always passes. XP is half the score (`RING_POINTS_PER_XP`; a best run is
+  259), plus `PERFECT_BONUS` and the new `ring_master` badge for no
+  unbalanced lock-in and every prediction right. Not part of `game_master`.
+- **Changes from the prototype:** balance counts keys, not arc length.
+  Challenge 3 wants every server within 20%, not 25%: at 25% an unweighted
+  ring passed by luck at 83 and 84 virtual nodes, and at 20% none does, so
+  only weighting clears it (first at 30). Options are in magnitude order, not
+  shuffled. "About a quarter, only the keys S3 owned" no longer lowercases to
+  "s3". Circled keys stay until the next change instead of flashing. Server
+  colours (`--srv-1..5`) can't pass the colour-blind all-pairs check for 4–5
+  hues, so identity never rests on colour: labelled rows with share and fair
+  share, a row picks its server out on the ring, and a hover tooltip names
+  each arc's owner.
+- **Content:** one challenge, `ring-balancer-cache-cluster`, on
+  `caching-invalidation` (sd-08; no curriculum lesson covers consistent
+  hashing, and Challenge 2 lands on sd-08's cache-stampede objective). The
+  source line cites Karger et al. (STOC 1997) and Dynamo (SOSP 2007).
+- **Tests:** 16 new (74 in `learn`), `DATABASE_URL=sqlite:///db.sqlite3`.
+  `RingSeedDataTests` pins the seeded lessons: Challenge 1 first balances at
+  6, any balanced ring moves under half the keys on a crash, hash % N moves
+  between half and seven eighths, and only weighted rings clear Challenge 3.
+- The browser check ran on a scratch copy of `db.sqlite3`; the real file was
+  not touched by this session. **The local db and Neon both need
+  `seed_games`** for the challenge to appear (and Neon needs `migrate`).
+
 ## 2026-09-27 session: replaced the book-derived content with the curriculum
 
 The notes and quizzes used to be chapter-by-chapter summaries of five

@@ -106,6 +106,16 @@ DNS-only failover switch); lessons get Matching/Ordering games.
   can't redraw one. The score is paid as XP, and a run with every bet
   within 10 points of the exact chance adds the perfect bonus and the
   "Card Counter" badge.
+- **Ring Balancer** — 2,000 cache keys sit on a consistent-hash ring. The
+  learner adds virtual nodes until the load evens out (+100 per balanced
+  ring, −1 per 5 ring positions for routing-table memory, −20 for locking
+  in an unbalanced ring), predicts how many keys move when a server crashes,
+  on the ring and then under hash(key) % N (+50 / −25), and gives a
+  double-capacity server its share by weighting virtual nodes. The hash lives
+  only in `learn/ring.py`: the page gets every key and virtual-node position
+  as data, redraws the ring as the slider moves, and the server recounts
+  owners to score each lock-in. It pays 1 XP per 2 points, plus the perfect
+  bonus and the "Ring Master" badge for a clean run.
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
@@ -129,7 +139,7 @@ pip install -r requirements.txt
 
 python manage.py migrate
 python manage.py seed_content   # loads the curriculum lessons + quiz questions
-python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw/traffic-day/quorum-casino games
+python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw/traffic-day/quorum-casino/ring-balancer games
 python manage.py createsuperuser   # optional, for /admin access
 
 python manage.py runserver
@@ -210,6 +220,13 @@ python manage.py collectstatic --noinput
   `status`, `sync` and `read` steps. `learn/quorum.py` documents the step
   shapes, and the tests run `quorum.validate_tables` over every seeded
   script.
+- A Ring Balancer challenge is a list of `stages` in `RING_CHALLENGES`
+  (same file): `balance` stages (servers with a capacity `w`, a `busiest` or
+  `every` rule, a tolerance, and whether weighting is offered) and `predict`
+  stages (questions that crash a server on the ring or under hash % N).
+  `learn/ring.py` documents the shapes; the tests run `ring.validate_stages`
+  over the seed and check each ring teaches what its text says.
+
 Both commands are idempotent, so re-running updates existing content
 instead of duplicating it.
 

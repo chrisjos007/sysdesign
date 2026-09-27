@@ -4,7 +4,7 @@ from django.db import transaction
 from learn.models import (
     ComponentType, Concept, DesignChallenge, DesignChallengeComponent,
     DesignChallengeConnection, FlawChallenge, FlawPart, FlawReason,
-    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep, QuorumChallenge, TrafficChallenge,
+    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep, QuorumChallenge, RingChallenge, TrafficChallenge,
 )
 
 COMPONENT_TYPES = [
@@ -813,8 +813,79 @@ QUORUM_CHALLENGES = [
 ]
 
 
+# Ring Balancer: 2,000 cache keys on a consistent-hash ring. learn/ring.py
+# plays the stages and documents their shape. A server's `w` is its capacity,
+# so S5 (w=2) has twice the fair share. Challenge 3's tolerance is 20%, not
+# 25%: at 25% an unweighted ring passes by luck at 83 and 84 virtual nodes,
+# and at 20% none does, so only weighting by capacity clears it. The tests
+# run ring.validate_stages over these and check that.
+_FOUR = [dict(id='S1', w=1), dict(id='S2', w=1), dict(id='S3', w=1), dict(id='S4', w=1)]
+RING_CHALLENGES = [
+    dict(
+        slug='ring-balancer-cache-cluster', title='Balance a Cache Ring',
+        concept='caching-invalidation',
+        source=('sd-08 Caching, invalidation, and stampedes · Karger et al., Consistent Hashing and Random '
+                'Trees (STOC 1997) · DeCandia et al., Dynamo (SOSP 2007), virtual nodes sized to capacity'),
+        prompt=(
+            '2,000 cache keys sit on a hash ring. Each key belongs to the first server position '
+            'clockwise from it. Balance the load, survive a crash, and make room for a bigger machine.'
+        ),
+        stages=[
+            dict(
+                t='balance', title='Challenge 1: Even out the load', servers=_FOUR,
+                text=(
+                    'Four equal cache servers, one ring position each. Add virtual nodes until the '
+                    'busiest server is at most 25% over its fair share, using as few ring positions '
+                    'as you can.'
+                ),
+                rule='busiest', within=25, weights=False,
+                done='More virtual nodes smooth the load, but every position is a routing-table entry.',
+            ),
+            dict(
+                t='predict', title='Challenge 2: Lose a server', servers=_FOUR,
+                text='S3 is about to crash. Predict how many keys change server.',
+                questions=[
+                    dict(
+                        ask='On the ring, when S3 crashes, roughly what share of all keys will move to a different server?',
+                        scheme='ring', crash='S3',
+                        options=['About a quarter, only the keys S3 owned', 'About three quarters', 'All of them'],
+                        answer=0,
+                        after=(
+                            'S3 is down. Only its keys moved, each to the next position clockwise, so '
+                            'they spread over its ring neighbours. Now the same crash under hash(key) % N.'
+                        ),
+                    ),
+                    dict(
+                        ask='With hash(key) % N, N drops from 4 to 3. Roughly what share of keys move?',
+                        scheme='mod', crash='S3',
+                        options=['About a quarter', 'About three quarters', 'All of them'],
+                        answer=1,
+                        after=(
+                            'Under hash(key) % N, most keys moved, including keys that S3 never held. '
+                            'For a cache, that means most requests miss at once and fall through to the '
+                            'database at the same moment: a cache stampede.'
+                        ),
+                    ),
+                ],
+            ),
+            dict(
+                t='balance', title='Challenge 3: A bigger box joins',
+                servers=_FOUR + [dict(id='S5', w=2)],
+                text=(
+                    'S3 is back and S5 has twice the memory of the others, so its fair share is twice '
+                    'as big. Get every server within 20% of its fair share.'
+                ),
+                rule='every', within=20, weights=True,
+                done='S5 got twice the virtual nodes, so it owns about twice the keys.',
+                unweighted_hint='S5 has twice the memory but the same number of ring positions as everyone else.',
+            ),
+        ],
+    ),
+]
+
+
 class Command(BaseCommand):
-    help = 'Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, traffic-day, and quorum-casino mini-games.'
+    help = 'Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, traffic-day, quorum-casino, and ring-balancer mini-games.'
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -915,6 +986,14 @@ class Command(BaseCommand):
                 ),
             )
 
+        for spec in RING_CHALLENGES:
+            RingChallenge.objects.update_or_create(
+                slug=spec['slug'], defaults=dict(
+                    concept=Concept.objects.get(slug=spec['concept']), title=spec['title'],
+                    prompt=spec['prompt'], source=spec['source'], stages=spec['stages'],
+                ),
+            )
+
         # Component types no longer listed and no longer in any challenge's
         # pool (their challenges went with their concepts in seed_content).
         ComponentType.objects.exclude(slug__in=types).filter(designchallengecomponent__isnull=True).delete()
@@ -923,5 +1002,5 @@ class Command(BaseCommand):
             f'Seeded {len(types)} component types, {design_count} design challenges, '
             f'{matching_count} matching challenges, {ordering_count} ordering challenges, '
             f'{flaw_count} spot-the-flaw challenges, {len(TRAFFIC_CHALLENGES)} traffic-day challenges, '
-            f'{len(QUORUM_CHALLENGES)} quorum-casino challenges.'
+            f'{len(QUORUM_CHALLENGES)} quorum-casino challenges, {len(RING_CHALLENGES)} ring-balancer challenges.'
         ))

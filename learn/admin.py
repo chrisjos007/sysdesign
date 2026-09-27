@@ -13,8 +13,8 @@ from .models import (
     FlawAttempt, FlawChallenge, FlawPart, FlawReason,
     MatchingAttempt, MatchingChallenge, MatchingPair,
     OrderingAttempt, OrderingChallenge, OrderingStep,
-    Question, QuorumAttempt, QuorumChallenge, ReviewCard, TestCase, Topic, TrafficAttempt,
-    TrafficChallenge, UserBadge, UserProfile,
+    Question, QuorumAttempt, QuorumChallenge, ReviewCard, RingAttempt, RingChallenge, TestCase, Topic,
+    TrafficAttempt, TrafficChallenge, UserBadge, UserProfile,
 )
 
 
@@ -276,6 +276,20 @@ class QuorumChallengeAdmin(admin.ModelAdmin):
 
 @admin.register(QuorumAttempt)
 class QuorumAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
+    list_filter = ('is_perfect', 'challenge')
+    readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')
+
+
+@admin.register(RingChallenge)
+class RingChallengeAdmin(admin.ModelAdmin):
+    """`stages` is the script learn/ring.py plays; its shape is documented
+    there, and seed_games.RING_CHALLENGES has a worked example."""
+    list_display = ('title', 'concept')
+
+
+@admin.register(RingAttempt)
+class RingAttemptAdmin(admin.ModelAdmin):
     list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
     list_filter = ('is_perfect', 'challenge')
     readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')

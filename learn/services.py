@@ -4,12 +4,12 @@ import random
 from django.db.models import Count
 from django.utils import timezone
 
-from . import quorum, traffic
+from . import quorum, ring, traffic
 from .code_runner import grade_submission
 from .models import (
     Attempt, Badge, Book, Chapter, ConceptMastery,
     CodingAttempt, DesignAttempt, FlawAttempt, MatchingAttempt, OrderingAttempt,
-    QuorumAttempt, ReviewCard, TrafficAttempt, UserBadge, UserProfile,
+    QuorumAttempt, ReviewCard, RingAttempt, TrafficAttempt, UserBadge, UserProfile,
 )
 
 XP_CORRECT_BASE = 10
@@ -44,6 +44,10 @@ POINTS_FLAW_MISSED = 15
 # Traffic Day scores in the hundreds (it starts at 1,000), so it pays XP at
 # a tenth of its score to stay in line with the other games.
 TRAFFIC_POINTS_PER_XP = 10
+
+# Ring Balancer scores up to about 260 (two balanced rings and two right
+# predictions), so it pays XP at half its score.
+RING_POINTS_PER_XP = 2
 
 PERFECT_BONUS = 25
 
@@ -521,6 +525,35 @@ def record_quorum_attempt(user, challenge, run):
     }
 
 
+def record_ring_attempt(user, challenge, run):
+    """Files a finished Ring Balancer run. A clean run, with no unbalanced
+    lock-in and no wrong prediction, earns the perfect bonus."""
+    lines = ring.summary(challenge.stages, run)
+    score = sum(line['points'] for line in lines)
+    misses = sum(line.get('misses', 0) for line in lines)
+    wrong = sum(line['questions'] - line['right'] for line in lines if line['kind'] == 'predict')
+    is_perfect = misses == 0 and wrong == 0
+    xp_awarded = max(0, score) // RING_POINTS_PER_XP + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {'stages': lines, 'misses': misses, 'wrong': wrong}
+    RingAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -539,6 +572,8 @@ BADGE_DEFS = [
     ('on_call', 'On Call', 'Run a whole Traffic Day inside the SLO without breaking click analytics.', '📟'),
     ('card_counter', 'Card Counter',
      f'Bet within {quorum.CALIBRATED_WITHIN} points of the exact chance on every read in Quorum Casino.', '🎲'),
+    ('ring_master', 'Ring Master',
+     'Clear Ring Balancer without an unbalanced lock-in or a wrong prediction.', '⭕'),
     ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
@@ -603,6 +638,7 @@ def check_badges(user):
     maybe('flaw_finder', FlawAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('on_call', TrafficAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('card_counter', QuorumAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('ring_master', RingAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)
