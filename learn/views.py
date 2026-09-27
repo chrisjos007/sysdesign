@@ -9,18 +9,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import services
+from . import quorum, services
 from .context_processors import _chapter_href
 from .models import (
     Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
-    FlawChallenge, FlawPart, MatchingChallenge, OrderingChallenge, Question, ReviewCard,
-    Topic, TrafficChallenge, UserBadge,
+    FlawChallenge, FlawPart, MatchingChallenge, OrderingChallenge, Question, QuorumChallenge,
+    ReviewCard, Topic, TrafficChallenge, UserBadge,
 )
 from .services import (
     all_flaws_found, answer_flaw_part, chapter_is_unlocked, due_review_cards, flaw_snapshot,
     get_profile, inspect_flaw_part, new_flaw_run, record_coding_attempt,
     record_design_attempt, record_flaw_attempt, record_matching_attempt,
-    record_ordering_attempt, record_quiz_answer, record_traffic_attempt,
+    record_ordering_attempt, record_quiz_answer, record_quorum_attempt, record_traffic_attempt,
 )
 import json
 
@@ -155,6 +155,7 @@ def dashboard(request):
             1 + continue_concept.design_challenges.count() + continue_concept.matching_challenges.count()
             + continue_concept.ordering_challenges.count() + continue_concept.coding_challenges.count()
             + continue_concept.flaw_challenges.count() + continue_concept.traffic_challenges.count()
+            + continue_concept.quorum_challenges.count()
         ) if continue_concept else 0,
     })
 
@@ -202,6 +203,7 @@ def concept_detail(request, concept_slug):
         'coding_challenges': concept.coding_challenges.all(),
         'flaw_challenges': concept.flaw_challenges.all(),
         'traffic_challenges': concept.traffic_challenges.all(),
+        'quorum_challenges': concept.quorum_challenges.all(),
     })
 
 
@@ -583,3 +585,69 @@ def traffic_finish(request, challenge_slug):
         return JsonResponse({'error': "That day's design plan didn't check out. Reset and run the day again."}, status=400)
     result['new_badges'] = [b.name for b in result['new_badges']]
     return JsonResponse(result)
+
+
+def _quorum_run_key(challenge):
+    return f'quorum_run_{challenge.id}'
+
+
+@login_required
+def quorum_challenge(request, challenge_slug):
+    challenge = get_object_or_404(QuorumChallenge.objects.select_related('concept__chapter__book'), slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        messages.error(request, "This chapter is still locked.")
+        return redirect('learn:dashboard')
+
+    # An unfinished run picks up where it left off, bets and draws included,
+    # so reloading can't redraw a read. A finished one starts over.
+    key = _quorum_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done') or not quorum.run_fits(challenge.tables, run):
+        run = quorum.new_run()
+        request.session[key] = run
+
+    stakes = quorum.stakes()
+    return render(request, 'learn/quorum_challenge.html', {
+        'challenge': challenge, 'snapshot': quorum.snapshot(challenge.tables, run), 'stakes': stakes,
+        'best': stakes[-1][0], 'worst': -stakes[-1][1], 'bet_range': (quorum.MIN_BET, quorum.MAX_BET),
+        'calibrated_within': quorum.CALIBRATED_WITHIN, 'perfect_bonus': services.PERFECT_BONUS,
+    })
+
+
+@login_required
+@require_POST
+def quorum_move(request, challenge_slug):
+    """One move in a Quorum Casino run, answered as JSON: `next` plays the
+    next event (or opens the next table), and `bet` locks in `pct`, the
+    learner's chance from 1 to 99 that the waiting read returns the last
+    successful write. The run closes after the last table's last event."""
+    challenge = get_object_or_404(QuorumChallenge, slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        return JsonResponse({'error': 'This chapter is still locked.'}, status=403)
+
+    key = _quorum_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done') or not quorum.run_fits(challenge.tables, run):
+        return JsonResponse({'error': 'This run has already finished. Reload the page to play again.'}, status=409)
+
+    action = request.POST.get('action')
+    if action == 'next':
+        result = quorum.advance(challenge.tables, run)
+        error = 'Lock in your bet on this read first.'
+    elif action == 'bet':
+        pct = request.POST.get('pct', '')
+        result = quorum.place_bet(challenge.tables, run, int(pct)) if pct.isdecimal() and len(pct) <= 3 else None
+        error = f"That bet doesn't fit. Bets run from {quorum.MIN_BET}% to {quorum.MAX_BET}%, on a read that's waiting for one."
+    else:
+        result, error = None, "That move doesn't fit this game."
+    if result is None:
+        return JsonResponse({'error': error}, status=400)
+
+    finished = None
+    if run['done']:
+        finished = record_quorum_attempt(request.user, challenge, run)
+        finished['new_badges'] = [b.name for b in finished['new_badges']]
+    request.session[key] = run
+    return JsonResponse({'result': result, 'finished': finished, 'snapshot': quorum.snapshot(challenge.tables, run)})

@@ -4,7 +4,7 @@ from django.db import transaction
 from learn.models import (
     ComponentType, Concept, DesignChallenge, DesignChallengeComponent,
     DesignChallengeConnection, FlawChallenge, FlawPart, FlawReason,
-    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep, TrafficChallenge,
+    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep, QuorumChallenge, TrafficChallenge,
 )
 
 COMPONENT_TYPES = [
@@ -694,8 +694,84 @@ TRAFFIC_CHALLENGES = [
 ]
 
 
+# Quorum Casino: replicas hold the key x while the learner steps through a
+# script of writes, crashes, partitions and syncs, betting before each read.
+# learn/quorum.py plays the script and documents the step shapes; replicas
+# are named A, B, C... up to N. Every table needs a read, and a read needs a
+# successful write before it (the bet is on returning it). The tests run
+# quorum.validate_tables over these.
+QUORUM_CHALLENGES = [
+    dict(
+        slug='quorum-casino-three-replicas', title='Bet on Quorum Reads',
+        concept='cap-theorem-quorum',
+        source='Chapter 6: Design a Key-Value Store · Designing Data-Intensive Applications, Chapter 5: Replication',
+        prompt=(
+            'Three replicas hold the key x. Step through writes, crashes and partitions. Before each '
+            'read, bet how likely it is to return the last successful write.'
+        ),
+        tables=[
+            dict(
+                name='Table 1: strict quorum', N=3, W=2, R=2,
+                steps=[
+                    dict(t='write', val=1, reach=['A', 'B', 'C'], say='The client writes x = 1. All three replicas store it.'),
+                    dict(t='status', set={'C': 'cut'}, say='A network partition cuts C off from the client.'),
+                    dict(t='write', val=2, reach=['A', 'B'], say='The client writes x = 2. Only A and B receive it.'),
+                    dict(t='status', set={'C': 'up'}, say='The partition heals. C still holds the old x = 1.'),
+                    dict(t='read'),
+                    dict(t='status', set={'A': 'down'}, say='Replica A crashes.'),
+                    dict(t='read'),
+                    dict(t='write', val=3, reach=['B', 'C'], say='The client writes x = 3. B and C receive it.'),
+                    dict(t='status', set={'B': 'down'}, say='Replica B crashes too.'),
+                    dict(t='read'),
+                ],
+                outro=(
+                    'With R + W > N, every set of replicas a read asks overlaps every set a successful '
+                    'write reached, so reads were certain. The price is availability: with two replicas '
+                    'down, the read failed.'
+                ),
+            ),
+            dict(
+                name='Table 2: fast and loose', N=3, W=1, R=1,
+                steps=[
+                    dict(t='write', val=1, reach=['A', 'B', 'C'], say='The client writes x = 1. All three replicas store it.'),
+                    dict(t='status', set={'B': 'cut', 'C': 'cut'}, say='A network blip: only A is reachable.'),
+                    dict(t='write', val=2, reach=['A'], say='The client writes x = 2. Only A receives it.'),
+                    dict(t='status', set={'B': 'up', 'C': 'up'}, say='The blip ends. B and C still hold x = 1.'),
+                    dict(t='read'),
+                    {'t': 'sync', 'from': 'A', 'to': 'B', 'say': 'Background anti-entropy copies x = 2 from A to B.'},
+                    dict(t='read'),
+                    dict(t='write', val=3, reach=['C'], say='The client writes x = 3. C answers first; A and B have not applied it yet.'),
+                    dict(t='read'),
+                ],
+                outro=(
+                    'With R + W ≤ N, a read can miss the replicas a write reached. Reads were fast and '
+                    'always answered, but freshness came down to which replica you happened to ask.'
+                ),
+            ),
+            dict(
+                name='Table 3: safe writes?', N=3, W=3, R=1,
+                steps=[
+                    dict(t='write', val=1, reach=['A', 'B', 'C'], say='The client writes x = 1. All three replicas store it.'),
+                    dict(t='status', set={'C': 'down'}, say='Replica C crashes.'),
+                    dict(t='write', val=2, reach=['A', 'B'], say='The client writes x = 2. Only A and B receive it.'),
+                    dict(t='read'),
+                    dict(t='status', set={'C': 'up'}, say='C recovers, still holding x = 1.'),
+                    dict(t='read'),
+                ],
+                outro=(
+                    'W = N makes writes fragile: one crashed replica turns every write into a failure. '
+                    'Worse, a failed write is not rolled back on the replicas that applied it, so reads '
+                    'can return a value the client was told never saved (DDIA Chapter 5, limitations of '
+                    'quorum consistency).'
+                ),
+            ),
+        ],
+    ),
+]
+
+
 class Command(BaseCommand):
-    help = 'Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, and traffic-day mini-games.'
+    help = 'Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, traffic-day, and quorum-casino mini-games.'
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -790,8 +866,17 @@ class Command(BaseCommand):
                 ),
             )
 
+        for spec in QUORUM_CHALLENGES:
+            QuorumChallenge.objects.update_or_create(
+                slug=spec['slug'], defaults=dict(
+                    concept=Concept.objects.get(slug=spec['concept']), title=spec['title'],
+                    prompt=spec['prompt'], source=spec['source'], tables=spec['tables'],
+                ),
+            )
+
         self.stdout.write(self.style.SUCCESS(
             f'Seeded {len(types)} component types, {design_count} design challenges, '
             f'{matching_count} matching challenges, {ordering_count} ordering challenges, '
-            f'{flaw_count} spot-the-flaw challenges, {len(TRAFFIC_CHALLENGES)} traffic-day challenges.'
+            f'{flaw_count} spot-the-flaw challenges, {len(TRAFFIC_CHALLENGES)} traffic-day challenges, '
+            f'{len(QUORUM_CHALLENGES)} quorum-casino challenges.'
         ))

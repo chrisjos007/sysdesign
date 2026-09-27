@@ -1,0 +1,280 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Quorum Casino{% endblock %}
+{% block content %}
+<div class="quorum-game">
+<div class="game-head">
+    <header class="page-head">
+        <h1>{{ challenge.title }}</h1>
+        <p class="page-head__lede">{{ challenge.prompt }}</p>
+        <p class="page-head__meta"><span>Source: {{ challenge.concept.chapter.book.title }} · {{ challenge.source|default:challenge.concept.source_note }}</span></p>
+    </header>
+    <div class="tally">
+        <span class="label">Score</span>
+        <strong class="num" id="qc-score">{{ snapshot.score }}</strong>
+    </div>
+</div>
+
+<div class="howto">
+    <p><strong>How to play:</strong> step through the events one at a time. Before each read, set how likely you think it is to return the last successful write, then lock in your bet. A read asks R of the replicas it can reach, picked at random, and keeps the value with the highest version.</p>
+    <ul class="rules">
+        <li>Betting <strong class="num">50%</strong> always scores 0</li>
+        <li><span class="plus num">up to +{{ best }}</span> for confidence that turns out right</li>
+        <li><span class="minus num">down to &minus;{{ worst }}</span> for confidence that turns out wrong</li>
+    </ul>
+    <p class="quorum-xp">Your score is your XP. Keep every bet within {{ calibrated_within }} points of the exact chance and the run adds {{ perfect_bonus }} XP, however the draws fall.</p>
+</div>
+
+<section class="card verdict" id="qc-verdict" tabindex="-1" hidden>
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use id="qc-verdict-icon" href="#i-check"/></svg></span>
+            <span id="qc-verdict-title"></span>
+            <span class="verdict__xp num" id="qc-verdict-xp"></span>
+        </div>
+        <p class="verdict__answer" id="qc-verdict-line"></p>
+        <ul class="verdict__list" id="qc-verdict-reads"></ul>
+        <div class="verdict__extras" id="qc-verdict-extras" hidden></div>
+        <div><a href="{% url 'learn:quorum_challenge' challenge.slug %}" class="btn btn--quiet btn--sm"><svg class="icon icon--sm"><use href="#i-retry"/></svg> Play again</a></div>
+    </div>
+</section>
+
+<section class="card quorum-board" id="qc-board" aria-labelledby="qc-name">
+    <div class="quorum-head">
+        <h2 class="panel-label"><span id="qc-name">{{ snapshot.name }}</span><span class="meta num" id="qc-progress">Table {{ snapshot.table }} of {{ snapshot.tables }}</span></h2>
+        <div class="quorum-chips" id="qc-chips"></div>
+    </div>
+    <div class="quorum-reps" id="qc-reps" role="list" aria-label="Replicas"></div>
+
+    <div class="quorum-split">
+        <div class="quorum-stack">
+            <p class="quorum-say" id="qc-say" aria-live="polite"></p>
+            <div class="bet" id="qc-bet" hidden>
+                <p class="bet__q" id="qc-question"></p>
+                <div class="bet__row">
+                    <span class="meta">Surely not</span>
+                    <input type="range" id="qc-slider" min="{{ bet_range.0 }}" max="{{ bet_range.1 }}" value="50" aria-label="Your chance that the answer is yes">
+                    <span class="meta bet__yes">Surely yes</span>
+                </div>
+                <p class="bet__val"><strong class="num" id="qc-pct">50%</strong> chance of yes · <span class="meta num" id="qc-stakes"></span></p>
+                <div class="btn-row"><button type="button" class="btn btn--primary" id="qc-lock">Lock in bet</button></div>
+            </div>
+            <div class="quorum-feedback" id="qc-feedback" aria-live="polite"></div>
+            <div class="btn-row">
+                <button type="button" class="btn btn--primary" id="qc-next">Next event</button>
+                <a href="{% url 'learn:quorum_challenge' challenge.slug %}" class="btn btn--quiet" id="qc-again" hidden><svg class="icon icon--sm"><use href="#i-retry"/></svg> Play again</a>
+            </div>
+        </div>
+        <div class="quorum-stack">
+            <h2 class="panel-label" id="qc-log-title">What happened</h2>
+            <p class="meta" id="qc-log-empty">Nothing yet. Press Next event to start.</p>
+            <ol class="quorum-log" id="qc-log" tabindex="0" aria-labelledby="qc-log-title"></ol>
+        </div>
+    </div>
+    {% csrf_token %}
+</section>
+</div>
+{{ snapshot|json_script:"qc-snapshot" }}
+{{ stakes|json_script:"qc-stakes-table" }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var moveUrl = "{% url 'learn:quorum_move' challenge.slug %}";
+  var WITHIN = {{ calibrated_within }};
+  var MIN_BET = {{ bet_range.0 }};
+  var board = document.getElementById('qc-board');
+  var csrf = board.querySelector('[name=csrfmiddlewaretoken]').value;
+  var snap = JSON.parse(document.getElementById('qc-snapshot').textContent);
+  var STAKES = JSON.parse(document.getElementById('qc-stakes-table').textContent);
+  var calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function $(id) { return document.getElementById(id); }
+  var slider = $('qc-slider');
+  var nextBtn = $('qc-next');
+  var lockBtn = $('qc-lock');
+  var feedback = $('qc-feedback');
+  var logEl = $('qc-log');
+  var STATUS = { up: 'Up', cut: 'Cut off', down: 'Down' };
+  var OUTCOME = { yes: 'It returned the last successful write', no: 'It missed the last successful write', failed: 'It failed' };
+  var busy = false;
+
+  function num(v) { return v < 0 ? '−' + Math.abs(v) : String(v); }
+  function signed(v) { return v > 0 ? '+' + v : num(v); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function icon(id, cls) {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'icon icon--sm' + (cls ? ' ' + cls : ''));
+    svg.setAttribute('aria-hidden', 'true');
+    var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#' + id);
+    svg.appendChild(use);
+    return svg;
+  }
+
+  function slip(kind, points, text) {
+    var s = el('div', 'slip slip--' + kind);
+    if (points != null) s.appendChild(el('strong', 'slip__pts num', signed(points)));
+    s.appendChild(el('span', null, text));
+    feedback.replaceChildren(s);
+  }
+
+  function chip(text, cls) { return el('span', 'quorum-chip' + (cls ? ' ' + cls : ''), text); }
+
+  function replica(r) {
+    var asked = snap.asked.indexOf(r.id) !== -1;
+    var card = el('div', 'replica is-' + r.st + (asked ? ' is-asked' : ''));
+    card.setAttribute('role', 'listitem');
+    var head = el('div', 'replica__head');
+    head.append(el('span', 'replica__id', r.id), el('span', 'replica__stat', STATUS[r.st]));
+    card.append(head,
+      el('span', 'replica__val num', r.val == null ? 'empty' : 'x = ' + r.val),
+      el('span', 'replica__ver meta num', r.ver ? 'version ' + r.ver : 'no version'));
+    if (asked) card.append(el('span', 'replica__asked', 'Asked'));
+    return card;
+  }
+
+  function paint() {
+    $('qc-score').textContent = num(snap.score);
+    $('qc-name').textContent = snap.name;
+    $('qc-progress').textContent = 'Table ' + snap.table + ' of ' + snap.tables;
+    var overlap = snap.r + snap.w > snap.n;
+    $('qc-chips').replaceChildren(
+      chip('N = ' + snap.n), chip('W = ' + snap.w), chip('R = ' + snap.r),
+      chip('R + W = ' + (snap.r + snap.w) + (overlap ? ' > N' : ' ≤ N'), overlap ? 'is-ok' : 'is-warn'),
+      chip(snap.latest == null ? 'No successful write yet' : 'Last successful write: x = ' + snap.latest));
+    var reps = $('qc-reps');
+    reps.style.setProperty('--reps', snap.replicas.length);
+    reps.replaceChildren.apply(reps, snap.replicas.map(replica));
+
+    $('qc-say').textContent = snap.say;
+    logEl.replaceChildren.apply(logEl, snap.log.map(function (t) { return el('li', null, t); }));
+    logEl.hidden = !snap.log.length;
+    $('qc-log-empty').hidden = !!snap.log.length;
+    logEl.scrollTop = logEl.scrollHeight;
+
+    var betting = !!snap.question;
+    $('qc-bet').hidden = !betting;
+    if (betting) $('qc-question').textContent = snap.question;
+    if (snap.feedback) slip(snap.feedback.points >= 0 ? 'right' : 'wrong', snap.feedback.points, snap.feedback.text);
+    else feedback.replaceChildren();
+
+    nextBtn.hidden = snap.done;
+    nextBtn.disabled = betting;
+    nextBtn.textContent = snap.table_over ? 'Next table' : 'Next event';
+    $('qc-again').hidden = !snap.done;
+  }
+
+  function stakes() {
+    var p = +slider.value;
+    var s = STAKES[p - MIN_BET];
+    var line = 'if yes ' + signed(s[0]) + ', if no ' + signed(s[1]);
+    $('qc-pct').textContent = p + '%';
+    $('qc-stakes').textContent = line;
+    slider.setAttribute('aria-valuetext', p + '% chance of yes: ' + line);
+  }
+
+  function post(data) {
+    busy = true;
+    board.classList.add('is-busy');
+    return fetch(moveUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf },
+      body: new URLSearchParams(data),
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok || !body.snapshot) throw new Error(body.error || "That move didn't save. Reload the page and try again.");
+        snap = body.snapshot;
+        return body;
+      });
+    }).catch(function (err) {
+      slip('wrong', null, err instanceof TypeError ? "Couldn't reach the server. Check your connection and try again." : err.message);
+      throw err;
+    }).finally(function () {
+      busy = false;
+      board.classList.remove('is-busy');
+    });
+  }
+
+  function finish(f) {
+    var verdict = $('qc-verdict');
+    var tone = f.is_perfect ? 'right' : f.score >= 0 ? 'partial' : 'wrong';
+    verdict.className = 'card verdict verdict--' + tone;
+    $('qc-verdict-icon').setAttribute('href', f.is_perfect ? '#i-check' : f.score >= 0 ? '#i-dice' : '#i-x');
+    $('qc-verdict-title').textContent = (f.is_perfect ? 'Calibrated run: ' : '') + num(f.score) + ' points';
+    $('qc-verdict-xp').textContent = '+' + f.xp_awarded + ' XP';
+
+    var reads = f.detail.reads;
+    var line = f.detail.calibrated + ' of your ' + reads.length + ' bets were within ' + WITHIN + ' points of the exact chance.';
+    if (f.is_perfect) line = 'All ' + reads.length + ' of your bets were within ' + WITHIN + ' points of the exact chance, so the run adds ' + f.perfect_bonus + ' XP.';
+    else line += ' Get every bet there for the bonus.';
+    if (f.score < 0) line += ' A score below zero earns no XP.';
+    $('qc-verdict-line').textContent = line;
+
+    var list = $('qc-verdict-reads');
+    var seen = {};
+    list.replaceChildren.apply(list, reads.map(function (r) {
+      seen[r.table] = (seen[r.table] || 0) + 1;
+      var li = el('li');
+      li.appendChild(icon(r.calibrated ? 'i-check' : 'i-x', r.calibrated ? 'is-right' : 'is-wrong'));
+      var span = el('span');
+      span.appendChild(el('strong', null, r.table + ' · read ' + seen[r.table] + '. '));
+      span.appendChild(document.createTextNode('You bet ' + r.bet + '% and the exact chance was ' + r.exact + '%. '
+        + OUTCOME[r.outcome] + ': ' + signed(r.points) + '.'));
+      li.appendChild(span);
+      return li;
+    }));
+
+    var extras = $('qc-verdict-extras');
+    extras.replaceChildren();
+    if (f.leveled_up) {
+      var lv = el('div', 'verdict__extra verdict__extra--level');
+      lv.append(icon('i-level'), " Level up! You're now level " + f.new_level + '.');
+      extras.appendChild(lv);
+    }
+    f.new_badges.forEach(function (name) {
+      var b = el('div', 'verdict__extra verdict__extra--badge');
+      b.append(icon('i-stamp'), ' Badge earned: ' + name);
+      extras.appendChild(b);
+    });
+    extras.hidden = !extras.children.length;
+
+    verdict.hidden = false;
+    verdict.scrollIntoView({ block: 'start', behavior: calm.matches ? 'auto' : 'smooth' });
+    verdict.focus({ preventScroll: true });
+  }
+
+  nextBtn.addEventListener('click', function () {
+    if (busy) return;
+    post({ action: 'next' }).then(function (body) {
+      paint();
+      if (snap.question) {
+        slider.value = 50;
+        stakes();
+        slider.focus();
+      }
+      if (body.finished) finish(body.finished);
+    }, function () {});
+  });
+
+  lockBtn.addEventListener('click', function () {
+    if (busy) return;
+    post({ action: 'bet', pct: slider.value }).then(function (body) {
+      paint();
+      if (body.finished) finish(body.finished);
+      else nextBtn.focus();
+    }, function () {});
+  });
+
+  slider.addEventListener('input', stakes);
+  stakes();
+  paint();
+})();
+</script>
+{% endblock %}

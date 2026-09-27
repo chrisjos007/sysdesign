@@ -609,3 +609,35 @@ class TrafficAttempt(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class QuorumChallenge(models.Model):
+    """Quorum Casino: replicas hold the key x while the learner steps through
+    writes, crashes and partitions, betting before each read on the chance it
+    returns the last successful write. `tables` is the script; learn/quorum.py
+    plays it and documents its shape."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='quorum_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the table.')
+    source = models.CharField(max_length=255, blank=True, help_text='Chapters this is drawn from.')
+    tables = models.JSONField(
+        default=list,
+        help_text='A list of tables, each with name, N, W, R, outro and steps. See learn/quorum.py.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class QuorumAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='quorum_attempts')
+    challenge = models.ForeignKey(QuorumChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

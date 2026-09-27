@@ -93,6 +93,17 @@ or more Matching/Ordering games.
   `learn/static/learn/traffic_model.js`) to file the score. It pays 1 XP
   per 10 points, plus the perfect bonus and the "On Call" badge for a clean
   day.
+- **Quorum Casino** — three replicas hold the key x across three tables
+  with different N, W and R settings. The learner steps through writes,
+  crashes, partitions and anti-entropy syncs, and before each read bets
+  how likely it is to return the last successful write. Bets use a log
+  scoring rule: 50% always scores 0, a sure bet that comes good scores +39,
+  and one that doesn't scores −226. The server plays the script
+  (`learn/quorum.py`) and draws which replicas each read asks, keeping the
+  run in the session, so the page never holds a read's odds and a reload
+  can't redraw one. The score is paid as XP, and a run with every bet
+  within 10 points of the exact chance adds the perfect bonus and the
+  "Card Counter" badge.
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
@@ -118,7 +129,7 @@ pip install -r requirements.txt
 
 python manage.py migrate
 python manage.py seed_content   # loads the book content + quiz questions
-python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw/traffic-day games
+python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw/traffic-day/quorum-casino games
 python manage.py createsuperuser   # optional, for /admin access
 
 python manage.py runserver
@@ -160,6 +171,11 @@ with the superuser you created).
   shape of the day, latency curve and cache hit rates live in
   `learn/traffic.py` and `learn/static/learn/traffic_model.js`; change both
   together.
+- A Quorum Casino challenge is a list of `tables` in `QUORUM_CHALLENGES`
+  (same file): each has N, W, R, an outro, and a script of `write`,
+  `status`, `sync` and `read` steps. `learn/quorum.py` documents the step
+  shapes, and the tests run `quorum.validate_tables` over every seeded
+  script.
 
 Both are plain Python data structures — add entries and re-run the
 matching `manage.py` command; both commands are idempotent, so re-running
