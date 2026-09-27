@@ -3,6 +3,49 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-27 session: added Quorum Casino (8th play-to-learn activity)
+
+Ported idea 12 from `docs/games/prototypes/quorum-casino.html`. The three
+tables, their scripts and outros, and the scoring rule are the prototype's.
+
+- **Server-played script.** `learn/quorum.py` holds the game: it replays a
+  table's steps to rebuild the replicas, works out each read's exact odds,
+  and draws which replicas a read asks (`random.choice`) when a bet locks in.
+  The run lives in the session (`quorum_run_<id>`) and holds only facts:
+  table, events played, and each bet's `pct` and `asked` set. The score,
+  log and narration are rebuilt from those. `POST quorum/<slug>/move/`
+  takes `next` or `bet` (`pct` 1 to 99) and returns JSON. The page never
+  gets a read's odds or any step still to come, and a reload can't redraw
+  a read. A run whose table index no longer fits the seeded tables (after
+  a reseed) starts over.
+- **Models** (migration `0010_quorumchallenge`): `QuorumChallenge` holds the
+  script in `tables` JSON, plus a `source` line; `QuorumAttempt` is shaped
+  like the other attempts, with each read's bet, exact chance, outcome and
+  points in `detail`.
+- **Scoring:** `40 × (1 + log2 p)` for the side that happened, rounded half
+  up like JS. 50% scores 0, 99% scores +39 or −226. The page previews stakes
+  from a table the server renders (`quorum.stakes()`), so there is no JS copy
+  of the formula. XP is the score 1:1 (never below 0). **Perfect means
+  calibrated:** every bet within 10 points of the exact chance
+  (`CALIBRATED_WITHIN`). That adds `PERFECT_BONUS` XP and the new
+  `card_counter` badge, whatever the draws did. A calibrated run's expected
+  score is about 170. `card_counter` is not part of `game_master`.
+- **Changes from the prototype:** the stakes rule reads "up to +39" (the
+  prototype said +40, which no bet reaches); pluralisation and "Table 3:
+  safe writes?." punctuation fixed in the narration; the replicas a read
+  asked are labelled "Asked" as well as outlined; the verdict lists every
+  read with your bet, the exact chance and whether it was calibrated.
+- **Content:** one challenge, `quorum-casino-three-replicas`, on
+  `cap-theorem-quorum` (chapter `key-value-store`, unlock level 3), seeded
+  by `seed_games` (`QUORUM_CHALLENGES`). `quorum.validate_tables` checks a
+  script; the tests run it over the seed.
+- **Tests:** 16 new (47 in `learn`), run with `DATABASE_URL=sqlite:///db.sqlite3`.
+- Local `db.sqlite3` was migrated and `seed_games` run (backup of the
+  pre-migration file in this session's scratchpad), and `collectstatic`
+  refreshed `staticfiles/`. A throwaway `quorum-preview` user made for the
+  browser check was deleted afterwards. Render's release step runs
+  `migrate`; **Neon still needs `seed_games`** after deploy.
+
 ## 2026-09-27 session: added Traffic Day (7th play-to-learn activity)
 
 Ported idea 01 from `docs/games/prototypes/traffic-day.html`. It uses the

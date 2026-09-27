@@ -22,4 +22,6 @@ urlpatterns = [
     path('flaw/<slug:challenge_slug>/move/', views.flaw_move, name='flaw_move'),
     path('traffic/<slug:challenge_slug>/', views.traffic_challenge, name='traffic_challenge'),
     path('traffic/<slug:challenge_slug>/finish/', views.traffic_finish, name='traffic_finish'),
+    path('quorum/<slug:challenge_slug>/', views.quorum_challenge, name='quorum_challenge'),
+    path('quorum/<slug:challenge_slug>/move/', views.quorum_move, name='quorum_move'),
 ]

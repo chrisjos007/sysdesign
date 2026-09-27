@@ -13,7 +13,8 @@ from .models import (
     FlawAttempt, FlawChallenge, FlawPart, FlawReason,
     MatchingAttempt, MatchingChallenge, MatchingPair,
     OrderingAttempt, OrderingChallenge, OrderingStep,
-    Question, ReviewCard, TestCase, Topic, TrafficAttempt, TrafficChallenge, UserBadge, UserProfile,
+    Question, QuorumAttempt, QuorumChallenge, ReviewCard, TestCase, Topic, TrafficAttempt,
+    TrafficChallenge, UserBadge, UserProfile,
 )
 
 
@@ -261,6 +262,20 @@ class TrafficChallengeAdmin(admin.ModelAdmin):
 
 @admin.register(TrafficAttempt)
 class TrafficAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
+    list_filter = ('is_perfect', 'challenge')
+    readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')
+
+
+@admin.register(QuorumChallenge)
+class QuorumChallengeAdmin(admin.ModelAdmin):
+    """`tables` is the script learn/quorum.py plays; its shape is documented
+    there, and seed_games.QUORUM_CHALLENGES has a worked example."""
+    list_display = ('title', 'concept')
+
+
+@admin.register(QuorumAttempt)
+class QuorumAttemptAdmin(admin.ModelAdmin):
     list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
     list_filter = ('is_perfect', 'challenge')
     readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')

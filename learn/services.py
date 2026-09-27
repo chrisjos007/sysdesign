@@ -4,12 +4,12 @@ import random
 from django.db.models import Count
 from django.utils import timezone
 
-from . import traffic
+from . import quorum, traffic
 from .code_runner import grade_submission
 from .models import (
     Attempt, Badge, Book, Chapter, ConceptMastery,
     CodingAttempt, DesignAttempt, FlawAttempt, MatchingAttempt, OrderingAttempt,
-    ReviewCard, TrafficAttempt, UserBadge, UserProfile,
+    QuorumAttempt, ReviewCard, TrafficAttempt, UserBadge, UserProfile,
 )
 
 XP_CORRECT_BASE = 10
@@ -487,6 +487,40 @@ def record_traffic_attempt(user, challenge, raw_plan):
     }
 
 
+def record_quorum_attempt(user, challenge, run):
+    """Files a finished Quorum Casino run. The score is the sum of the bets
+    and pays XP 1:1. A calibrated run, every bet within
+    quorum.CALIBRATED_WITHIN points of the exact chance, earns the perfect
+    bonus whatever the draws did, since bad luck can sink a well-judged bet."""
+    reads = quorum.all_reads(challenge.tables, run)
+    score = sum(r['points'] for r in reads)
+    is_perfect = bool(reads) and all(r['calibrated'] for r in reads)
+    xp_awarded = max(0, score) + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {
+        'reads': [{'table': challenge.tables[r['table']]['name'], 'bet': r['pct'], 'exact': r['exact'],
+                   'outcome': r['outcome'], 'points': r['points'], 'calibrated': r['calibrated']}
+                  for r in reads],
+        'calibrated': sum(1 for r in reads if r['calibrated']),
+    }
+    QuorumAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -503,6 +537,8 @@ BADGE_DEFS = [
     ('coder', 'Coder', 'Pass every test case on a coding challenge.', '💻'),
     ('flaw_finder', 'Flaw Finder', 'Find every planted flaw without a wrong tap or a wrong reason.', '🔍'),
     ('on_call', 'On Call', 'Run a whole Traffic Day inside the SLO without breaking click analytics.', '📟'),
+    ('card_counter', 'Card Counter',
+     f'Bet within {quorum.CALIBRATED_WITHIN} points of the exact chance on every read in Quorum Casino.', '🎲'),
     ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
@@ -566,6 +602,7 @@ def check_badges(user):
     has_perfect_coding = CodingAttempt.objects.filter(user=user, is_perfect=True).exists()
     maybe('flaw_finder', FlawAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('on_call', TrafficAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('card_counter', QuorumAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)

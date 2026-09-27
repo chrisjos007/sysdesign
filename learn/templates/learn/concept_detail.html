@@ -98,6 +98,13 @@
                         <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
                     </a>
                     {% endfor %}
+                    {% for qc in quorum_challenges %}
+                    <a href="{% url 'learn:quorum_challenge' qc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-dice"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ qc.title }}</span><span class="activity__sub">Quorum Casino</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
                     {% for fc in flaw_challenges %}
                     <a href="{% url 'learn:flaw_challenge' fc.slug %}" class="card activity">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-flaw"/></svg></span>

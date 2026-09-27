@@ -3,12 +3,13 @@ from django.test import TestCase
 from django.urls import reverse
 
 import json
+from unittest import mock
 
-from . import traffic
-from .management.commands.seed_games import FLAW_CHALLENGES, TRAFFIC_CHALLENGES
+from . import quorum, traffic
+from .management.commands.seed_games import FLAW_CHALLENGES, QUORUM_CHALLENGES, TRAFFIC_CHALLENGES
 from .models import (
-    Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason, Topic,
-    TrafficAttempt, TrafficChallenge, UserBadge,
+    Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason, QuorumAttempt,
+    QuorumChallenge, Topic, TrafficAttempt, TrafficChallenge, UserBadge,
 )
 
 
@@ -287,3 +288,183 @@ class TrafficDayTests(TestCase):
             for tick in p['events']:
                 self.assertTrue(0 <= int(tick) < traffic.TICKS, tick)
             self.assertTrue(0 <= p['spike']['at_hour'] and p['spike']['at_hour'] + p['spike']['hours'] <= 24)
+
+
+class QuorumCasinoTests(TestCase):
+    """Plays the seeded three-table script through the move endpoint."""
+
+    # The exact chance of each read in the seeded script, as a bet: table 1
+    # (strict quorum) is certain, table 2 (R = W = 1) comes in thirds, and
+    # table 3 (W = N) hands back a failed write.
+    EXACT = [99, 99, 1, 33, 67, 33, 1, 33]
+
+    def setUp(self):
+        book = Book.objects.create(slug='b', title='Book')
+        topic = Topic.objects.create(slug='t', title='Topic')
+        self.chapter = Chapter.objects.create(book=book, topic=topic, slug='c', title='Chapter', unlock_level=1)
+        concept = Concept.objects.create(chapter=self.chapter, slug='k', title='Concept', summary='s')
+        spec = QUORUM_CHALLENGES[0]
+        self.challenge = QuorumChallenge.objects.create(
+            concept=concept, slug='casino', title=spec['title'], prompt=spec['prompt'],
+            source=spec['source'], tables=spec['tables'])
+        self.user = get_user_model().objects.create_user('player', password='pw-for-tests-only')
+        self.client.force_login(self.user)
+        self.page_url = reverse('learn:quorum_challenge', args=['casino'])
+        self.move_url = reverse('learn:quorum_move', args=['casino'])
+        self.snap = self.client.get(self.page_url).context['snapshot']  # starts the run
+
+    def move(self, **data):
+        return self.client.post(self.move_url, data)
+
+    def act(self, **data):
+        body = self.move(**data).json()
+        self.snap = body['snapshot']
+        return body
+
+    def to_read(self):
+        """Plays events until a read is waiting for a bet."""
+        while not self.snap['question']:
+            self.act(action='next')
+
+    def play(self, bets):
+        """Bets each of `bets` on the next read in turn; returns the last response."""
+        for pct in bets:
+            self.to_read()
+            body = self.act(action='bet', pct=pct)
+        return body
+
+    def test_page_shows_the_first_table_and_nothing_to_come(self):
+        html = self.client.get(self.page_url).content.decode()
+        self.assertIn('id="qc-snapshot"', html)
+        self.assertIn('Table 1: strict quorum', html)
+        self.assertIn('up to +39', html)
+        self.assertIn('down to &minus;226', html)
+        for later in ('Replica A crashes', 'reads were certain', 'Table 2: fast and loose', '"exact"'):
+            self.assertNotIn(later, html)
+
+    def test_scoring_rule(self):
+        self.assertEqual((quorum.points(50, True), quorum.points(50, False)), (0, 0))
+        self.assertEqual((quorum.points(99, True), quorum.points(99, False)), (39, -226))
+        self.assertEqual((quorum.points(1, True), quorum.points(1, False)), (-226, 39))
+        self.assertEqual(len(quorum.stakes()), 99)
+
+    def test_certain_read_pays_a_confident_bet(self):
+        self.to_read()
+        self.assertEqual(self.snap['question'], 'Will this read return x = 2, the last successful write?')
+        self.assertIsNone(self.snap['feedback'])
+        self.assertEqual(self.move(action='next').status_code, 400)
+        body = self.act(action='bet', pct=99)
+        self.assertEqual(body['result'], {'verdict': 'yes', 'points': 39})
+        self.assertIsNone(self.snap['question'])
+        self.assertIn('3 of the 3 possible read sets return x = 2', self.snap['feedback']['text'])
+        self.assertEqual(len(self.snap['asked']), 2)
+        self.assertEqual(self.snap['score'], 39)
+        self.assertIn('Read: returned the last successful write. You bet 99% and scored +39.', self.snap['log'])
+
+    def test_a_read_short_of_R_replicas_fails(self):
+        body = self.play([99, 99, 1])
+        self.assertEqual(body['result'], {'verdict': 'failed', 'points': 39})
+        self.assertIn('Only 1 replica is reachable and R = 2, so the read fails.', self.snap['feedback']['text'])
+        self.assertTrue(self.snap['table_over'])
+        self.assertIn('availability', self.snap['say'])
+        self.act(action='next')
+        self.assertEqual((self.snap['table'], self.snap['name'], self.snap['log']), (2, 'Table 2: fast and loose', []))
+
+    def test_the_server_draws_the_read_set(self):
+        self.play(self.EXACT[:3])
+        with mock.patch('learn.quorum.random.choice', side_effect=lambda sets: sets[-1]):
+            body = self.play([33])
+        self.assertEqual(body['result']['verdict'], 'no')
+        self.assertEqual(self.snap['asked'], ['C'])
+        self.assertIn('The read asked C and got x = 1. 1 of the 3 replicas it could ask returns x = 2',
+                      self.snap['feedback']['text'])
+
+    def test_a_failed_write_still_lands(self):
+        self.play(self.EXACT[:6])
+        self.to_read()
+        self.assertEqual(self.snap['question'], 'Will this read return x = 1, the last successful write?')
+        self.assertIn('Failed: 2 acks, W = 3.', self.snap['log'][-1])
+        self.assertEqual([r['val'] for r in self.snap['replicas']], [2, 2, 1])
+        self.assertEqual(self.act(action='bet', pct=1)['result'], {'verdict': 'no', 'points': 39})
+
+    def test_moves_that_do_not_fit_are_rejected(self):
+        self.assertEqual(self.move(action='bet', pct=50).status_code, 400)  # no read waiting yet
+        self.to_read()
+        for pct in ('0', '100', '-5', 'x', '', '1000', '50.5'):
+            self.assertEqual(self.move(action='bet', pct=pct).status_code, 400, pct)
+        self.assertEqual(self.move(action='explode').status_code, 400)
+        self.assertEqual(self.client.get(self.move_url).status_code, 405)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot']['score'], 0)
+
+    def test_reloading_keeps_the_waiting_read_and_the_draw(self):
+        self.to_read()
+        page = self.client.get(self.page_url)
+        self.assertEqual(page.context['snapshot']['question'], self.snap['question'])
+        self.act(action='bet', pct=80)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot'], self.snap)
+        self.assertEqual(self.move(action='bet', pct=99).status_code, 400)
+
+    def test_calibrated_run_earns_bonus_and_badge(self):
+        finished = self.play(self.EXACT)['finished']
+        self.assertTrue(self.snap['done'])
+        self.assertTrue(finished['is_perfect'])
+        self.assertEqual(finished['detail']['calibrated'], 8)
+        self.assertEqual(finished['score'], self.snap['score'])
+        self.assertEqual(finished['xp_awarded'], max(0, finished['score']) + 25)
+        self.assertIn('Card Counter', finished['new_badges'])
+        attempt = QuorumAttempt.objects.get(user=self.user)
+        self.assertEqual(len(attempt.detail['reads']), 8)
+        self.assertEqual(attempt.detail['reads'][0]['table'], 'Table 1: strict quorum')
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.xp, finished['xp_awarded'])
+
+    def test_overconfidence_costs_the_bonus_and_negative_scores_earn_no_xp(self):
+        with mock.patch('learn.quorum.random.choice', side_effect=lambda sets: sets[-1]):
+            finished = self.play([99] * 8)['finished']
+        self.assertFalse(finished['is_perfect'])
+        self.assertEqual(finished['detail']['calibrated'], 2)
+        self.assertLess(finished['score'], 0)
+        self.assertEqual(finished['xp_awarded'], 0)
+        self.assertFalse(UserBadge.objects.filter(user=self.user, badge__slug='card_counter').exists())
+
+    def test_finished_run_refuses_moves_until_reloaded(self):
+        self.play(self.EXACT)
+        self.assertEqual(self.move(action='next').status_code, 409)
+        fresh = self.client.get(self.page_url).context['snapshot']
+        self.assertEqual((fresh['table'], fresh['score'], fresh['done'], fresh['log']), (1, 0, False, []))
+
+    def test_run_from_older_tables_starts_over(self):
+        session = self.client.session
+        session[f'quorum_run_{self.challenge.id}'] = {'table': 7, 'step': 0, 'bets': [], 'done': False}
+        session.save()
+        self.assertEqual(self.move(action='next').status_code, 409)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot']['table'], 1)
+
+    def test_locked_chapter_blocks_play(self):
+        self.chapter.unlock_level = 99
+        self.chapter.save()
+        self.assertRedirects(self.client.get(self.page_url), reverse('learn:dashboard'))
+        self.assertEqual(self.move(action='next').status_code, 403)
+
+    def test_concept_page_lists_the_challenge(self):
+        html = self.client.get(reverse('learn:concept_detail', args=['k'])).content.decode()
+        self.assertIn(self.page_url, html)
+        self.assertIn('Quorum Casino', html)
+
+
+class QuorumSeedDataTests(TestCase):
+    def test_seeded_tables_play(self):
+        for spec in QUORUM_CHALLENGES:
+            self.assertEqual(quorum.validate_tables(spec['tables']), [], spec['slug'])
+
+    def test_validation_catches_broken_scripts(self):
+        table = dict(name='T', N=3, W=2, R=2, outro='o', steps=[
+            dict(t='read'),
+            dict(t='write', val=1, reach=['A', 'D'], say='s'),
+            dict(t='status', set={'A': 'asleep'}, say='s'),
+            {'t': 'sync', 'from': 'A', 'to': 'A', 'say': 's'},
+            dict(t='shout', say='s'),
+        ])
+        problems = quorum.validate_tables([table])
+        self.assertEqual(len(problems), 5, problems)
+        self.assertEqual(quorum.validate_tables([]), ['There must be at least one table.'])

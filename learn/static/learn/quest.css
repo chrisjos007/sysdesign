@@ -1498,6 +1498,74 @@ input::placeholder { color: var(--ink-3); opacity: 1; }
 .events li.is-bad { color: var(--wrong); }
 #tr-save .slip { align-items: center; flex-wrap: wrap; box-shadow: none; }
 
+/* Quorum casino */
+
+.quorum-game [hidden] { display: none !important; }
+.quorum-xp { margin-top: var(--s3); }
+#qc-verdict { margin-bottom: var(--s5); scroll-margin-top: 4.5rem; }
+#qc-verdict:focus { outline: none; }
+
+.quorum-board { padding: var(--s4); display: grid; gap: var(--s4); }
+.quorum-board.is-busy button, .quorum-board.is-busy input { cursor: progress; }
+@media (min-width: 640px) { .quorum-board { padding: var(--s5); } }
+
+.quorum-head { display: grid; gap: var(--s2); }
+.quorum-head .panel-label { margin-bottom: 0; }
+.quorum-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.quorum-chip { display: inline-flex; align-items: center; padding: 0.15rem 0.55rem; background: var(--card); border: 1px solid var(--card-edge); border-radius: 2px; font-weight: 650; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.quorum-chip.is-ok { border-color: var(--right); color: var(--right); background: var(--right-tint); }
+.quorum-chip.is-warn { border-color: var(--wrong); color: var(--wrong); background: var(--wrong-tint); }
+
+.quorum-reps { display: grid; grid-template-columns: repeat(var(--reps, 3), minmax(0, 1fr)); gap: var(--s3); }
+.replica {
+  display: grid;
+  gap: var(--s1);
+  align-content: start;
+  padding: var(--s3);
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-top: 3px solid var(--head-rule);
+  border-radius: 0 0 var(--radius) var(--radius);
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.replica__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
+.replica__id { font-size: var(--fs-2xl); font-weight: 800; font-stretch: 80%; line-height: 1; }
+.replica__stat { font-size: var(--fs-xs); font-weight: 650; font-stretch: 75%; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; color: var(--right); }
+.replica__val { margin-top: var(--s1); font-size: var(--fs-lg); font-weight: 700; }
+.replica__asked { font-size: var(--fs-xs); font-weight: 650; color: var(--cobalt); }
+.replica.is-cut { border-style: dashed; border-top-style: solid; background: var(--card-back); }
+.replica.is-down { background: repeating-linear-gradient(135deg, var(--card-back) 0 6px, var(--steel-2) 6px 7px); color: var(--ink-3); }
+.replica.is-cut .replica__stat, .replica.is-down .replica__stat { color: var(--wrong); }
+.replica.is-asked { border-color: var(--cobalt); box-shadow: 0 0 0 1px var(--cobalt); }
+
+.quorum-split { display: grid; gap: var(--s5); }
+@media (min-width: 960px) { .quorum-split { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); } }
+.quorum-stack { display: grid; gap: var(--s3); align-content: start; min-width: 0; }
+.quorum-stack .panel-label { margin-bottom: 0; }
+.quorum-say { min-height: 3.2rem; padding: var(--s3) var(--s4); background: var(--card-back); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+.quorum-feedback:empty { display: none; }
+.quorum-feedback .slip { align-items: flex-start; box-shadow: none; line-height: 1.45; }
+
+.bet { display: grid; gap: var(--s3); padding: var(--s4); background: var(--cobalt-tint); border: 1px solid var(--cobalt); border-radius: var(--radius); }
+.bet__q { font-size: var(--fs-lg); font-weight: 650; }
+.bet__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s3); align-items: center; }
+.bet__row input[type=range] { width: 100%; min-height: 2.75rem; margin: 0; accent-color: var(--cobalt); cursor: pointer; }
+.bet__val strong { font-size: var(--fs-xl); }
+.bet__val .meta { white-space: nowrap; }
+@media (max-width: 479px) {
+  .bet__row { grid-template-columns: 1fr 1fr; gap: 0 var(--s3); }
+  .bet__row input[type=range] { grid-column: 1 / -1; grid-row: 1; }
+  .bet__yes { text-align: right; }
+}
+
+.quorum-log { list-style: none; display: grid; max-height: 15rem; overflow-y: auto; font-size: var(--fs-sm); color: var(--ink-2); }
+.quorum-log li { padding: 0.3rem 0; border-bottom: 1px solid var(--ruling); }
+.quorum-log:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+@media (max-width: 479px) {
+  .quorum-reps { gap: var(--s2); }
+  .replica { padding: var(--s2); }
+}
+
 /* Markdown (coding problem statements) */
 
 .markdown-body { line-height: 1.65; }
