@@ -20,4 +20,6 @@ urlpatterns = [
     path('code/<slug:challenge_slug>/', views.coding_challenge, name='coding_challenge'),
     path('flaw/<slug:challenge_slug>/', views.flaw_challenge, name='flaw_challenge'),
     path('flaw/<slug:challenge_slug>/move/', views.flaw_move, name='flaw_move'),
+    path('traffic/<slug:challenge_slug>/', views.traffic_challenge, name='traffic_challenge'),
+    path('traffic/<slug:challenge_slug>/finish/', views.traffic_finish, name='traffic_finish'),
 ]

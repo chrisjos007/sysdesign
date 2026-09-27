@@ -3,6 +3,42 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-27 session: added Traffic Day (7th play-to-learn activity)
+
+Ported idea 01 from `docs/games/prototypes/traffic-day.html`. It uses the
+prototype's load model, numbers and rules.
+
+- **Two copies of one model.** `learn/traffic.py` (Python) and
+  `learn/static/learn/traffic_model.js` (browser) must stay in step. The
+  page animates the day with the JS copy. On finishing, it posts the design
+  used at each of the 144 ticks to `traffic/<slug>/finish/`, and
+  `services.record_traffic_attempt` replays that plan in Python to file the
+  score. A browser check of 40 random plans matched exactly (score,
+  breaches, spend). JS `Math.round` is mirrored with `floor(x + 0.5)`,
+  because Python's `round` rounds halves to even.
+- **Models** (migration `0009_trafficchallenge`): `TrafficChallenge` holds
+  the scenario numbers in `params` (see `seed_games.TRAFFIC_CHALLENGES`);
+  `TrafficAttempt` is shaped like the other attempts.
+- **XP is a tenth of the score** (`TRAFFIC_POINTS_PER_XP`), plus
+  `PERFECT_BONUS` for a clean day (no SLO breaches, no 301s). The score
+  starts at 1,000, so paying XP 1:1 would have dwarfed the other games. A
+  steady design that holds the SLO all day scores 573 at best; scaling tick
+  by tick reaches about 808. The new `on_call` badge is not part of
+  `game_master`.
+- **Changes from the prototype:**
+  - Demand is ochre (`--srv-4`), not the prototype's `--srv-1` blue. That
+    blue failed the dataviz validator's normal-vision check against cobalt
+    capacity.
+  - Chart labels use text colours.
+  - Added a hover and keyboard crosshair with a tooltip, and an "Hour by
+    hour" table view.
+  - On phones the design controls sit right under the chart.
+- **Local static manifest:** tests render through WhiteNoise's manifest, so
+  a new static file needs `collectstatic` locally first; Render's build
+  already runs it. The local, git-ignored `staticfiles/` was refreshed.
+- Local `db.sqlite3` was migrated and reseeded (backup in the session
+  scratchpad). **Neon needs `seed_games` again** after deploy.
+
 ## 2026-09-27 session: added Spot the Flaw (6th play-to-learn activity)
 
 Ported idea 08 from `docs/games/prototypes/spot-the-flaw.html` into the app.

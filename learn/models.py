@@ -577,3 +577,35 @@ class FlawAttempt(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class TrafficChallenge(models.Model):
+    """Traffic Day: run a system through one simulated day of traffic,
+    changing its design as you go, and keep it inside the SLO for as little
+    money as possible. `params` holds the scenario's numbers; the load model
+    itself lives in learn/traffic.py (and its JavaScript twin)."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='traffic_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the simulator.')
+    params = models.JSONField(
+        default=dict,
+        help_text='Traffic, capacities, hourly prices, SLO, spike, scoring, control limits, '
+                  'starting design and ops-log events. See seed_games.TRAFFIC_CHALLENGES.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class TrafficAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='traffic_attempts')
+    challenge = models.ForeignKey(TrafficChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

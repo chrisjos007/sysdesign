@@ -4,7 +4,7 @@ from django.db import transaction
 from learn.models import (
     ComponentType, Concept, DesignChallenge, DesignChallengeComponent,
     DesignChallengeConnection, FlawChallenge, FlawPart, FlawReason,
-    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep,
+    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep, TrafficChallenge,
 )
 
 COMPONENT_TYPES = [
@@ -657,9 +657,45 @@ FLAW_CHALLENGES = [
     ),
 ]
 
+# Traffic Day: one simulated day of traffic against a design the learner can
+# change at any time. `params` feeds both copies of the load model
+# (learn/traffic.py and learn/static/learn/traffic_model.js). Rates are per
+# second on average across the day; prices are dollars per hour; `events` are
+# ops-log lines keyed by 10-minute tick (tick 114 is 19:00).
+TRAFFIC_CHALLENGES = [
+    dict(
+        slug='traffic-url-shortener', title='Run a URL Shortener Through a Viral Day',
+        concept='url-shortener-design',
+        prompt=(
+            'Run a URL shortener through one day of traffic: 11,600 reads and 1,160 writes per second '
+            'on average, and a viral link at 19:00. Change the design at any time, even mid-run. Any '
+            'design that stays inside the SLO passes.'
+        ),
+        params={
+            'source': 'Chapter 1: Scale From Zero to Millions of Users · Chapter 8: Design a URL Shortener',
+            'reads_per_sec': 11600, 'writes_per_sec': 1160,
+            'app_capacity': 5000, 'db_capacity': 6000,
+            'hourly_cost': {'app': 1.5, 'cache': 0.8, 'db': 2.0},
+            'slo': {'p99_ms': 200, 'error_rate': 0.01},
+            'spike': {'at_hour': 19, 'hours': 1.5, 'reads_per_sec': 23200},
+            'score': {'start': 1000, 'per_breach': 50, 'analytics': 250},
+            'limits': {'servers': [1, 14], 'replicas': [0, 4]},
+            'start': {'servers': 4, 'replicas': 1, 'cache': False, 'redirect': 302},
+            'briefing': 'Marketing warns you: a celebrity will post one of your links around 19:00.',
+            'events': {
+                '42': 'Morning traffic is picking up.',
+                '102': 'The evening peak starts. It tops out around 20:00.',
+                '114': 'A celebrity posts one of your short links. Reads of that one URL jump by 23,000 a second.',
+                '123': 'The viral wave fades.',
+                '138': 'Traffic winds down for the night.',
+            },
+        },
+    ),
+]
+
 
 class Command(BaseCommand):
-    help = 'Seed drag-and-drop architecture builder, matching, ordering, and spot-the-flaw mini-games.'
+    help = 'Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, and traffic-day mini-games.'
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -746,8 +782,16 @@ class Command(BaseCommand):
                     FlawReason.objects.create(part=part, text=text, is_correct=(j == 0), order=j)
             flaw_count += 1
 
+        for spec in TRAFFIC_CHALLENGES:
+            TrafficChallenge.objects.update_or_create(
+                slug=spec['slug'], defaults=dict(
+                    concept=Concept.objects.get(slug=spec['concept']), title=spec['title'],
+                    prompt=spec['prompt'], params=spec['params'],
+                ),
+            )
+
         self.stdout.write(self.style.SUCCESS(
             f'Seeded {len(types)} component types, {design_count} design challenges, '
             f'{matching_count} matching challenges, {ordering_count} ordering challenges, '
-            f'{flaw_count} spot-the-flaw challenges.'
+            f'{flaw_count} spot-the-flaw challenges, {len(TRAFFIC_CHALLENGES)} traffic-day challenges.'
         ))

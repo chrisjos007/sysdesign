@@ -36,6 +36,7 @@ CHALLENGE_ROUTES = {
     'ordering_challenge': ('OrderingChallenge', 'Ordering'),
     'coding_challenge': ('CodingChallenge', 'Coding'),
     'flaw_challenge': ('FlawChallenge', 'Spot the Flaw'),
+    'traffic_challenge': ('TrafficChallenge', 'Traffic Day'),
 }
 
 
@@ -54,12 +55,12 @@ def _resolve_location(request):
     has to pass navigation context by hand."""
     from .models import (
         Chapter, CodingChallenge, Concept, DesignChallenge, FlawChallenge, MatchingChallenge,
-        OrderingChallenge, Topic,
+        OrderingChallenge, Topic, TrafficChallenge,
     )
     models = {
         'DesignChallenge': DesignChallenge, 'MatchingChallenge': MatchingChallenge,
         'OrderingChallenge': OrderingChallenge, 'CodingChallenge': CodingChallenge,
-        'FlawChallenge': FlawChallenge,
+        'FlawChallenge': FlawChallenge, 'TrafficChallenge': TrafficChallenge,
     }
     match = getattr(request, 'resolver_match', None)
     if not match or match.app_name != 'learn':
