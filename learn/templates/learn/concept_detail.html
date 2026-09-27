@@ -3,6 +3,7 @@
 {% block title %}{{ concept.title }} — SysDesign Quest{% endblock %}
 {% block head %}
 {% if request_lesson %}<link rel="stylesheet" href="{% static 'learn/request_lesson.css' %}">{% endif %}
+{% if http_api_lesson %}<link rel="stylesheet" href="{% static 'learn/http_api_lesson.css' %}">{% endif %}
 {% endblock %}
 {% block content %}
 <header class="page-head">
@@ -26,6 +27,8 @@
             </section>
             {% endwith %}
             {% endif %}
+
+            {% if http_api_lesson %}{% include "learn/_http_api_lesson.html" %}{% endif %}
 
             {% if concept.notes_sections %}
             <div class="notes-toolbar">
@@ -101,6 +104,23 @@
                     <a href="#request-practice" class="card activity">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-study"/></svg></span>
                         <span class="activity__main"><span class="activity__title">Trace a timeout</span><span class="activity__sub">Reason through two histories</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endif %}
+                    {% if http_api_lesson %}
+                    <a href="#http-replay" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-retry"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Replay a request</span><span class="activity__sub">Safe and idempotent methods</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    <a href="#http-export" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-order"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Follow an export</span><span class="activity__sub">Acceptance, status, and completion</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    <a href="#http-edit" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-notes"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Resolve an edit conflict</span><span class="activity__sub">ETags and If-Match</span></span>
                         <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
                     </a>
                     {% endif %}
@@ -203,6 +223,10 @@
 {% endblock %}
 
 {% block scripts %}
+{% if http_api_lesson %}
+<script src="{% static 'learn/http_contract_model.js' %}" defer></script>
+<script src="{% static 'learn/http_api_lesson.js' %}" defer></script>
+{% endif %}
 {% if request_lesson %}<script src="{% static 'learn/request_lesson.js' %}" defer></script>{% endif %}
 <script>
 (function () {

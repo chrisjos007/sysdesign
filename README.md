@@ -180,6 +180,12 @@ and 9.
 - sd-01 (**DNS, TCP, and TLS: follow a request**) keeps its hand-adapted
   notes, questions and interactive request walkthrough in
   `learn/curriculum.py`.
+- sd-02 (**HTTP and API design: define the contract**) adds an interactive
+  contract lab at `/concept/http-api-design/`: repeat GET/PUT/DELETE/POST,
+  compare keyed retries, observe asynchronous export states and lost status
+  responses, and resolve ETag conflicts between two editors. These unscored
+  browser simulations sit alongside the existing notes and five-question quiz.
+  Their model checks run with `node --test learn/js_tests/http_contract_model.test.js`.
 - `seed_content` seeds the curriculum plus the two reference chapters and
   **removes every chapter, concept, topic and book no longer defined**,
   including learners' attempts on them. It refuses to remove a concept that
