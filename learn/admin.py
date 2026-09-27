@@ -13,7 +13,7 @@ from .models import (
     FlawAttempt, FlawChallenge, FlawPart, FlawReason,
     MatchingAttempt, MatchingChallenge, MatchingPair,
     OrderingAttempt, OrderingChallenge, OrderingStep,
-    Question, ReviewCard, TestCase, Topic, UserBadge, UserProfile,
+    Question, ReviewCard, TestCase, Topic, TrafficAttempt, TrafficChallenge, UserBadge, UserProfile,
 )
 
 
@@ -249,6 +249,21 @@ class FlawPartAdmin(admin.ModelAdmin):
     list_display = ('label', 'challenge', 'kind', 'is_flaw')
     list_filter = ('challenge', 'kind', 'is_flaw')
     inlines = [FlawReasonInline]
+
+
+@admin.register(TrafficChallenge)
+class TrafficChallengeAdmin(admin.ModelAdmin):
+    """`params` feeds both copies of the load model (learn/traffic.py and
+    learn/static/learn/traffic_model.js); its shape is documented above
+    seed_games.TRAFFIC_CHALLENGES."""
+    list_display = ('title', 'concept')
+
+
+@admin.register(TrafficAttempt)
+class TrafficAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
+    list_filter = ('is_perfect', 'challenge')
+    readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')
 
 
 admin.site.register(Concept)

@@ -1,0 +1,586 @@
+{% extends "learn/base.html" %}
+{% load static %}
+{% block title %}{{ challenge.title }} — Traffic Day{% endblock %}
+{% block content %}
+<div class="traffic-game">
+<div class="game-head">
+    <header class="page-head">
+        <h1>{{ challenge.title }}</h1>
+        <p class="page-head__lede">{{ challenge.prompt }}</p>
+        <p class="page-head__meta"><span>Source: {{ challenge.concept.chapter.book.title }} · {{ params.source|default:challenge.concept.source_note }}</span></p>
+    </header>
+    <div class="tally">
+        <span class="label">Score</span>
+        <strong class="num" id="tr-score">{{ params.score.start|floatformat:"0g" }}</strong>
+    </div>
+</div>
+
+<div class="howto">
+    <p><strong>How to play:</strong> pick a design and run the day. You can change the design at any time, even mid-run, and pause to think. Any design that stays inside the SLO all day passes; the cheaper it runs, the higher it scores.</p>
+    <ul class="rules">
+        <li>Start at <strong class="num">{{ params.score.start|floatformat:"0g" }}</strong></li>
+        <li><span class="minus num">&minus;{{ params.score.per_breach }}</span> each 10 minutes over SLO (p99 over {{ params.slo.p99_ms }} ms or errors over {{ error_pct }}%)</li>
+        <li><span class="minus num">&minus;1</span> per dollar spent</li>
+        <li><span class="minus num">&minus;{{ params.score.analytics }}</span> if 301 redirects break click analytics</li>
+    </ul>
+    <p class="traffic-xp">Every {{ points_per_xp }} points is 1 XP, and a clean day (inside the SLO all day, analytics intact) adds {{ perfect_bonus }} XP.</p>
+</div>
+
+<section class="card verdict" id="tr-verdict" tabindex="-1" hidden>
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use id="tr-verdict-icon" href="#i-check"/></svg></span>
+            <span id="tr-verdict-title"></span>
+            <span class="verdict__xp num" id="tr-verdict-xp"></span>
+        </div>
+        <p class="verdict__answer num" id="tr-verdict-line"></p>
+        <ul class="lessons" id="tr-verdict-lessons"></ul>
+        <div class="verdict__extras" id="tr-verdict-extras" hidden></div>
+        <div><button type="button" class="btn btn--quiet btn--sm" id="tr-again"><svg class="icon icon--sm"><use href="#i-retry"/></svg> Run it again</button></div>
+    </div>
+</section>
+
+<section class="card traffic-board" id="tr-board" aria-label="Simulator">
+    <div class="gauges" aria-live="off">
+        <div class="gauge"><span class="label">Clock</span><strong class="num" id="tr-clock">00:00</strong></div>
+        <div class="gauge"><span class="label">Demand</span><strong class="num" id="tr-demand">0</strong></div>
+        <div class="gauge" id="tr-g-p99"><span class="label">p99</span><strong class="num" id="tr-p99">0 ms</strong></div>
+        <div class="gauge" id="tr-g-err"><span class="label">Errors</span><strong class="num" id="tr-err">0%</strong></div>
+        <div class="gauge"><span class="label">Spend</span><strong class="num" id="tr-spend">$0</strong></div>
+        <div class="gauge" id="tr-g-breach"><span class="label">SLO breaches</span><strong class="num" id="tr-breach">0</strong></div>
+    </div>
+
+    <div class="traffic-split">
+        <div class="traffic-stack">
+            <div class="chart-wrap" id="tr-chart-wrap" tabindex="0" aria-label="Traffic chart. Use the left and right arrow keys to read each 10 minutes of the day." aria-describedby="tr-tip">
+                <canvas class="chart" id="tr-chart" role="img" aria-label="Requests per second against app capacity, and p99 latency against the {{ params.slo.p99_ms }} ms SLO, across the day"></canvas>
+                <div class="chart-tip" id="tr-tip" role="status" hidden></div>
+            </div>
+            <div class="legend">
+                <span><i class="legend__line legend__line--demand"></i>Demand</span>
+                <span><i class="legend__line legend__line--forecast"></i>Forecast</span>
+                <span><i class="legend__line legend__line--capacity"></i>App capacity</span>
+                <span><i class="legend__line legend__line--p99"></i>p99 latency</span>
+                <span><i class="legend__box"></i>Over SLO</span>
+            </div>
+            <details class="hourly">
+                <summary><svg class="icon icon--sm"><use href="#i-chevron-right"/></svg> Hour by hour</summary>
+                <p class="meta hourly__empty" id="tr-hourly-empty">Run the day to fill this in.</p>
+                <div class="table-wrap">
+                    <table class="data-table" id="tr-hourly-table" hidden>
+                        <thead><tr><th scope="col">Hour</th><th scope="col">Peak demand</th><th scope="col">Worst p99</th><th scope="col">Worst errors</th><th scope="col">Over SLO</th><th scope="col">Spend</th></tr></thead>
+                        <tbody id="tr-hourly-rows"></tbody>
+                    </table>
+                </div>
+            </details>
+        </div>
+        <div class="topo" id="tr-topo"></div>
+
+        <div class="traffic-stack traffic-design">
+            <h2 class="panel-label">Design</h2>
+            <div class="controls">
+                <div class="ctl">
+                    <span class="label" id="tr-l-servers">App servers</span>
+                    <div class="stepper" role="group" aria-labelledby="tr-l-servers">
+                        <button type="button" data-step="servers" data-dir="-1" aria-label="Fewer app servers">&minus;</button>
+                        <output class="num" id="tr-v-servers"></output>
+                        <button type="button" data-step="servers" data-dir="1" aria-label="More app servers">+</button>
+                    </div>
+                    <span class="meta">${{ params.hourly_cost.app|floatformat:"2g" }}/h each · {{ params.app_capacity|floatformat:"0g" }} req/s each</span>
+                </div>
+                <div class="ctl">
+                    <span class="label" id="tr-l-cache">Cache</span>
+                    <div class="segmented" role="group" aria-labelledby="tr-l-cache">
+                        <button type="button" data-seg="cache" data-value="false">Off</button>
+                        <button type="button" data-seg="cache" data-value="true">On</button>
+                    </div>
+                    <span class="meta">${{ params.hourly_cost.cache|floatformat:"2g" }}/h · keeps hot short URLs in memory</span>
+                </div>
+                <div class="ctl">
+                    <span class="label" id="tr-l-replicas">Read replicas</span>
+                    <div class="stepper" role="group" aria-labelledby="tr-l-replicas">
+                        <button type="button" data-step="replicas" data-dir="-1" aria-label="Fewer read replicas">&minus;</button>
+                        <output class="num" id="tr-v-replicas"></output>
+                        <button type="button" data-step="replicas" data-dir="1" aria-label="More read replicas">+</button>
+                    </div>
+                    <span class="meta">${{ params.hourly_cost.db|floatformat:"2g" }}/h each · {{ params.db_capacity|floatformat:"0g" }} queries/s per DB node. The primary costs ${{ params.hourly_cost.db|floatformat:"2g" }}/h too.</span>
+                </div>
+                <div class="ctl">
+                    <span class="label" id="tr-l-redirect">Redirect</span>
+                    <div class="segmented" role="group" aria-labelledby="tr-l-redirect">
+                        <button type="button" data-seg="redirect" data-value="302">302</button>
+                        <button type="button" data-seg="redirect" data-value="301">301</button>
+                    </div>
+                    <span class="meta">302 is temporary; browsers cache a 301 permanent redirect. Marketing needs click analytics.</span>
+                </div>
+            </div>
+            <p class="meta" id="tr-hourly-cost"></p>
+            <div class="btn-row">
+                <button type="button" class="btn btn--primary" id="tr-run"><svg class="icon icon--sm"><use href="#i-play"/></svg> <span>Run the day</span></button>
+                <button type="button" class="btn btn--quiet" id="tr-reset"><svg class="icon icon--sm"><use href="#i-undo"/></svg> Reset</button>
+            </div>
+            <div id="tr-save" aria-live="polite"></div>
+
+            <h2 class="panel-label">Ops log</h2>
+            <ol class="events" id="tr-events" aria-live="polite"></ol>
+        </div>
+    </div>
+    {% csrf_token %}
+</section>
+</div>
+{{ params|json_script:"tr-params" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'learn/traffic_model.js' %}"></script>
+<script>
+(function () {
+  var P = JSON.parse(document.getElementById('tr-params').textContent);
+  var M = window.TrafficModel(P);
+  var TICKS = M.TICKS, PER_HOUR = M.TICKS_PER_HOUR;
+  var TICK_MS = 140;
+  var finishUrl = "{% url 'learn:traffic_finish' challenge.slug %}";
+  var board = document.getElementById('tr-board');
+  var csrf = board.querySelector('[name=csrfmiddlewaretoken]').value;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var cfg = { servers: P.start.servers, replicas: P.start.replicas, cache: P.start.cache, redirect: P.start.redirect };
+  var hist = [], tick = 0, timer = null, spent = 0, breaches = 0, used301 = false, ended = false, saving = false;
+  var hover = null;
+
+  var nf = new Intl.NumberFormat('en-US');
+  function num(v) { return v < 0 ? '−' + nf.format(Math.abs(v)) : nf.format(v); }
+  function rate(v) { return (v >= 1000 ? (v / 1000).toFixed(1) + 'K' : Math.round(v)) + '/s'; }
+  function ms(v) { return (v > 999 ? '999+' : Math.round(v)) + ' ms'; }
+  function pct(v) { return (v * 100).toFixed(1) + '%'; }
+  function clock(i) { return String(Math.floor(i / PER_HOUR) % 24).padStart(2, '0') + ':' + String((i % PER_HOUR) * 10).padStart(2, '0'); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function icon(id) {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'icon icon--sm');
+    svg.setAttribute('aria-hidden', 'true');
+    var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#' + id);
+    svg.appendChild(use);
+    return svg;
+  }
+  function tok(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function liveScore() {
+    return P.score.start - P.score.per_breach * breaches - Math.round(spent) - (used301 ? P.score.analytics : 0);
+  }
+
+  /* ---------- Controls ---------- */
+  var LIMITS = { servers: P.limits.servers, replicas: P.limits.replicas };
+  board.querySelectorAll('[data-step]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var key = b.dataset.step, lim = LIMITS[key];
+      var v = Math.max(lim[0], Math.min(lim[1], cfg[key] + Number(b.dataset.dir)));
+      if (v !== cfg[key]) { cfg[key] = v; changed(); }
+    });
+  });
+  board.querySelectorAll('[data-seg]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var key = b.dataset.seg;
+      var v = key === 'cache' ? b.dataset.value === 'true' : Number(b.dataset.value);
+      if (v !== cfg[key]) { cfg[key] = v; changed(); }
+    });
+  });
+  function syncControls() {
+    ['servers', 'replicas'].forEach(function (key) {
+      $('tr-v-' + key).textContent = cfg[key];
+      board.querySelector('[data-step="' + key + '"][data-dir="-1"]').disabled = cfg[key] <= LIMITS[key][0];
+      board.querySelector('[data-step="' + key + '"][data-dir="1"]').disabled = cfg[key] >= LIMITS[key][1];
+    });
+    board.querySelectorAll('[data-seg]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(String(cfg[b.dataset.seg]) === b.dataset.value));
+    });
+    $('tr-hourly-cost').textContent = 'This design costs $' + M.hourlyCost(cfg).toFixed(2) + ' an hour.';
+  }
+  function changed() {
+    syncControls();
+    var preview = M.simulateTick(Math.min(tick, TICKS - 1), cfg);
+    paintTopo(preview);
+    if (!hist.length) paintGauges(preview);
+    draw();
+  }
+
+  /* ---------- Readouts ---------- */
+  function paintGauges(r) {
+    $('tr-clock').textContent = ended ? '24:00' : clock(Math.min(tick, TICKS - 1));
+    $('tr-demand').textContent = rate(r.demand);
+    $('tr-p99').textContent = ms(r.p99);
+    $('tr-err').textContent = pct(r.err);
+    $('tr-spend').textContent = '$' + nf.format(Math.round(spent));
+    $('tr-breach').textContent = breaches + ' × 10 min';
+    $('tr-g-p99').classList.toggle('is-bad', r.p99 > P.slo.p99_ms);
+    $('tr-g-err').classList.toggle('is-bad', r.err > P.slo.error_rate);
+    $('tr-g-breach').classList.toggle('is-bad', breaches > 0);
+    $('tr-score').textContent = num(liveScore());
+  }
+
+  function node(name, value, util, off) {
+    var n = el('div', 'tn' + (off ? ' is-off' : ''));
+    n.append(el('span', 'tn__name', name), el('span', 'tn__val', value));
+    if (util != null) {
+      var bar = el('div', 'util' + (util >= 0.9 ? ' is-hot' : util >= 0.7 ? ' is-warm' : ''));
+      bar.setAttribute('role', 'img');
+      bar.setAttribute('aria-label', Math.round(util * 100) + '% busy');
+      var fill = el('i');
+      fill.style.width = Math.min(100, util * 100) + '%';
+      bar.appendChild(fill);
+      n.appendChild(bar);
+    }
+    return n;
+  }
+  function paintTopo(r) {
+    var busy = function (u) { return Math.round(u * 100) + '% busy'; };
+    $('tr-topo').replaceChildren(
+      node('Browsers', rate(r.demand)),
+      node('Load balancer', 'spreads requests evenly'),
+      node('App servers × ' + r.cfg.servers, busy(r.uApp), r.uApp),
+      node('Cache', r.cfg.cache ? Math.round(r.hitRate * 100) + '% hit rate' : 'off', null, !r.cfg.cache),
+      node('DB primary', busy(r.uDb), r.uDb),
+      node('Read replicas × ' + r.cfg.replicas, r.cfg.replicas ? busy(r.uReplica) : 'none', r.cfg.replicas ? r.uReplica : null, !r.cfg.replicas)
+    );
+  }
+
+  var events = $('tr-events');
+  function log(text, bad) {
+    events.prepend(el('li', bad ? 'is-bad' : null, text));
+    while (events.children.length > 5) events.lastChild.remove();
+  }
+
+  function paintHourly() {
+    var rows = $('tr-hourly-rows');
+    rows.replaceChildren();
+    for (var h = 0; h * PER_HOUR < hist.length; h++) {
+      var slice = hist.slice(h * PER_HOUR, (h + 1) * PER_HOUR);
+      var over = slice.filter(function (r) { return r.breach; }).length;
+      var tr = el('tr', over ? 'is-bad' : null);
+      tr.append(
+        el('th', null, clock(h * PER_HOUR)),
+        el('td', 'num', rate(Math.max.apply(null, slice.map(function (r) { return r.demand; })))),
+        el('td', 'num', ms(Math.max.apply(null, slice.map(function (r) { return r.p99; })))),
+        el('td', 'num', pct(Math.max.apply(null, slice.map(function (r) { return r.err; })))),
+        el('td', 'num', over ? over * 10 + ' min' : '—'),
+        el('td', 'num', '$' + slice.reduce(function (a, r) { return a + r.cost; }, 0).toFixed(2))
+      );
+      rows.appendChild(tr);
+    }
+    $('tr-hourly-table').hidden = !hist.length;
+    $('tr-hourly-empty').hidden = !!hist.length;
+  }
+
+  /* ---------- The day ---------- */
+  var runBtn = $('tr-run');
+  function setRunLabel(text, iconId) {
+    runBtn.querySelector('span').textContent = text;
+    runBtn.querySelector('use').setAttribute('href', '#' + iconId);
+  }
+
+  function advance() {
+    if (tick >= TICKS) return finish();
+    var r = M.simulateTick(tick, cfg);
+    var prev = hist[hist.length - 1];
+    hist.push(r);
+    spent += r.cost;
+    if (cfg.redirect === 301) used301 = true;
+    if (r.breach) breaches++;
+    if (P.events[tick]) log(clock(tick) + ' · ' + P.events[tick]);
+    if (r.breach && !(prev && prev.breach)) log(clock(tick) + ' · Over SLO: p99 ' + ms(r.p99) + ', errors ' + pct(r.err) + '.', true);
+    if (!r.breach && prev && prev.breach) log(clock(tick) + ' · Back inside the SLO.');
+    tick++;
+    paintGauges(r);
+    paintTopo(r);
+    if (tick % PER_HOUR === 0) paintHourly();
+    draw();
+    if (tick >= TICKS) finish();
+  }
+
+  function start() {
+    if (ended) reset();
+    timer = setInterval(advance, TICK_MS);
+    setRunLabel('Pause', 'i-pause');
+  }
+  function pause() {
+    clearInterval(timer);
+    timer = null;
+    setRunLabel('Resume', 'i-play');
+  }
+  function reset() {
+    if (timer) clearInterval(timer);
+    timer = null; hist = []; tick = 0; spent = 0; breaches = 0; used301 = false; ended = false; hover = null;
+    events.replaceChildren(el('li', null, P.briefing));
+    $('tr-save').replaceChildren();
+    $('tr-verdict').hidden = true;
+    setRunLabel('Run the day', 'i-play');
+    var r = M.simulateTick(0, cfg);
+    paintGauges(r);
+    paintTopo(r);
+    paintHourly();
+    draw();
+  }
+  function finish() {
+    if (timer) clearInterval(timer);
+    timer = null;
+    ended = true;
+    setRunLabel('Run it again', 'i-retry');
+    if (hist.length) paintGauges(hist[hist.length - 1]);
+    paintHourly();
+    draw();
+    save();
+  }
+
+  function save() {
+    if (saving) return;
+    saving = true;
+    var status = $('tr-save');
+    status.replaceChildren(el('p', 'meta', 'Filing your day…'));
+    var plan = hist.map(function (r) { return [r.cfg.servers, r.cfg.replicas, r.cfg.cache, r.cfg.redirect]; });
+    fetch(finishUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: plan }),
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok || body.score == null) throw new Error(body.error || "Your day ran, but the score didn't save.");
+        return body;
+      });
+    }).then(function (result) {
+      status.replaceChildren();
+      showVerdict(result);
+    }, function (err) {
+      var slip = el('div', 'slip slip--wrong');
+      var retry = el('button', 'btn btn--quiet btn--sm', 'Try saving again');
+      retry.type = 'button';
+      retry.addEventListener('click', save);
+      slip.append(el('span', null, err instanceof TypeError ? "Couldn't reach the server to save your day." : err.message), retry);
+      status.replaceChildren(slip);
+    }).finally(function () { saving = false; });
+  }
+
+  function showVerdict(f) {
+    $('tr-score').textContent = num(f.score);
+    var verdict = $('tr-verdict');
+    var tone = f.is_perfect ? 'right' : f.score >= 0 ? 'partial' : 'wrong';
+    verdict.className = 'card verdict verdict--' + tone;
+    $('tr-verdict-icon').setAttribute('href', f.is_perfect ? '#i-check' : f.score >= 0 ? '#i-traffic' : '#i-x');
+    $('tr-verdict-title').textContent = (f.is_perfect ? 'Clean day: ' : '') + num(f.score) + ' points';
+    $('tr-verdict-xp').textContent = '+' + f.xp_awarded + ' XP';
+    var d = f.detail;
+    var line = num(P.score.start) + ' − ' + d.breaches + ' breach' + (d.breaches === 1 ? '' : 'es') + ' × ' + P.score.per_breach
+      + ' − $' + nf.format(d.spent) + ' spent' + (d.used_301 ? ' − ' + P.score.analytics + ' for broken analytics' : '')
+      + ' = ' + num(f.score) + '.';
+    if (f.perfect_bonus) line += ' A clean day adds ' + f.perfect_bonus + ' XP.';
+    $('tr-verdict-line').textContent = line;
+    $('tr-verdict-lessons').replaceChildren.apply($('tr-verdict-lessons'), f.lessons.map(function (t) { return el('li', null, t); }));
+
+    var extras = $('tr-verdict-extras');
+    extras.replaceChildren();
+    if (f.leveled_up) {
+      var lv = el('div', 'verdict__extra verdict__extra--level');
+      lv.append(icon('i-level'), " Level up! You're now level " + f.new_level + '.');
+      extras.appendChild(lv);
+    }
+    f.new_badges.forEach(function (name) {
+      var b = el('div', 'verdict__extra verdict__extra--badge');
+      b.append(icon('i-stamp'), ' Badge earned: ' + name);
+      extras.appendChild(b);
+    });
+    extras.hidden = !extras.children.length;
+
+    verdict.hidden = false;
+    var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    verdict.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+    verdict.focus({ preventScroll: true });
+  }
+
+  runBtn.addEventListener('click', function () { timer ? pause() : start(); });
+  $('tr-reset').addEventListener('click', reset);
+  $('tr-again').addEventListener('click', function () {
+    reset();
+    board.scrollIntoView({ block: 'start' });
+    start();
+  });
+
+  /* ---------- Chart ---------- */
+  var canvas = $('tr-chart');
+  var wrap = $('tr-chart-wrap');
+  var tip = $('tr-tip');
+  var geo = null;
+
+  function draw() {
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    var g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+
+    var C = { ink: tok('--ink'), ink2: tok('--ink-2'), ink3: tok('--ink-3'), rule: tok('--ruling'), edge: tok('--card-edge'),
+              capacity: tok('--cobalt'), demand: tok('--srv-4'), wrong: tok('--wrong'), wrongTint: tok('--wrong-tint') };
+    var L = 44, R = 12, T = 24, GAP = 34, B = 24;
+    var pw = W - L - R, avail = H - T - GAP - B, h1 = avail * 0.56, h2 = avail - h1, y1 = T, y2 = T + h1 + GAP;
+    var MAXQ = 50000, MAXL = 400;
+    var X = function (i) { return L + (pw * i) / TICKS; };
+    var Y1 = function (v) { return y1 + h1 - (h1 * Math.min(v, MAXQ)) / MAXQ; };
+    var Y2 = function (v) { return y2 + h2 - (h2 * Math.min(v, MAXL)) / MAXL; };
+    geo = { L: L, pw: pw, y1: y1, y2: y2, h2: h2, X: X };
+    var line = function (a, b, c, d) { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); };
+    var polyline = function (points) {
+      g.beginPath();
+      points.forEach(function (p, k) { if (k) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+      g.stroke();
+    };
+
+    g.font = '600 11px Archivo, ui-sans-serif, system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    g.fillStyle = C.ink3;
+    g.textAlign = 'left';
+    g.fillText('REQUESTS PER SECOND', L, y1 - 13);
+    g.fillText('P99 LATENCY (MS)', L, y2 - 13);
+
+    // Over-SLO bands sit under the latency grid.
+    g.fillStyle = C.wrongTint;
+    hist.forEach(function (r) { if (r.breach) g.fillRect(X(r.i), y2, X(r.i + 1) - X(r.i) + 0.5, h2); });
+
+    g.lineWidth = 1;
+    for (var v = 0; v <= MAXQ; v += 10000) {
+      var yq = Math.round(Y1(v)) + 0.5;
+      g.strokeStyle = v ? C.rule : C.edge; line(L, yq, W - R, yq);
+      g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText(v ? v / 1000 + 'K' : '0', L - 6, yq);
+    }
+    for (var l = 0; l <= MAXL; l += 100) {
+      var yl = Math.round(Y2(l)) + 0.5;
+      g.strokeStyle = l ? C.rule : C.edge; line(L, yl, W - R, yl);
+      g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText(String(l), L - 6, yl);
+    }
+
+    // The spike, flagged where marketing said it would land.
+    var spikeTick = Math.round(P.spike.at_hour * PER_HOUR);
+    var vx = Math.round(X(spikeTick)) + 0.5;
+    g.strokeStyle = C.edge; line(vx, y1, vx, y1 + h1);
+    g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText('Viral link', vx - 4, y1 + 8);
+
+    // Forecast for the design as it stands.
+    g.setLineDash([4, 4]); g.strokeStyle = C.ink3; g.lineWidth = 1.25;
+    var forecast = [];
+    for (var i = 0; i < TICKS; i++) forecast.push([X(i + 0.5), Y1(M.demand(i, cfg.redirect).total)]);
+    polyline(forecast);
+    g.setLineDash([]);
+
+    if (hist.length) {
+      g.beginPath();
+      g.moveTo(X(0.5), Y1(0));
+      hist.forEach(function (r) { g.lineTo(X(r.i + 0.5), Y1(r.demand)); });
+      g.lineTo(X(hist.length - 0.5), Y1(0));
+      g.closePath();
+      g.globalAlpha = 0.16; g.fillStyle = C.demand; g.fill(); g.globalAlpha = 1;
+      g.strokeStyle = C.demand; g.lineWidth = 2;
+      polyline(hist.map(function (r) { return [X(r.i + 0.5), Y1(r.demand)]; }));
+
+      g.beginPath();
+      hist.forEach(function (r, k) {
+        var y = Y1(r.capacity);
+        if (!k) g.moveTo(X(r.i), y); else g.lineTo(X(r.i), y);
+        g.lineTo(X(r.i + 1), y);
+      });
+      g.strokeStyle = C.capacity; g.lineWidth = 2; g.stroke();
+    }
+    if (tick < TICKS) {
+      var yc = Y1(cfg.servers * P.app_capacity);
+      g.setLineDash([2, 4]); g.strokeStyle = C.capacity; g.lineWidth = 2; line(X(tick), yc, X(TICKS), yc); g.setLineDash([]);
+      g.fillStyle = C.ink2; g.textAlign = 'right'; g.fillText('App capacity ' + (cfg.servers * P.app_capacity / 1000) + 'K', W - R, yc - 9);
+    }
+
+    // SLO threshold, then latency on top of it.
+    g.strokeStyle = C.wrong; g.lineWidth = 1.25; g.setLineDash([6, 4]);
+    line(L, Y2(P.slo.p99_ms), W - R, Y2(P.slo.p99_ms));
+    g.setLineDash([]);
+    g.fillStyle = C.ink2; g.textAlign = 'right'; g.fillText('SLO ' + P.slo.p99_ms + ' ms', W - R, Y2(P.slo.p99_ms) - 9);
+    if (hist.length) {
+      g.strokeStyle = C.ink; g.lineWidth = 1.75;
+      polyline(hist.map(function (r) { return [X(r.i + 0.5), Y2(r.p99)]; }));
+    }
+
+    g.fillStyle = C.ink3;
+    for (var hr = 0; hr <= 24; hr += 6) {
+      g.textAlign = hr === 0 ? 'left' : hr === 24 ? 'right' : 'center';
+      g.fillText(String(hr).padStart(2, '0') + ':00', X(hr * PER_HOUR), H - B / 2);
+    }
+    if (tick > 0 && tick < TICKS) { g.strokeStyle = C.ink3; g.lineWidth = 1; line(X(tick), y1, X(tick), y2 + h2); }
+
+    if (hover != null) {
+      var hx = Math.round(X(hover + 0.5)) + 0.5;
+      g.strokeStyle = C.ink2; g.lineWidth = 1; line(hx, y1, hx, y2 + h2);
+    }
+    paintTip();
+  }
+
+  function tipRow(value, label, keyClass) {
+    var row = el('div', 'chart-tip__row');
+    if (keyClass) row.appendChild(el('i', 'legend__line ' + keyClass));
+    row.append(el('strong', 'num', value), el('span', null, label));
+    return row;
+  }
+  function paintTip() {
+    if (hover == null || !geo) { tip.hidden = true; return; }
+    var rows = [el('div', 'chart-tip__time num', clock(hover))];
+    var r = hist[hover];
+    if (r) {
+      rows.push(tipRow(rate(r.demand), 'Demand', 'legend__line--demand'),
+                tipRow(rate(r.capacity), 'App capacity', 'legend__line--capacity'),
+                tipRow(ms(r.p99), 'p99 latency', 'legend__line--p99'),
+                tipRow(pct(r.err), 'Errors'));
+      if (r.breach) rows.push(el('div', 'chart-tip__flag', 'Over SLO'));
+    } else {
+      rows.push(tipRow(rate(M.demand(hover, cfg.redirect).total), 'Forecast', 'legend__line--forecast'),
+                tipRow(rate(cfg.servers * P.app_capacity), 'App capacity now', 'legend__line--capacity'));
+    }
+    tip.replaceChildren.apply(tip, rows);
+    tip.hidden = false;
+    var x = geo.X(hover + 0.5);
+    var left = x + 12;
+    if (left + tip.offsetWidth > canvas.clientWidth - 4) left = x - 12 - tip.offsetWidth;
+    tip.style.left = Math.max(4, left) + 'px';
+    tip.style.top = (geo.y1 + 4) + 'px';
+  }
+
+  function tickAt(clientX) {
+    if (!geo) return null;
+    var x = clientX - canvas.getBoundingClientRect().left;
+    if (x < geo.L || x > geo.L + geo.pw) return null;
+    return Math.max(0, Math.min(TICKS - 1, Math.floor(((x - geo.L) / geo.pw) * TICKS)));
+  }
+  canvas.addEventListener('pointermove', function (e) { hover = tickAt(e.clientX); draw(); });
+  canvas.addEventListener('pointerdown', function (e) { hover = tickAt(e.clientX); draw(); });
+  canvas.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { hover = null; draw(); } });
+  wrap.addEventListener('keydown', function (e) {
+    var step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (step) hover = hover == null ? Math.max(0, Math.min(tick, TICKS) - 1) : Math.max(0, Math.min(TICKS - 1, hover + step));
+    else if (e.key === 'Home') hover = 0;
+    else if (e.key === 'End') hover = TICKS - 1;
+    else if (e.key === 'Escape') hover = null;
+    else return;
+    e.preventDefault();
+    draw();
+  });
+  wrap.addEventListener('blur', function () { hover = null; draw(); });
+
+  if (window.ResizeObserver) new ResizeObserver(function () { draw(); }).observe(canvas);
+  else window.addEventListener('resize', draw);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+  syncControls();
+  reset();
+})();
+</script>
+{% endblock %}

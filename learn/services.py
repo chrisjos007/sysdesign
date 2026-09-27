@@ -4,11 +4,12 @@ import random
 from django.db.models import Count
 from django.utils import timezone
 
+from . import traffic
 from .code_runner import grade_submission
 from .models import (
     Attempt, Badge, Book, Chapter, ConceptMastery,
     CodingAttempt, DesignAttempt, FlawAttempt, MatchingAttempt, OrderingAttempt,
-    ReviewCard, UserBadge, UserProfile,
+    ReviewCard, TrafficAttempt, UserBadge, UserProfile,
 )
 
 XP_CORRECT_BASE = 10
@@ -39,6 +40,10 @@ POINTS_FLAW_FOUND = 25
 POINTS_FLAW_WRONG_REASON = 10
 POINTS_FLAW_HEALTHY_TAP = 10
 POINTS_FLAW_MISSED = 15
+
+# Traffic Day scores in the hundreds (it starts at 1,000), so it pays XP at
+# a tenth of its score to stay in line with the other games.
+TRAFFIC_POINTS_PER_XP = 10
 
 PERFECT_BONUS = 25
 
@@ -449,6 +454,39 @@ def record_flaw_attempt(user, challenge, run):
     }
 
 
+def record_traffic_attempt(user, challenge, raw_plan):
+    """Replays the learner's day on the server (learn/traffic.py) from the
+    design they ran at each tick, rather than trusting a score from the
+    browser. A day inside the SLO with analytics intact is a clean day and
+    earns the perfect bonus. Returns None if the plan doesn't validate."""
+    plan = traffic.parse_plan(challenge.params, raw_plan)
+    if plan is None:
+        return None
+    day = traffic.score_day(challenge.params, plan)
+    is_perfect = day['is_clean']
+    xp_awarded = max(0, day['score']) // TRAFFIC_POINTS_PER_XP + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    changes = sum(1 for a, b in zip(plan, plan[1:]) if a != b)
+    detail = {'breaches': day['breaches'], 'spent': day['spent'], 'used_301': day['used_301'],
+              'design_changes': changes}
+    TrafficAttempt.objects.create(
+        user=user, challenge=challenge, score=day['score'], xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': day['score'], 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'lessons': day['lessons'], 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -464,6 +502,7 @@ BADGE_DEFS = [
     ('sequencer', 'Sequencer', 'Put every step in exactly the right order.', '🔢'),
     ('coder', 'Coder', 'Pass every test case on a coding challenge.', '💻'),
     ('flaw_finder', 'Flaw Finder', 'Find every planted flaw without a wrong tap or a wrong reason.', '🔍'),
+    ('on_call', 'On Call', 'Run a whole Traffic Day inside the SLO without breaking click analytics.', '📟'),
     ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
@@ -526,6 +565,7 @@ def check_badges(user):
     has_perfect_order = OrderingAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_coding = CodingAttempt.objects.filter(user=user, is_perfect=True).exists()
     maybe('flaw_finder', FlawAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('on_call', TrafficAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)

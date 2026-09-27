@@ -82,6 +82,17 @@ or more Matching/Ordering games.
   badge. Each tap is checked on the server, which keeps the run in the
   session, so the page never holds the answers and a reload can't wipe a
   penalty.
+- **Traffic Day** — run a URL shortener through one simulated day of
+  traffic (an evening peak and a viral link at 19:00) and change its design
+  at any time: app servers, a cache, read replicas, and 301 vs 302
+  redirects. The score starts at 1,000 and loses 50 for every 10 minutes
+  over the SLO, 1 for every dollar spent, and 250 if 301s break click
+  analytics. The page animates the day, and the server replays the design
+  the learner ran at each tick through the same load model
+  (`learn/traffic.py`, with a JavaScript twin in
+  `learn/static/learn/traffic_model.js`) to file the score. It pays 1 XP
+  per 10 points, plus the perfect bonus and the "On Call" badge for a clean
+  day.
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
@@ -107,7 +118,7 @@ pip install -r requirements.txt
 
 python manage.py migrate
 python manage.py seed_content   # loads the book content + quiz questions
-python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw games
+python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw/traffic-day games
 python manage.py createsuperuser   # optional, for /admin access
 
 python manage.py runserver
@@ -140,7 +151,15 @@ with the superuser you created).
   comment above `FLAW_CHALLENGES`, and run the tests, which check the
   seeded diagrams for typos. Point them at SQLite so they don't create a
   test database on whatever server `.env`'s `DATABASE_URL` names:
-  `DATABASE_URL=sqlite:///db.sqlite3 python manage.py test learn`.
+  `DATABASE_URL=sqlite:///db.sqlite3 python manage.py test learn`. Tests
+  render pages through the static manifest, so run `collectstatic` first
+  after adding a static file.
+- A Traffic Day scenario is a `params` dict in `TRAFFIC_CHALLENGES` (same
+  file): traffic, capacities, hourly prices, SLO, the spike, scoring,
+  control limits, the starting design and ops-log lines. The load model's
+  shape of the day, latency curve and cache hit rates live in
+  `learn/traffic.py` and `learn/static/learn/traffic_model.js`; change both
+  together.
 
 Both are plain Python data structures — add entries and re-run the
 matching `manage.py` command; both commands are idempotent, so re-running

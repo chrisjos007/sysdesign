@@ -2,9 +2,13 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .management.commands.seed_games import FLAW_CHALLENGES
+import json
+
+from . import traffic
+from .management.commands.seed_games import FLAW_CHALLENGES, TRAFFIC_CHALLENGES
 from .models import (
-    Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason, Topic, UserBadge,
+    Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason, Topic,
+    TrafficAttempt, TrafficChallenge, UserBadge,
 )
 
 
@@ -172,3 +176,114 @@ class FlawSeedDataTests(TestCase):
                 self.assertTrue(a['d'].startswith('M'), a['key'])
                 if a.get('caption'):
                     self.assertIn('at', a, a['key'])
+
+
+class TrafficDayTests(TestCase):
+    """Runs the seeded URL-shortener day through the finish endpoint."""
+
+    def setUp(self):
+        book = Book.objects.create(slug='b', title='Book')
+        topic = Topic.objects.create(slug='t', title='Topic')
+        self.chapter = Chapter.objects.create(book=book, topic=topic, slug='c', title='Chapter', unlock_level=1)
+        concept = Concept.objects.create(chapter=self.chapter, slug='k', title='Concept', summary='s')
+        spec = TRAFFIC_CHALLENGES[0]
+        self.challenge = TrafficChallenge.objects.create(
+            concept=concept, slug='day', title=spec['title'], prompt=spec['prompt'], params=spec['params'])
+        self.user = get_user_model().objects.create_user('player', password='pw-for-tests-only')
+        self.client.force_login(self.user)
+        self.page_url = reverse('learn:traffic_challenge', args=['day'])
+        self.finish_url = reverse('learn:traffic_finish', args=['day'])
+
+    def finish(self, plan):
+        return self.client.post(self.finish_url, json.dumps({'plan': plan}), content_type='application/json')
+
+    @staticmethod
+    def steady(servers, replicas, cache, redirect=302):
+        return [[servers, replicas, cache, redirect]] * traffic.TICKS
+
+    def test_page_renders_the_simulator(self):
+        html = self.client.get(self.page_url).content.decode()
+        self.assertIn('id="tr-params"', html)
+        self.assertIn('learn/traffic_model.', html)
+        self.assertIn('errors over 1%', html)
+        self.assertIn('$1.50/h each · 5,000 req/s each', html)
+
+    def test_starting_design_melts_down(self):
+        body = self.finish(self.steady(4, 1, False)).json()
+        self.assertEqual(body['detail'], {'breaches': 106, 'spent': 240, 'used_301': False, 'design_changes': 0})
+        self.assertEqual(body['score'], 1000 - 106 * 50 - 240)
+        self.assertEqual(body['xp_awarded'], 0)
+        self.assertFalse(body['is_perfect'])
+        self.assertTrue(any('Without a cache' in lesson for lesson in body['lessons']))
+        self.assertTrue(any('viral link' in lesson for lesson in body['lessons']))
+
+    def test_clean_day_scales_xp_and_earns_badge(self):
+        body = self.finish(self.steady(10, 0, True)).json()
+        self.assertEqual(body['detail']['breaches'], 0)
+        self.assertEqual(body['score'], 573)
+        self.assertTrue(body['is_perfect'])
+        self.assertEqual(body['xp_awarded'], 573 // 10 + 25)
+        self.assertIn('On Call', body['new_badges'])
+        attempt = TrafficAttempt.objects.get(user=self.user)
+        self.assertEqual((attempt.score, attempt.xp_awarded, attempt.is_perfect), (573, 82, True))
+
+    def test_a_single_301_tick_costs_the_analytics_penalty(self):
+        plan = self.steady(10, 0, True)
+        plan[5] = [10, 0, True, 301]
+        body = self.finish(plan).json()
+        self.assertTrue(body['detail']['used_301'])
+        self.assertEqual(body['detail']['design_changes'], 2)
+        self.assertFalse(body['is_perfect'])
+        self.assertLess(body['score'], 573 - 250 + 5)
+
+    def test_scaling_through_the_day_beats_a_steady_design(self):
+        # Cheapest design that holds the SLO at each tick, the way a learner would scale in and out.
+        options = [dict(servers=s, replicas=0, cache=True, redirect=302) for s in range(1, 15)]
+        plan = []
+        for i in range(traffic.TICKS):
+            cfg = next(o for o in options if not traffic.simulate_tick(self.challenge.params, i, o)['breach'])
+            plan.append([cfg['servers'], 0, True, 302])
+        body = self.finish(plan).json()
+        self.assertEqual(body['detail']['breaches'], 0)
+        self.assertGreater(body['score'], 573)
+
+    def test_plans_that_do_not_check_out_are_rejected(self):
+        good = self.steady(4, 1, False)
+        bad_plans = [
+            good[:-1],                                       # a tick short
+            [[15, 1, False, 302]] + good[1:],                # over the server limit
+            [[4, 5, False, 302]] + good[1:],                 # over the replica limit
+            [[True, 1, False, 302]] + good[1:],              # bool where a count belongs
+            [[4, 1, 0, 302]] + good[1:],                     # int where the cache flag belongs
+            [[4, 1, False, 303]] + good[1:],                 # not a redirect we model
+            [[4, 1, False]] + good[1:],                      # short entry
+            'everything',
+        ]
+        for plan in bad_plans:
+            self.assertEqual(self.finish(plan).status_code, 400)
+        self.assertEqual(self.client.post(self.finish_url, 'nope', content_type='application/json').status_code, 400)
+        self.assertEqual(self.client.post(self.finish_url, '{}', content_type='application/json').status_code, 400)
+        self.assertEqual(self.client.get(self.finish_url).status_code, 405)
+        self.assertFalse(TrafficAttempt.objects.exists())
+
+    def test_locked_chapter_blocks_play(self):
+        self.chapter.unlock_level = 99
+        self.chapter.save()
+        self.assertRedirects(self.client.get(self.page_url), reverse('learn:dashboard'))
+        self.assertEqual(self.finish(self.steady(4, 1, False)).status_code, 403)
+
+    def test_concept_page_lists_the_challenge(self):
+        html = self.client.get(reverse('learn:concept_detail', args=['k'])).content.decode()
+        self.assertIn(self.page_url, html)
+        self.assertIn('Traffic Day', html)
+
+    def test_seeded_scenarios_are_consistent(self):
+        for spec in TRAFFIC_CHALLENGES:
+            p = spec['params']
+            start = p['start']
+            self.assertTrue(p['limits']['servers'][0] <= start['servers'] <= p['limits']['servers'][1])
+            self.assertTrue(p['limits']['replicas'][0] <= start['replicas'] <= p['limits']['replicas'][1])
+            self.assertIn(start['redirect'], (301, 302))
+            for tick in p['events']:
+                self.assertTrue(0 <= int(tick) < traffic.TICKS, tick)
+            self.assertTrue(0 <= p['spike']['at_hour'] and p['spike']['at_hour'] + p['spike']['hours'] <= 24)

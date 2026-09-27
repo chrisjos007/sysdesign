@@ -14,13 +14,13 @@ from .context_processors import _chapter_href
 from .models import (
     Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
     FlawChallenge, FlawPart, MatchingChallenge, OrderingChallenge, Question, ReviewCard,
-    Topic, UserBadge,
+    Topic, TrafficChallenge, UserBadge,
 )
 from .services import (
     all_flaws_found, answer_flaw_part, chapter_is_unlocked, due_review_cards, flaw_snapshot,
     get_profile, inspect_flaw_part, new_flaw_run, record_coding_attempt,
     record_design_attempt, record_flaw_attempt, record_matching_attempt,
-    record_ordering_attempt, record_quiz_answer,
+    record_ordering_attempt, record_quiz_answer, record_traffic_attempt,
 )
 import json
 
@@ -154,7 +154,7 @@ def dashboard(request):
         'continue_activities': (
             1 + continue_concept.design_challenges.count() + continue_concept.matching_challenges.count()
             + continue_concept.ordering_challenges.count() + continue_concept.coding_challenges.count()
-            + continue_concept.flaw_challenges.count()
+            + continue_concept.flaw_challenges.count() + continue_concept.traffic_challenges.count()
         ) if continue_concept else 0,
     })
 
@@ -201,6 +201,7 @@ def concept_detail(request, concept_slug):
         'ordering_challenges': concept.ordering_challenges.all(),
         'coding_challenges': concept.coding_challenges.all(),
         'flaw_challenges': concept.flaw_challenges.all(),
+        'traffic_challenges': concept.traffic_challenges.all(),
     })
 
 
@@ -548,3 +549,37 @@ def flaw_move(request, challenge_slug):
         finished['new_badges'] = [b.name for b in finished['new_badges']]
     request.session[key] = run
     return JsonResponse({'result': result, 'finished': finished, 'snapshot': flaw_snapshot(challenge, run)})
+
+
+@login_required
+def traffic_challenge(request, challenge_slug):
+    challenge = get_object_or_404(TrafficChallenge.objects.select_related('concept__chapter__book'), slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        messages.error(request, "This chapter is still locked.")
+        return redirect('learn:dashboard')
+    return render(request, 'learn/traffic_challenge.html', {
+        'challenge': challenge, 'params': challenge.params,
+        'error_pct': f"{challenge.params['slo']['error_rate'] * 100:g}",
+        'perfect_bonus': services.PERFECT_BONUS, 'points_per_xp': services.TRAFFIC_POINTS_PER_XP,
+    })
+
+
+@login_required
+@require_POST
+def traffic_finish(request, challenge_slug):
+    """Files a finished day. The body is {"plan": [[servers, replicas, cache,
+    redirect], ...]}, one entry per tick; the server replays it to score."""
+    challenge = get_object_or_404(TrafficChallenge, slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        return JsonResponse({'error': 'This chapter is still locked.'}, status=403)
+    try:
+        raw_plan = json.loads(request.body).get('plan')
+    except (ValueError, AttributeError):
+        raw_plan = None
+    result = record_traffic_attempt(request.user, challenge, raw_plan)
+    if result is None:
+        return JsonResponse({'error': "That day's design plan didn't check out. Reset and run the day again."}, status=400)
+    result['new_badges'] = [b.name for b in result['new_badges']]
+    return JsonResponse(result)
