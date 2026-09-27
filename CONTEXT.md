@@ -3,6 +3,20 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-27 content-scout: added sd-31 (partitioning and consistent hashing)
+
+Built on the `content-scout` branch; `docs/learning/content-ledger.md` logs
+the run. The curriculum is now **31 lessons and 6 case studies (37 items),
+80 knowledge-check questions, 62 sources, 1670 minutes**; the quiz banks hold
+191 questions (225 with the reference chapters), and there are 28 matching
+games. sd-31 "Partitioning, hot keys, and consistent hashing" (intermediate,
+order 37, slug `partitioning-consistent-hashing`) closes the partitioning gap
+noted below. Its catalogue item sits after sd-12 in the file, because
+`test_stages_unlock_in_order` reads items in file order. Its game is
+`match-partitioning`. The Ring Balancer still hangs off `caching-invalidation`;
+moving it is listed under "Needs your decision" in the ledger. Neither the
+local database nor Neon has been re-seeded.
+
 ## 2026-09-27 session: added Ring Balancer (9th play-to-learn activity)
 
 Ported idea 16 from `docs/games/prototypes/ring-balancer.html`: three

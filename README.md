@@ -1,13 +1,13 @@
 # SysDesign Quest
 
 A gamified learning app for system design interview prep, built on an
-original curriculum ([docs/learning](docs/learning/README.md)): 30 lessons
+original curriculum ([docs/learning](docs/learning/README.md)): 31 lessons
 and 6 case studies that cite standards, papers and official documentation
 rather than summarizing any textbook.
 
 ## What's inside
 
-- 36 curriculum items -> 36 concept pages -> 185 quiz questions, plus two
+- 37 curriculum items -> 37 concept pages -> 191 quiz questions, plus two
   compiled reference chapters (Python internals, OS file handling). The
   lessons run in five stages, one dashboard topic each: Beginner
   (understand a request), Intermediate (scale a service), Advanced (handle

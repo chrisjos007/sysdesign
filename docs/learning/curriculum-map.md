@@ -29,6 +29,7 @@ Design a service with bounded resource use, clear cache freshness, durable backg
 | sd-10 | [Queues and background jobs](lessons/10-queues-background-jobs.md) | [sd-02](lessons/02-http-api-design.md), [sd-03](lessons/03-latency-throughput.md), [sd-04](lessons/04-concurrency-basics.md) | 35 |
 | sd-11 | [Object storage, delivery, and CDNs](lessons/11-object-storage-cdn.md) | [sd-01](lessons/01-dns-tcp-tls.md), [sd-02](lessons/02-http-api-design.md), [sd-08](lessons/08-caching-invalidation.md) | 30 |
 | sd-12 | [Pagination and data access patterns](lessons/12-pagination-access-patterns.md) | [sd-02](lessons/02-http-api-design.md), [sd-05](lessons/05-indexes-query-plans.md), [sd-06](lessons/06-requirements-capacity.md) | 35 |
+| sd-31 | [Partitioning, hot keys, and consistent hashing](lessons/31-partitioning-consistent-hashing.md) | [sd-05](lessons/05-indexes-query-plans.md), [sd-06](lessons/06-requirements-capacity.md), [sd-08](lessons/08-caching-invalidation.md) | 35 |
 
 Milestone: Design a service with bounded resource use, clear cache freshness, durable background work, and predictable collection traversal.
 

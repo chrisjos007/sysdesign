@@ -2,7 +2,7 @@
 
 This package is the website's system design content. The Markdown, catalogue and source registry stay the source of truth; the app reads them at seed time.
 
-Implementation status: all 30 lessons and 6 case studies are in the app, and they
+Implementation status: all 31 lessons and 6 case studies are in the app, and they
 replaced the earlier book-derived chapters. `learn/curriculum.py` reads this
 package and returns one chapter and concept per item; `python manage.py seed_content`
 writes them and removes content that is no longer defined, and
@@ -34,7 +34,7 @@ Load [catalogue.json](catalogue.json) and resolve its document paths relative to
 
 | Field | Meaning |
 |---|---|
-| `id` | Stable content identity: sd-01 through sd-30, cs-01 through cs-06 |
+| `id` | Stable content identity: sd-01 through sd-31, cs-01 through cs-06 |
 | `slug`, `title`, `summary` | Human-facing navigation and preview text |
 | `type` | lesson or case_study |
 | `stage`, `stage_order` | Five-stage educational progression |

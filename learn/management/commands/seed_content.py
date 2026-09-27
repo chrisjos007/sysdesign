@@ -10,7 +10,7 @@ from learn.services import ensure_badges_exist
 # Content data.
 #
 # The system design material is the original curriculum in docs/learning:
-# 30 lessons and 6 case studies built on standards, papers and official
+# 31 lessons and 6 case studies built on standards, papers and official
 # documentation. learn/curriculum.py reads it and returns one chapter dict
 # per lesson, in the same shape as REFERENCE_CHAPTERS below. Each chapter
 # holds one concept.

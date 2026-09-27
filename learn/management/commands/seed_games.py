@@ -279,6 +279,16 @@ MATCHING_CHALLENGES = [
         ],
     ),
     (
+        'match-partitioning', 'Partitioning Vocabulary', 'partitioning-consistent-hashing',
+        [
+            ('Range partitioning', 'Gives each partition a contiguous span of sorted keys, so range scans touch few partitions.'),
+            ('Hash partitioning', 'Places each key by a hash of its value, spreading sequential keys but losing sort order.'),
+            ('Consistent hashing', 'Puts keys and nodes on one ring, so a membership change moves only the keys on the affected arcs.'),
+            ('Virtual nodes', 'Many ring positions per physical node, which even out load and scatter a failed node’s keys.'),
+            ('Hot key', 'A single key whose traffic overloads the one partition that owns it, however the cluster is rebalanced.'),
+        ],
+    ),
+    (
         'match-retry-controls', 'Retry Controls', 'timeouts-retries-jitter',
         [
             ('Total deadline', 'The whole time the caller will wait, across every attempt.'),

@@ -25,7 +25,7 @@ Success means the learner can recall a concept under interview pressure and reas
 
 ## Positioning
 
-- **Original lessons grounded in primary sources.** The system design content is an original curriculum (`docs/learning`): 30 lessons in five stages and 6 case studies, citing 55 standards, papers and official documentation pages (IETF RFCs, PostgreSQL, Kubernetes, Google SRE, Raft and others). Every lesson page lists its sources. Two compiled reference chapters cover Python internals and OS file handling. No content summarizes a published textbook.
+- **Original lessons grounded in primary sources.** The system design content is an original curriculum (`docs/learning`): 31 lessons in five stages and 6 case studies, citing 62 standards, papers and official documentation pages (IETF RFCs, PostgreSQL, Kubernetes, Google SRE, Raft and others). Every lesson page lists its sources. Two compiled reference chapters cover Python internals and OS file handling. No content summarizes a published textbook.
 - **Guessing wrong always costs.** Every game uses negative scoring: wrong matches, misplaced steps, extra components, wrong wires and failing tests all lose points. Spamming options doesn't pay, so learners have to reason.
 - **Designs are built, not just recalled.** In the Architecture Builder the learner places components and wires them together. Coding challenges grade real stdin/stdout programs against hidden test cases.
 - **Spaced repetition underneath the game layer.** SM-2 scheduling drives the Daily Review. XP, levels and badges sit on top of real retention mechanics.
@@ -36,7 +36,7 @@ Success means the learner can recall a concept under interview pressure and reas
 - **Phone:** mostly quick daily reviews and quizzes, but every activity must also work fully on a phone (see Capabilities and Constraints).
 - **Content hierarchy:** Book (the source collection) → Topic → Chapter → Concept. Each concept holds a notes teaser, notes sections (some with a "Click to know more" deep dive), a quiz bank, and any number of challenges in the "Play to learn" grid.
 - **Two kinds of concept:**
-  - Lessons (sd-01 to sd-30), one topic per stage: Beginner, Intermediate, Advanced, Production, Expert. Each shows its objectives, prerequisites and sources, and has at least one game.
+  - Lessons (sd-01 to sd-31), one topic per stage: Beginner, Intermediate, Advanced, Production, Expert. Each shows its objectives, prerequisites and sources, and has at least one game.
   - Case studies (cs-01 to cs-06: ticket booking, payments, job scheduling, search, feature flags, multi-region SaaS). Each always has an Architecture Builder game built from its reference architecture.
 - **Admin workflow:** content is seeded from `docs/learning` (read by `learn/curriculum.py`, questions in `learn/curriculum_questions.py`) and from Python data (`seed_content.py`, `seed_games.py`). Coding challenges are generated in Django admin from a plain-language scenario via Gemini, which asks clarifying questions when the scenario is too vague to write test cases.
 
@@ -65,12 +65,12 @@ Success means the learner can recall a concept under interview pressure and reas
 
 ## Evidence on Hand
 
-- **Real content (local database, as of 2026-09-27):**
-  - 3 source collections, 8 topics, 38 chapters/concepts (36 curriculum items plus the Python and OS reference chapters)
-  - 219 quiz questions
-  - 6 Architecture Builder, 27 Matching and 14 Ordering challenges, plus Spot the Flaw, Traffic Day and Quorum Casino
+- **Real content (seed data in the repo, as of 2026-09-27):**
+  - 3 source collections, 8 topics, 39 chapters/concepts (37 curriculum items plus the Python and OS reference chapters)
+  - 225 quiz questions
+  - 6 Architecture Builder, 28 Matching and 14 Ordering challenges, plus Spot the Flaw, Traffic Day and Quorum Casino
   - Defined in `docs/learning`, `learn/curriculum_questions.py`, `learn/management/commands/seed_content.py` and `seed_games.py`.
-- **Not live yet:** the production Neon database may lag behind this content until it is re-seeded.
+- **Not live yet:** the local database and the production Neon database may lag behind this content until they are re-seeded.
 - **Absent, must not be fabricated:** testimonials, user counts, pass-rate or outcome claims, press, logos, pricing.
 
 ## Product Principles

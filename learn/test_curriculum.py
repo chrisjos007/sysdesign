@@ -146,7 +146,7 @@ class CurriculumContentTests(TestCase):
         cls.user = get_user_model().objects.create_user('curriculum-reader')
 
     def test_every_catalogue_item_is_a_concept_with_notes_sources_and_a_quiz(self):
-        self.assertEqual(len(self.items), 36)
+        self.assertEqual(len(self.items), 37)
         for item in self.items:
             concept = Concept.objects.get(slug=item['slug'])
             self.assertEqual(concept.curriculum['id'], item['id'])

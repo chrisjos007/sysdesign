@@ -2,7 +2,7 @@
   "$schema": "./catalogue.schema.json",
   "schema_version": "1.0",
   "title": "SysDesign Quest: system design learning expansion",
-  "content_version": "2026-09-27.1",
+  "content_version": "2026-09-27.2",
   "research_date": "2026-09-27",
   "status": "documented_for_future_integration",
   "path_base": "docs/learning",
@@ -40,11 +40,11 @@
     }
   ],
   "summary": {
-    "lesson_count": 30,
+    "lesson_count": 31,
     "case_study_count": 6,
-    "question_count": 78,
-    "source_count": 55,
-    "estimated_minutes": 1635
+    "question_count": 80,
+    "source_count": 62,
+    "estimated_minutes": 1670
   },
   "items": [
     {
@@ -749,6 +749,71 @@
             "prompt": "Does keyset pagination guarantee an immutable result set?",
             "answer": "No. It defines continuation; concurrent updates, deletions, and snapshot policy still determine visibility.",
             "explanation": "No. It defines continuation; concurrent updates, deletions, and snapshot policy still determine visibility."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-31",
+      "slug": "partitioning-consistent-hashing",
+      "type": "lesson",
+      "title": "Partitioning, hot keys, and consistent hashing",
+      "summary": "Partitioning splits one dataset across several nodes so that each node stores and serves only part of it.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 37,
+      "estimated_minutes": 35,
+      "path": "lessons/31-partitioning-consistent-hashing.md",
+      "prerequisite_ids": [
+        "sd-05",
+        "sd-06",
+        "sd-08"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "partitioning",
+        "sharding",
+        "consistent-hashing"
+      ],
+      "objectives": [
+        "Choose hash or range partitioning from a stated access pattern.",
+        "Calculate how many keys move when a node joins or leaves, under hash mod N and under consistent hashing.",
+        "Explain why a hot key needs a workload change rather than rebalancing."
+      ],
+      "source_ids": [
+        "consistent-hashing",
+        "dynamo",
+        "cassandra-ring",
+        "redis-cluster",
+        "bigtable-keys",
+        "hash-sharded",
+        "write-sharding"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-31-q1",
+            "prompt": "Does consistent hashing stop a single hot key from overloading its node?",
+            "answer": "No. It decides which node owns each key, and every request for that key still goes to that owner. Spreading one key's load needs a workload change, such as caching its reads or splitting it into sub-keys.",
+            "explanation": "No. It decides which node owns each key, and every request for that key still goes to that owner. Spreading one key's load needs a workload change, such as caching its reads or splitting it into sub-keys."
+          },
+          {
+            "id": "sd-31-q2",
+            "prompt": "Why do virtual nodes help when a node fails?",
+            "answer": "Each physical node holds many small arcs of the ring, so a failed node's keys scatter across many survivors instead of all landing on one neighbor.",
+            "explanation": "Each physical node holds many small arcs of the ring, so a failed node's keys scatter across many survivors instead of all landing on one neighbor."
           }
         ]
       }
