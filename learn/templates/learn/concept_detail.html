@@ -91,6 +91,13 @@
                         <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
                     </a>
                     {% endfor %}
+                    {% for fc in flaw_challenges %}
+                    <a href="{% url 'learn:flaw_challenge' fc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-flaw"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ fc.title }}</span><span class="activity__sub">Spot the Flaw</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
                     {% for mc in matching_challenges %}
                     <a href="{% url 'learn:matching_challenge' mc.slug %}" class="card activity">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-match"/></svg></span>

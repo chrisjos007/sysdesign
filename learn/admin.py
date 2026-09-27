@@ -10,6 +10,7 @@ from .models import (
     Attempt, Badge, Book, Chapter, Choice, CodingAttempt, CodingChallenge, ComponentType,
     Concept, ConceptMastery,
     DesignAttempt, DesignChallenge, DesignChallengeComponent, DesignChallengeConnection,
+    FlawAttempt, FlawChallenge, FlawPart, FlawReason,
     MatchingAttempt, MatchingChallenge, MatchingPair,
     OrderingAttempt, OrderingChallenge, OrderingStep,
     Question, ReviewCard, TestCase, Topic, UserBadge, UserProfile,
@@ -220,6 +221,36 @@ class CodingAttemptAdmin(admin.ModelAdmin):
     readonly_fields = ('user', 'challenge', 'code', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')
 
 
+class FlawPartInline(admin.TabularInline):
+    model = FlawPart
+    extra = 0
+    fields = ('order', 'key', 'kind', 'label', 'sublabel', 'is_flaw', 'geometry')
+    show_change_link = True
+
+
+@admin.register(FlawChallenge)
+class FlawChallengeAdmin(admin.ModelAdmin):
+    """Parts are listed inline for an overview; open a part to edit its
+    explanation and, for a planted flaw, its candidate reasons."""
+    list_display = ('title', 'concept', 'flaw_count')
+    inlines = [FlawPartInline]
+
+    def flaw_count(self, obj):
+        return obj.parts.filter(is_flaw=True).count()
+
+
+class FlawReasonInline(admin.TabularInline):
+    model = FlawReason
+    extra = 1
+
+
+@admin.register(FlawPart)
+class FlawPartAdmin(admin.ModelAdmin):
+    list_display = ('label', 'challenge', 'kind', 'is_flaw')
+    list_filter = ('challenge', 'kind', 'is_flaw')
+    inlines = [FlawReasonInline]
+
+
 admin.site.register(Concept)
 admin.site.register(UserProfile)
 admin.site.register(Attempt)
@@ -230,3 +261,4 @@ admin.site.register(ConceptMastery)
 admin.site.register(DesignAttempt)
 admin.site.register(MatchingAttempt)
 admin.site.register(OrderingAttempt)
+admin.site.register(FlawAttempt)

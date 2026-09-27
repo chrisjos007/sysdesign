@@ -3,8 +3,8 @@ from django.db import transaction
 
 from learn.models import (
     ComponentType, Concept, DesignChallenge, DesignChallengeComponent,
-    DesignChallengeConnection, MatchingChallenge, MatchingPair,
-    OrderingChallenge, OrderingStep,
+    DesignChallengeConnection, FlawChallenge, FlawPart, FlawReason,
+    MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep,
 )
 
 COMPONENT_TYPES = [
@@ -578,9 +578,88 @@ ORDERING_CHALLENGES = [
     ),
 ]
 
+# Spot the Flaw: an architecture diagram with design mistakes planted in it.
+# Geometry is in the challenge's SVG viewBox (width x height). Boxes are
+# (x, y, w, h); arrows are SVG paths, with `at` placing an optional caption.
+# A part with `flaw` is a planted mistake: its first reason is the right one
+# (the page shuffles them). Every other part has an `ok` note saying why
+# it's fine, which the learner reads after tapping it.
+FLAW_CHALLENGES = [
+    dict(
+        slug='flaw-notification-system', title='Review a Flawed Notification System',
+        concept='notification-architecture', width=1000, height=430,
+        prompt=(
+            'This notification system has four planted design mistakes. '
+            'Tap each part you think is wrong, then say why.'
+        ),
+        boxes=[
+            dict(key='order', label='Order Service', box=(16, 60, 150, 52),
+                 ok='Callers only publish a "notify this user" event and carry on. That boundary is right.'),
+            dict(key='billing', label='Billing Service', box=(16, 150, 150, 52),
+                 ok='Another caller publishing events. Nothing wrong here.'),
+            dict(key='userdb', label='User & Device DB', box=(16, 262, 150, 52),
+                 ok='The server needs device tokens, phone numbers and email addresses to reach each channel.'),
+            dict(key='optout', label='Opt-out Settings', box=(16, 338, 150, 52),
+                 ok="Checking each user's notification preferences before sending is part of the design."),
+            dict(key='ns', label='Notification Server', sub='1 instance', box=(220, 96, 170, 68), flaw=[
+                "One instance is a single point of failure and can't scale out. Run several behind a load balancer.",
+                'It should render the email HTML itself instead of leaving that to the workers.',
+                'It should read user data through the message queue instead of the database.',
+            ]),
+            dict(key='queue', label='Message Queue', sub='shared by all channels', box=(440, 96, 170, 68), flaw=[
+                'With one queue for every channel, a slow SMS provider backs up push and email too. '
+                'Use one queue per channel.',
+                'Queues add delay. The server should call each provider directly.',
+                'A message broker can only hold one type of message per queue.',
+            ]),
+            dict(key='push', label='Push Workers', box=(660, 40, 150, 52),
+                 ok='A worker pool per channel drains its own queue at a steady rate. That is the design.'),
+            dict(key='email', label='Email Workers', sub='drop a send on error', box=(660, 130, 150, 68), flaw=[
+                'Provider failures are routine. Retry with exponential backoff and record each attempt '
+                'in a notification log.',
+                'Workers should retry instantly in a tight loop until the send succeeds.',
+                'Email should be sent by the Notification Server, not by a worker.',
+            ]),
+            dict(key='apns', label='APNs / FCM', box=(850, 40, 134, 52),
+                 ok='Apple and Google own delivery to devices. Handing push to them is correct.'),
+            dict(key='sendgrid', label='SendGrid', box=(850, 138, 134, 52),
+                 ok='A third-party email provider owns delivery. Correct.'),
+            dict(key='twilio', label='Twilio SMS', box=(850, 356, 134, 52),
+                 ok='Using an SMS provider is correct. Look at how it is being called.'),
+        ],
+        arrows=[
+            dict(key='e-order', label='Order Service to Notification Server', d='M166 86 L220 118',
+                 ok='Events flow from callers to the notification server. Fine.'),
+            dict(key='e-billing', label='Billing Service to Notification Server', d='M166 176 L220 142',
+                 ok='Events flow from callers to the notification server. Fine.'),
+            dict(key='e-userdb', label='Notification Server to User & Device DB', d='M250 164 L166 288',
+                 ok='Looking up contact details and device tokens is needed.'),
+            dict(key='e-optout', label='Notification Server to Opt-out Settings', d='M284 164 L166 364',
+                 ok='Checking preferences before sending is needed.'),
+            dict(key='e-queue', label='Notification Server to Message Queue', d='M390 130 L440 130',
+                 ok='Publishing to a queue decouples the server from delivery. Fine.'),
+            dict(key='e-push', label='Message Queue to Push Workers', d='M610 116 L660 70',
+                 ok='Workers pull from a queue. Fine.'),
+            dict(key='e-email', label='Message Queue to Email Workers', d='M610 144 L660 160',
+                 ok='Workers pull from a queue. Fine.'),
+            dict(key='e-apns', label='Push Workers to APNs / FCM', d='M810 66 L850 66',
+                 ok='Workers call the provider. Fine.'),
+            dict(key='e-sendgrid', label='Email Workers to SendGrid', d='M810 164 L850 164',
+                 ok='Workers call the provider. Fine.'),
+            dict(key='e-sms', label='Notification Server calls Twilio SMS directly', d='M330 164 V382 H850',
+                 caption='sync HTTP call per SMS', at=(590, 372), flaw=[
+                     'If Twilio is slow or down, the server blocks with it, and a burst of events hits Twilio '
+                     'all at once. Put SMS behind its own queue.',
+                     'SMS has to be sent over a WebSocket.',
+                     'Twilio should sit behind a CDN.',
+                 ]),
+        ],
+    ),
+]
+
 
 class Command(BaseCommand):
-    help = 'Seed drag-and-drop architecture builder, matching, and ordering mini-games.'
+    help = 'Seed drag-and-drop architecture builder, matching, ordering, and spot-the-flaw mini-games.'
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -640,7 +719,35 @@ class Command(BaseCommand):
                 OrderingStep.objects.create(challenge=challenge, text=text, correct_position=i)
             ordering_count += 1
 
+        flaw_count = 0
+        for spec in FLAW_CHALLENGES:
+            concept = Concept.objects.get(slug=spec['concept'])
+            challenge, _ = FlawChallenge.objects.update_or_create(
+                slug=spec['slug'], defaults=dict(
+                    concept=concept, title=spec['title'], prompt=spec['prompt'],
+                    canvas_width=spec['width'], canvas_height=spec['height'],
+                ),
+            )
+            challenge.parts.all().delete()
+            specs = [(FlawPart.NODE, b) for b in spec['boxes']] + [(FlawPart.EDGE, a) for a in spec['arrows']]
+            for i, (kind, p) in enumerate(specs):
+                if kind == FlawPart.NODE:
+                    x, y, w, h = p['box']
+                    geometry, sublabel = {'x': x, 'y': y, 'w': w, 'h': h}, p.get('sub', '')
+                else:
+                    geometry, sublabel = {'d': p['d']}, p.get('caption', '')
+                    if 'at' in p:
+                        geometry['lx'], geometry['ly'] = p['at']
+                part = FlawPart.objects.create(
+                    challenge=challenge, key=p['key'], kind=kind, label=p['label'], sublabel=sublabel,
+                    geometry=geometry, is_flaw='flaw' in p, explanation=p.get('ok', ''), order=i,
+                )
+                for j, text in enumerate(p.get('flaw', [])):
+                    FlawReason.objects.create(part=part, text=text, is_correct=(j == 0), order=j)
+            flaw_count += 1
+
         self.stdout.write(self.style.SUCCESS(
             f'Seeded {len(types)} component types, {design_count} design challenges, '
-            f'{matching_count} matching challenges, {ordering_count} ordering challenges.'
+            f'{matching_count} matching challenges, {ordering_count} ordering challenges, '
+            f'{flaw_count} spot-the-flaw challenges.'
         ))

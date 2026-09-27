@@ -3,6 +3,38 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-27 session: added Spot the Flaw (6th play-to-learn activity)
+
+Ported idea 08 from `docs/games/prototypes/spot-the-flaw.html` into the app.
+The prototype's diagram and copy are unchanged; the game now runs server-side.
+
+- **Models** (migration `0008_flawchallenge`): `FlawChallenge` (FK to
+  `Concept`, SVG canvas size), `FlawPart` (a box or an arrow: `key`, `kind`,
+  `label`/`sublabel`, `geometry` JSON, `is_flaw`, and `explanation` for
+  healthy parts), `FlawReason` (candidate answers on a flawed part, one
+  `is_correct`), and `FlawAttempt`, which has the same shape as the other
+  attempt models.
+- **Server-authoritative runs.** Unlike the other games, feedback comes on
+  every tap. The run lives in the session (`flaw_run_<id>`) and records only
+  flaws found, healthy parts tapped, and wrong reasons tried; the score is
+  recomputed from that. `POST flaw/<slug>/move/` takes `inspect`, `answer`
+  or `finish` and returns JSON. The page never contains `is_flaw` or the
+  correct reason, and a reload resumes the run, so a penalty can't be wiped.
+  The logic is in `services.py` (`inspect_flaw_part`, `answer_flaw_part`,
+  `record_flaw_attempt`, `flaw_snapshot`).
+- **Scoring:** +25 for a flaw with the right reason, −10 for a wrong reason,
+  −10 for tapping a healthy part, −15 for each flaw missed at finish, and
+  +25 `PERFECT_BONUS` for a clean run. The new `flaw_finder` badge is not
+  part of `game_master`, whose criteria were left alone.
+- **Content:** one challenge, `flaw-notification-system`, on
+  `notification-architecture`, seeded by `seed_games` (`FLAW_CHALLENGES`).
+- **Tests:** `learn/tests.py` now has real tests (14). Run them with
+  `DATABASE_URL=sqlite:///db.sqlite3`, because `.env` points at Neon and the
+  test runner would otherwise create `test_neondb` there. That happened once
+  this session, and that database was left on the Neon server.
+- Local `db.sqlite3` was migrated and reseeded. **Neon still needs
+  `seed_games`** after deploy (Render's release step already runs `migrate`).
+
 ## 2026-07-29 session: added Python + OS books/chapters (6th & 7th books)
 
 User asked, in a separate Cowork conversation, for two standalone PDF reference
