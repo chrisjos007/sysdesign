@@ -1,0 +1,3020 @@
+{
+  "$schema": "./catalogue.schema.json",
+  "schema_version": "1.0",
+  "title": "SysDesign Quest: system design learning expansion",
+  "content_version": "2026-09-27.1",
+  "research_date": "2026-09-27",
+  "status": "documented_for_future_integration",
+  "path_base": "docs/learning",
+  "source_registry": "sources.json",
+  "stages": [
+    {
+      "id": "beginner",
+      "order": 1,
+      "title": "Understand a request",
+      "legacy_difficulty": 1
+    },
+    {
+      "id": "intermediate",
+      "order": 2,
+      "title": "Scale a service",
+      "legacy_difficulty": 2
+    },
+    {
+      "id": "advanced",
+      "order": 3,
+      "title": "Handle distributed failures",
+      "legacy_difficulty": 3
+    },
+    {
+      "id": "production",
+      "order": 4,
+      "title": "Operate reliably",
+      "legacy_difficulty": 3
+    },
+    {
+      "id": "expert",
+      "order": 5,
+      "title": "Reason about guarantees",
+      "legacy_difficulty": 3
+    }
+  ],
+  "summary": {
+    "lesson_count": 30,
+    "case_study_count": 6,
+    "question_count": 78,
+    "source_count": 55,
+    "estimated_minutes": 1635
+  },
+  "items": [
+    {
+      "id": "sd-01",
+      "slug": "dns-tcp-tls",
+      "type": "lesson",
+      "title": "DNS, TCP, and TLS: follow a request",
+      "summary": "Opening a website resembles finding an office, establishing a conversation, and checking whom you are speaking to.",
+      "stage": "beginner",
+      "stage_order": 1,
+      "order": 1,
+      "estimated_minutes": 25,
+      "path": "lessons/01-dns-tcp-tls.md",
+      "prerequisite_ids": [],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "networking",
+        "request-lifecycle"
+      ],
+      "objectives": [
+        "Trace a new HTTPS connection from name lookup to response.",
+        "Separate name resolution, transport reliability, and transport security.",
+        "Explain why a network timeout does not prove an operation failed."
+      ],
+      "source_ids": [
+        "dns",
+        "tcp",
+        "tls",
+        "http3"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-fundamentals",
+        "status": "existing"
+      },
+      "legacy_difficulty": 1,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-01-q1",
+            "prompt": "Does a TCP acknowledgement prove an order was saved?",
+            "answer": "No. It acknowledges transport receipt, not successful application processing or durable commit.",
+            "explanation": "No. It acknowledges transport receipt, not successful application processing or durable commit."
+          },
+          {
+            "id": "sd-01-q2",
+            "prompt": "Why can users reach the old server after a DNS update?",
+            "answer": "Cached records and established connections may continue using the old destination; changing authoritative DNS does not revoke them.",
+            "explanation": "Cached records and established connections may continue using the old destination; changing authoritative DNS does not revoke them."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-02",
+      "slug": "http-api-design",
+      "type": "lesson",
+      "title": "HTTP and API design: define the contract",
+      "summary": "An API is a promise about what a caller may ask, what the server changes, and what a response means.",
+      "stage": "beginner",
+      "stage_order": 1,
+      "order": 2,
+      "estimated_minutes": 25,
+      "path": "lessons/02-http-api-design.md",
+      "prerequisite_ids": [
+        "sd-01"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "http",
+        "api",
+        "contracts"
+      ],
+      "objectives": [
+        "Choose a method and response contract for a resource.",
+        "Distinguish safe methods from idempotent operations.",
+        "Use conditional updates to detect conflicting edits."
+      ],
+      "source_ids": [
+        "http"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-fundamentals",
+        "status": "existing"
+      },
+      "legacy_difficulty": 1,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-02-q1",
+            "prompt": "Can repeated DELETE requests be idempotent if the second returns 404?",
+            "answer": "Yes. Idempotence concerns intended state effects, not identical status codes.",
+            "explanation": "Yes. Idempotence concerns intended state effects, not identical status codes."
+          },
+          {
+            "id": "sd-02-q2",
+            "prompt": "Does 202 mean that the requested report exists?",
+            "answer": "No. It means processing was accepted; completion needs a separate observation.",
+            "explanation": "No. It means processing was accepted; completion needs a separate observation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-03",
+      "slug": "latency-throughput",
+      "type": "lesson",
+      "title": "Latency, throughput, and queueing",
+      "summary": "A restaurant can serve many meals per hour while making each customer wait a long time.",
+      "stage": "beginner",
+      "stage_order": 1,
+      "order": 3,
+      "estimated_minutes": 30,
+      "path": "lessons/03-latency-throughput.md",
+      "prerequisite_ids": [
+        "sd-01"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "performance",
+        "queueing",
+        "estimation"
+      ],
+      "objectives": [
+        "Separate response time, service time, arrival rate, and completion rate.",
+        "Calculate average in-flight work using Little's Law.",
+        "Recognize when averages conceal slow user experiences."
+      ],
+      "source_ids": [
+        "little-law",
+        "slo"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-fundamentals",
+        "status": "existing"
+      },
+      "legacy_difficulty": 1,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-03-q1",
+            "prompt": "At 50 requests/s and 0.2 s mean latency, what is average concurrency?",
+            "answer": "10 requests, if the measured system is stable and the throughput and latency refer to the same boundary.",
+            "explanation": "10 requests, if the measured system is stable and the throughput and latency refer to the same boundary."
+          },
+          {
+            "id": "sd-03-q2",
+            "prompt": "Why can CPU be low while requests time out?",
+            "answer": "Requests may be waiting on locks, connections, network responses, or queues instead of consuming CPU.",
+            "explanation": "Requests may be waiting on locks, connections, network responses, or queues instead of consuming CPU."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-04",
+      "slug": "concurrency-basics",
+      "type": "lesson",
+      "title": "Concurrency, parallelism, and shared state",
+      "summary": "Concurrency means several tasks are in progress during overlapping periods.",
+      "stage": "beginner",
+      "stage_order": 1,
+      "order": 4,
+      "estimated_minutes": 30,
+      "path": "lessons/04-concurrency-basics.md",
+      "prerequisite_ids": [
+        "sd-03"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "concurrency",
+        "async",
+        "race-conditions"
+      ],
+      "objectives": [
+        "Distinguish concurrent progress from simultaneous execution.",
+        "Demonstrate a lost update with an execution timeline.",
+        "Choose bounded work and an appropriate synchronization boundary."
+      ],
+      "source_ids": [
+        "asyncio",
+        "pg-isolation"
+      ],
+      "suggested_topic": {
+        "slug": "python-internals",
+        "status": "existing"
+      },
+      "legacy_difficulty": 1,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-04-q1",
+            "prompt": "Does adding await make a CPU-heavy loop run in parallel?",
+            "answer": "No. It enables suspension at appropriate operations; CPU parallelism requires an execution model that supports it.",
+            "explanation": "No. It enables suspension at appropriate operations; CPU parallelism requires an execution model that supports it."
+          },
+          {
+            "id": "sd-04-q2",
+            "prompt": "When is a local mutex insufficient for an inventory rule?",
+            "answer": "When other processes or services can update the same inventory without participating in that mutex.",
+            "explanation": "When other processes or services can update the same inventory without participating in that mutex."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-05",
+      "slug": "indexes-query-plans",
+      "type": "lesson",
+      "title": "Indexes and query plans: read less data",
+      "summary": "An index is an alternate route to data, like a book's index of terms.",
+      "stage": "beginner",
+      "stage_order": 1,
+      "order": 5,
+      "estimated_minutes": 35,
+      "path": "lessons/05-indexes-query-plans.md",
+      "prerequisite_ids": [
+        "sd-03",
+        "sd-04"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "database",
+        "indexes",
+        "sql"
+      ],
+      "objectives": [
+        "Derive an index candidate from filters and ordering.",
+        "Read estimated versus actual plan information.",
+        "Explain why an index can slow writes or be ignored."
+      ],
+      "source_ids": [
+        "pg-plan",
+        "pg-index"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 1,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-05-q1",
+            "prompt": "Why might a sequential scan be the right plan?",
+            "answer": "If a query needs much of the table, reading it sequentially can cost less than many index-guided table reads.",
+            "explanation": "If a query needs much of the table, reading it sequentially can cost less than many index-guided table reads."
+          },
+          {
+            "id": "sd-05-q2",
+            "prompt": "Is EXPLAIN ANALYZE a read-only inspection command for any SQL statement?",
+            "answer": "No. It executes the statement. Treat writes and side-effecting functions accordingly.",
+            "explanation": "No. It executes the statement. Treat writes and side-effecting functions accordingly."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-06",
+      "slug": "requirements-capacity",
+      "type": "lesson",
+      "title": "Requirements and capacity: turn assumptions into numbers",
+      "summary": "A design begins with questions about the product.",
+      "stage": "beginner",
+      "stage_order": 1,
+      "order": 6,
+      "estimated_minutes": 35,
+      "path": "lessons/06-requirements-capacity.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-03",
+        "sd-05"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "requirements",
+        "capacity",
+        "cost"
+      ],
+      "objectives": [
+        "Separate user behavior, invariants, and performance targets.",
+        "Estimate traffic, storage, and bandwidth with stated units.",
+        "Identify which assumption could change the architecture."
+      ],
+      "source_ids": [
+        "slo",
+        "k6"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-fundamentals",
+        "status": "existing"
+      },
+      "legacy_difficulty": 1,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-06-q1",
+            "prompt": "Is 'one million registered users' enough for a capacity estimate?",
+            "answer": "No. You need activity, actions per active user, timing, payloads, and retention assumptions.",
+            "explanation": "No. You need activity, actions per active user, timing, payloads, and retention assumptions."
+          },
+          {
+            "id": "sd-06-q2",
+            "prompt": "Which assumption changes first when a flash crowd appears?",
+            "answer": "The peak arrival pattern and concurrency; the registered-user count may remain unchanged.",
+            "explanation": "The peak arrival pattern and concurrency; the registered-user count may remain unchanged."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-07",
+      "slug": "load-balancing-health",
+      "type": "lesson",
+      "title": "Load balancing, health checks, and draining",
+      "summary": "A load balancer chooses where work goes.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 7,
+      "estimated_minutes": 30,
+      "path": "lessons/07-load-balancing-health.md",
+      "prerequisite_ids": [
+        "sd-01",
+        "sd-03",
+        "sd-06"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "load-balancing",
+        "availability",
+        "health-checks"
+      ],
+      "objectives": [
+        "Choose connection-level or request-level routing for a workload.",
+        "Separate readiness, liveness, and startup checks.",
+        "Describe how to remove an instance without abandoning requests."
+      ],
+      "source_ids": [
+        "probes"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-07-q1",
+            "prompt": "Should a database slowdown always fail application liveness?",
+            "answer": "No. Restarting healthy application processes may worsen a shared dependency incident.",
+            "explanation": "No. Restarting healthy application processes may worsen a shared dependency incident."
+          },
+          {
+            "id": "sd-07-q2",
+            "prompt": "Does equal connection count imply equal request load?",
+            "answer": "No. Connections can differ greatly in request count, duration, and resource cost.",
+            "explanation": "No. Connections can differ greatly in request count, duration, and resource cost."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-08",
+      "slug": "caching-invalidation",
+      "type": "lesson",
+      "title": "Caching, invalidation, and stampedes",
+      "summary": "A cache keeps a reusable copy closer to the reader or cheaper to retrieve.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 8,
+      "estimated_minutes": 35,
+      "path": "lessons/08-caching-invalidation.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-03",
+        "sd-05"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "caching",
+        "freshness",
+        "performance"
+      ],
+      "objectives": [
+        "Choose a cache key, freshness policy, and authority.",
+        "Explain a stale refill race and a cache stampede.",
+        "Estimate origin demand from hit rate and misses."
+      ],
+      "source_ids": [
+        "cache",
+        "http-cache"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-08-q1",
+            "prompt": "Does a 30-second TTL alone guarantee every served value is at most 30 seconds behind the authority?",
+            "answer": "No. Delayed fills, stale upstream reads, and refresh behavior can make the original data older than the entry's lifetime.",
+            "explanation": "No. Delayed fills, stale upstream reads, and refresh behavior can make the original data older than the entry's lifetime."
+          },
+          {
+            "id": "sd-08-q2",
+            "prompt": "What does HTTP no-cache mean?",
+            "answer": "A stored response requires validation before reuse; it is not the same as no-store.",
+            "explanation": "A stored response requires validation before reuse; it is not the same as no-store."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-09",
+      "slug": "connection-pooling",
+      "type": "lesson",
+      "title": "Connection pooling and resource budgets",
+      "summary": "A pool reuses a limited number of established connections.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 9,
+      "estimated_minutes": 30,
+      "path": "lessons/09-connection-pooling.md",
+      "prerequisite_ids": [
+        "sd-03",
+        "sd-04",
+        "sd-07"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "database",
+        "pooling",
+        "capacity"
+      ],
+      "objectives": [
+        "Budget connections across every process and replica.",
+        "Distinguish pool waiting from database execution.",
+        "Choose a pooling mode compatible with application state."
+      ],
+      "source_ids": [
+        "pool"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-09-q1",
+            "prompt": "Does a pool timeout prove the database query ran slowly?",
+            "answer": "No. The request may never have obtained a connection or submitted a query.",
+            "explanation": "No. The request may never have obtained a connection or submitted a query."
+          },
+          {
+            "id": "sd-09-q2",
+            "prompt": "Why include deployment overlap in connection budgets?",
+            "answer": "Old and new instances may run together, multiplying potential connections before the old fleet drains.",
+            "explanation": "Old and new instances may run together, multiplying potential connections before the old fleet drains."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-10",
+      "slug": "queues-background-jobs",
+      "type": "lesson",
+      "title": "Queues and background jobs",
+      "summary": "A queue decouples accepting work from performing it.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 10,
+      "estimated_minutes": 35,
+      "path": "lessons/10-queues-background-jobs.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-03",
+        "sd-04"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "queues",
+        "workers",
+        "asynchronous-processing"
+      ],
+      "objectives": [
+        "Separate durable acceptance from successful completion.",
+        "Place acknowledgements relative to business effects.",
+        "Estimate backlog growth and recovery capacity."
+      ],
+      "source_ids": [
+        "rabbit"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-10-q1",
+            "prompt": "Does a publisher confirm mean the report has been generated?",
+            "answer": "No. It concerns publication, not successful consumer-side report generation.",
+            "explanation": "No. It concerns publication, not successful consumer-side report generation."
+          },
+          {
+            "id": "sd-10-q2",
+            "prompt": "Why is oldest-job age a useful metric?",
+            "answer": "It directly exposes how long accepted work has waited, while count alone ignores job cost and arrival patterns.",
+            "explanation": "It directly exposes how long accepted work has waited, while count alone ignores job cost and arrival patterns."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-11",
+      "slug": "object-storage-cdn",
+      "type": "lesson",
+      "title": "Object storage, delivery, and CDNs",
+      "summary": "Large files are often better addressed as objects than stored inside application rows.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 11,
+      "estimated_minutes": 30,
+      "path": "lessons/11-object-storage-cdn.md",
+      "prerequisite_ids": [
+        "sd-01",
+        "sd-02",
+        "sd-08"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "object-storage",
+        "cdn",
+        "uploads"
+      ],
+      "objectives": [
+        "Separate binary objects from transactional metadata.",
+        "Design an upload and publish sequence.",
+        "Explain why storage consistency and CDN freshness differ."
+      ],
+      "source_ids": [
+        "s3",
+        "http-cache"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-11-q1",
+            "prompt": "Does a strongly consistent object store guarantee fresh CDN responses?",
+            "answer": "No. The CDN can retain a previously fetched representation under its independent cache policy.",
+            "explanation": "No. The CDN can retain a previously fetched representation under its independent cache policy."
+          },
+          {
+            "id": "sd-11-q2",
+            "prompt": "Why keep an upload record in a pending state?",
+            "answer": "It separates successful byte transfer from validation and publication, and makes incomplete workflows recoverable.",
+            "explanation": "It separates successful byte transfer from validation and publication, and makes incomplete workflows recoverable."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-12",
+      "slug": "pagination-access-patterns",
+      "type": "lesson",
+      "title": "Pagination and data access patterns",
+      "summary": "Pagination is a contract for continuing through a collection.",
+      "stage": "intermediate",
+      "stage_order": 2,
+      "order": 12,
+      "estimated_minutes": 35,
+      "path": "lessons/12-pagination-access-patterns.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-05",
+        "sd-06"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "pagination",
+        "data-modeling",
+        "indexes"
+      ],
+      "objectives": [
+        "Compare offset pagination with keyset pagination.",
+        "Define a total ordering and cursor contract.",
+        "Explain why a cursor is not automatically a snapshot."
+      ],
+      "source_ids": [
+        "pagination",
+        "search-page"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 2,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-12-q1",
+            "prompt": "Why is created_at alone often an insufficient cursor key?",
+            "answer": "Several rows can share that value, so a unique tiebreaker is needed to continue without ambiguity.",
+            "explanation": "Several rows can share that value, so a unique tiebreaker is needed to continue without ambiguity."
+          },
+          {
+            "id": "sd-12-q2",
+            "prompt": "Does keyset pagination guarantee an immutable result set?",
+            "answer": "No. It defines continuation; concurrent updates, deletions, and snapshot policy still determine visibility.",
+            "explanation": "No. It defines continuation; concurrent updates, deletions, and snapshot policy still determine visibility."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-13",
+      "slug": "timeouts-retries-jitter",
+      "type": "lesson",
+      "title": "Timeouts, retries, and jitter",
+      "summary": "A timeout is the caller deciding it has waited long enough.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 13,
+      "estimated_minutes": 35,
+      "path": "lessons/13-timeouts-retries-jitter.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-03",
+        "sd-10"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "retries",
+        "deadlines",
+        "resilience"
+      ],
+      "objectives": [
+        "Allocate an end-to-end deadline across attempts and waiting.",
+        "Explain retry amplification across service layers.",
+        "Choose retry eligibility, limits, and randomized delays."
+      ],
+      "source_ids": [
+        "retry",
+        "jitter"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-13-q1",
+            "prompt": "If every layer retries three times, is the deepest service called only three times?",
+            "answer": "No. Nested attempts can multiply; three layers with three attempts each can produce 27 calls.",
+            "explanation": "No. Nested attempts can multiply; three layers with three attempts each can produce 27 calls."
+          },
+          {
+            "id": "sd-13-q2",
+            "prompt": "Does a timeout authorize treating a payment as failed?",
+            "answer": "No. The operation may have committed; inspect durable state or reconcile using the original operation identity.",
+            "explanation": "No. The operation may have committed; inspect durable state or reconcile using the original operation identity."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-14",
+      "slug": "idempotency-deduplication",
+      "type": "lesson",
+      "title": "Idempotency and deduplication",
+      "summary": "A duplicate request should mean 'continue or return the same operation,' not 'perform a new operation that happens to look similar.' Idempotency turns ambiguous retries into a protocol with a stable identity.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 14,
+      "estimated_minutes": 40,
+      "path": "lessons/14-idempotency-deduplication.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-04",
+        "sd-13"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "idempotency",
+        "deduplication",
+        "correctness"
+      ],
+      "objectives": [
+        "Define idempotency key scope, retention, and payload matching.",
+        "Make duplicate claims and local effects atomic.",
+        "Identify the boundary where an external effect escapes a transaction."
+      ],
+      "source_ids": [
+        "idempotency",
+        "stripe-idem"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-14-q1",
+            "prompt": "Is a content hash always a valid substitute for a client operation key?",
+            "answer": "No. Two intentionally separate operations may have identical payloads.",
+            "explanation": "No. Two intentionally separate operations may have identical payloads."
+          },
+          {
+            "id": "sd-14-q2",
+            "prompt": "Why must retention be documented?",
+            "answer": "The duplicate-suppression guarantee only covers the period and scope for which identifying state remains available.",
+            "explanation": "The duplicate-suppression guarantee only covers the period and scope for which identifying state remains available."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-15",
+      "slug": "delivery-ordering",
+      "type": "lesson",
+      "title": "Delivery guarantees and ordering",
+      "summary": "A message has several lives: it is published, stored, delivered, processed, and turned into an effect.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 15,
+      "estimated_minutes": 40,
+      "path": "lessons/15-delivery-ordering.md",
+      "prerequisite_ids": [
+        "sd-10",
+        "sd-14"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "messaging",
+        "ordering",
+        "delivery-semantics"
+      ],
+      "objectives": [
+        "Trace the commit/acknowledgement ambiguity.",
+        "State the boundary of an exactly-once claim.",
+        "Choose ordering scope and handle repeated or stale events."
+      ],
+      "source_ids": [
+        "kafka",
+        "rabbit"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-15-q1",
+            "prompt": "Does transactional Kafka processing automatically make an external SQL update exactly once?",
+            "answer": "No. The external effect needs its own coordinated or idempotent commit strategy.",
+            "explanation": "No. The external effect needs its own coordinated or idempotent commit strategy."
+          },
+          {
+            "id": "sd-15-q2",
+            "prompt": "Can messages delivered in order produce effects out of order?",
+            "answer": "Yes. Concurrent workers, retries, and differing execution times can change completion order.",
+            "explanation": "Yes. Concurrent workers, retries, and differing execution times can change completion order."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-16",
+      "slug": "outbox-cdc",
+      "type": "lesson",
+      "title": "Transactional outbox and change data capture",
+      "summary": "An order update and its notification are often stored in different systems.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 16,
+      "estimated_minutes": 40,
+      "path": "lessons/16-outbox-cdc.md",
+      "prerequisite_ids": [
+        "sd-05",
+        "sd-10",
+        "sd-14",
+        "sd-15"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "outbox",
+        "cdc",
+        "events"
+      ],
+      "objectives": [
+        "Identify the failure gap in a database-plus-broker dual write.",
+        "Design an atomic outbox record and replayable publication.",
+        "Separate database changes from stable domain events."
+      ],
+      "source_ids": [
+        "outbox"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-16-q1",
+            "prompt": "Does the outbox remove duplicate event delivery?",
+            "answer": "No. It removes the local dual-write gap; relays can republish after uncertain outcomes.",
+            "explanation": "No. It removes the local dual-write gap; relays can republish after uncertain outcomes."
+          },
+          {
+            "id": "sd-16-q2",
+            "prompt": "Why store an event schema version?",
+            "answer": "Consumers need a stable way to interpret payloads as producers evolve independently.",
+            "explanation": "Consumers need a stable way to interpret payloads as producers evolve independently."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-17",
+      "slug": "sagas-compensation",
+      "type": "lesson",
+      "title": "Sagas and compensating actions",
+      "summary": "A workflow spanning independently owned services rarely fits into one local transaction.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 17,
+      "estimated_minutes": 40,
+      "path": "lessons/17-sagas-compensation.md",
+      "prerequisite_ids": [
+        "sd-14",
+        "sd-15",
+        "sd-16"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "sagas",
+        "workflows",
+        "compensation"
+      ],
+      "objectives": [
+        "Model a workflow as durable local transitions.",
+        "Separate compensation from transaction rollback.",
+        "Handle timeout, retry, and manual-repair states explicitly."
+      ],
+      "source_ids": [
+        "saga"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-17-q1",
+            "prompt": "Does compensation restore every outside observer to the original state?",
+            "answer": "No. Effects such as notifications, fees, and observations may be irreversible.",
+            "explanation": "No. Effects such as notifications, fees, and observations may be irreversible."
+          },
+          {
+            "id": "sd-17-q2",
+            "prompt": "Why persist the coordinator's state?",
+            "answer": "A restarted coordinator must resume or repair the workflow without forgetting completed steps or issuing contradictory actions.",
+            "explanation": "A restarted coordinator must resume or repair the workflow without forgetting completed steps or issuing contradictory actions."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-18",
+      "slug": "backpressure-load-shedding",
+      "type": "lesson",
+      "title": "Backpressure, load shedding, and graceful degradation",
+      "summary": "A system under overload needs a way to say 'less work' before it spends all its resources failing.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 18,
+      "estimated_minutes": 35,
+      "path": "lessons/18-backpressure-load-shedding.md",
+      "prerequisite_ids": [
+        "sd-03",
+        "sd-07",
+        "sd-09",
+        "sd-10",
+        "sd-13"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "overload",
+        "backpressure",
+        "admission-control"
+      ],
+      "objectives": [
+        "Distinguish rate limits, concurrency limits, and queue bounds.",
+        "Choose which work to reject or degrade under overload.",
+        "Calculate how long a burst buffer takes to fill."
+      ],
+      "source_ids": [
+        "overload",
+        "retry"
+      ],
+      "suggested_topic": {
+        "slug": "distributed-systems-patterns",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-18-q1",
+            "prompt": "Can a requests-per-second limit alone protect a dependency whose latency suddenly increases tenfold?",
+            "answer": "Not reliably. In-flight work can grow dramatically, so concurrency and waiting also need bounds.",
+            "explanation": "Not reliably. In-flight work can grow dramatically, so concurrency and waiting also need bounds."
+          },
+          {
+            "id": "sd-18-q2",
+            "prompt": "Why can a fallback make an outage worse?",
+            "answer": "The alternative path may be more expensive or have less capacity than the normal path.",
+            "explanation": "The alternative path may be more expensive or have less capacity than the normal path."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-19",
+      "slug": "slos-error-budgets",
+      "type": "lesson",
+      "title": "Service objectives and error budgets",
+      "summary": "Reliability becomes useful when it describes what users can accomplish.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 19,
+      "estimated_minutes": 35,
+      "path": "lessons/19-slos-error-budgets.md",
+      "prerequisite_ids": [
+        "sd-03",
+        "sd-06",
+        "sd-18"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "slo",
+        "reliability",
+        "error-budgets"
+      ],
+      "objectives": [
+        "Define good and eligible events for an SLI.",
+        "Calculate an event-based error budget and burn rate.",
+        "Connect reliability measurements to operational decisions."
+      ],
+      "source_ids": [
+        "slo-workbook"
+      ],
+      "suggested_topic": {
+        "slug": "production-engineering",
+        "status": "proposed"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-19-q1",
+            "prompt": "For a 99.5% target and 200,000 eligible events, how many bad events are allowed?",
+            "answer": "1,000: 200,000 × 0.005.",
+            "explanation": "1,000: 200,000 × 0.005."
+          },
+          {
+            "id": "sd-19-q2",
+            "prompt": "Is an error budget permission to ignore all errors below the threshold?",
+            "answer": "No. It is a decision tool; severe correctness, security, or concentrated user failures may require action regardless of aggregate budget.",
+            "explanation": "No. It is a decision tool; severe correctness, security, or concentrated user failures may require action regardless of aggregate budget."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-20",
+      "slug": "logs-metrics-traces",
+      "type": "lesson",
+      "title": "Logs, metrics, traces, and useful observability",
+      "summary": "Observability means having evidence to explain behavior you did not predict in advance.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 20,
+      "estimated_minutes": 35,
+      "path": "lessons/20-logs-metrics-traces.md",
+      "prerequisite_ids": [
+        "sd-07",
+        "sd-10",
+        "sd-19"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "observability",
+        "tracing",
+        "metrics"
+      ],
+      "objectives": [
+        "Choose signals that answer a concrete debugging question.",
+        "Propagate correlation across synchronous and queued work.",
+        "Control metric cardinality and telemetry sensitivity."
+      ],
+      "source_ids": [
+        "otel",
+        "trace-context"
+      ],
+      "suggested_topic": {
+        "slug": "production-engineering",
+        "status": "proposed"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-20-q1",
+            "prompt": "Why should request IDs usually not be metric labels?",
+            "answer": "Their near-unbounded values multiply time series and storage cost; logs or traces are better suited to individual IDs.",
+            "explanation": "Their near-unbounded values multiply time series and storage cost; logs or traces are better suited to individual IDs."
+          },
+          {
+            "id": "sd-20-q2",
+            "prompt": "Does a fast acceptance endpoint prove a background workflow is fast?",
+            "answer": "No. Queue waiting and execution can dominate end-to-end latency after acceptance.",
+            "explanation": "No. Queue waiting and execution can dominate end-to-end latency after acceptance."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-21",
+      "slug": "performance-load-testing",
+      "type": "lesson",
+      "title": "Performance testing that exposes bottlenecks",
+      "summary": "A load test is an experiment with a question, a workload, and a pass condition.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 21,
+      "estimated_minutes": 40,
+      "path": "lessons/21-performance-load-testing.md",
+      "prerequisite_ids": [
+        "sd-03",
+        "sd-06",
+        "sd-09",
+        "sd-18",
+        "sd-19"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "load-testing",
+        "performance",
+        "experiments"
+      ],
+      "objectives": [
+        "Choose a workload model that matches user behavior.",
+        "Measure offered load as well as successful throughput.",
+        "Design a repeatable capacity and recovery experiment."
+      ],
+      "source_ids": [
+        "k6"
+      ],
+      "suggested_topic": {
+        "slug": "production-engineering",
+        "status": "proposed"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-21-q1",
+            "prompt": "Why can a constant-virtual-user test hide overload?",
+            "answer": "As responses slow, each virtual user sends fewer requests, reducing the offered arrival rate.",
+            "explanation": "As responses slow, each virtual user sends fewer requests, reducing the offered arrival rate."
+          },
+          {
+            "id": "sd-21-q2",
+            "prompt": "What must accompany a throughput result?",
+            "answer": "Workload assumptions, offered load, latency/error outcomes, environment, and relevant resource or dependency limits.",
+            "explanation": "Workload assumptions, offered load, latency/error outcomes, environment, and relevant resource or dependency limits."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-22",
+      "slug": "safe-releases-migrations",
+      "type": "lesson",
+      "title": "Safe releases and database migrations",
+      "summary": "During a rolling release, old and new application versions coexist.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 22,
+      "estimated_minutes": 40,
+      "path": "lessons/22-safe-releases-migrations.md",
+      "prerequisite_ids": [
+        "sd-05",
+        "sd-07",
+        "sd-16",
+        "sd-19",
+        "sd-20"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "deployments",
+        "migrations",
+        "compatibility"
+      ],
+      "objectives": [
+        "Define a canary comparison and stop condition.",
+        "Plan an expand-migrate-contract schema change.",
+        "Identify what an application rollback cannot reverse."
+      ],
+      "source_ids": [
+        "canary",
+        "pg-alter"
+      ],
+      "suggested_topic": {
+        "slug": "production-engineering",
+        "status": "proposed"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-22-q1",
+            "prompt": "Does deploying the previous application image reverse a database migration?",
+            "answer": "No. Data and schema changes persist independently and may no longer be compatible.",
+            "explanation": "No. Data and schema changes persist independently and may no longer be compatible."
+          },
+          {
+            "id": "sd-22-q2",
+            "prompt": "Why validate a backfill before dropping the old field?",
+            "answer": "Missing, stale, or incorrectly transformed values can otherwise become permanent user-visible data loss.",
+            "explanation": "Missing, stale, or incorrectly transformed values can otherwise become permanent user-visible data loss."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-23",
+      "slug": "authentication-authorization-tenants",
+      "type": "lesson",
+      "title": "Authentication, authorization, and tenant isolation",
+      "summary": "Authentication answers who is making a request.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 23,
+      "estimated_minutes": 40,
+      "path": "lessons/23-authentication-authorization-tenants.md",
+      "prerequisite_ids": [
+        "sd-02",
+        "sd-08",
+        "sd-09"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "security",
+        "authorization",
+        "multi-tenancy"
+      ],
+      "objectives": [
+        "Separate identity verification from permission decisions.",
+        "Carry trusted tenant scope through every data path.",
+        "Test object-level authorization and isolation under pooling."
+      ],
+      "source_ids": [
+        "authentication",
+        "owasp",
+        "rls"
+      ],
+      "suggested_topic": {
+        "slug": "production-engineering",
+        "status": "proposed"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-23-q1",
+            "prompt": "Does an unguessable UUID authorize access?",
+            "answer": "No. It reduces guessing but is not a permission check.",
+            "explanation": "No. It reduces guessing but is not a permission check."
+          },
+          {
+            "id": "sd-23-q2",
+            "prompt": "Is enabling row-level security enough when the application connects as a superuser?",
+            "answer": "No. Superusers bypass row security; the role and policy configuration are part of the guarantee.",
+            "explanation": "No. Superusers bypass row security; the role and policy configuration are part of the guarantee."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-24",
+      "slug": "backup-disaster-recovery",
+      "type": "lesson",
+      "title": "Backups, restore drills, and disaster recovery",
+      "summary": "A replica can quickly copy an accidental deletion.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 24,
+      "estimated_minutes": 40,
+      "path": "lessons/24-backup-disaster-recovery.md",
+      "prerequisite_ids": [
+        "sd-06",
+        "sd-11",
+        "sd-16",
+        "sd-19"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "backups",
+        "disaster-recovery",
+        "rpo-rto"
+      ],
+      "objectives": [
+        "Distinguish replication from recoverable backup history.",
+        "Specify recovery point and recovery time objectives.",
+        "Design a restore drill that verifies business invariants."
+      ],
+      "source_ids": [
+        "backup"
+      ],
+      "suggested_topic": {
+        "slug": "production-engineering",
+        "status": "proposed"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-24-q1",
+            "prompt": "Why is a current replica not a substitute for historical backups?",
+            "answer": "It may faithfully replicate destructive or corrupting changes.",
+            "explanation": "It may faithfully replicate destructive or corrupting changes."
+          },
+          {
+            "id": "sd-24-q2",
+            "prompt": "What makes an RTO claim credible?",
+            "answer": "A timed, representative recovery exercise including data restoration, validation, dependencies, and traffic restoration.",
+            "explanation": "A timed, representative recovery exercise including data restoration, validation, dependencies, and traffic restoration."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-25",
+      "slug": "consistency-histories",
+      "type": "lesson",
+      "title": "Consistency models and execution histories",
+      "summary": "Consistency is a rule about which observations are allowed.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 25,
+      "estimated_minutes": 45,
+      "path": "lessons/25-consistency-histories.md",
+      "prerequisite_ids": [
+        "sd-04",
+        "sd-14",
+        "sd-15",
+        "sd-24"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "consistency",
+        "linearizability",
+        "serializability"
+      ],
+      "objectives": [
+        "Evaluate a history against a declared consistency model.",
+        "Distinguish transaction isolation from real-time ordering.",
+        "Explain which operations must stop during a partition."
+      ],
+      "source_ids": [
+        "linearizable",
+        "serializable",
+        "pg-isolation"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-25-q1",
+            "prompt": "Does serializability alone require a later transaction to reflect every earlier completed transaction in wall-clock order?",
+            "answer": "No. That real-time requirement belongs to strict serializability.",
+            "explanation": "No. That real-time requirement belongs to strict serializability."
+          },
+          {
+            "id": "sd-25-q2",
+            "prompt": "Can a stale read be legal when it overlaps a write?",
+            "answer": "Yes, under linearizability it may be ordered before that overlapping write; completed-before-started operations impose stronger constraints.",
+            "explanation": "Yes, under linearizability it may be ordered before that overlapping write; completed-before-started operations impose stronger constraints."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-26",
+      "slug": "consensus-membership",
+      "type": "lesson",
+      "title": "Consensus, leader changes, and membership",
+      "summary": "Consensus gives replicas a shared decision order despite some failures.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 26,
+      "estimated_minutes": 50,
+      "path": "lessons/26-consensus-membership.md",
+      "prerequisite_ids": [
+        "sd-13",
+        "sd-15",
+        "sd-25"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "consensus",
+        "raft",
+        "membership"
+      ],
+      "objectives": [
+        "Separate consensus safety from progress.",
+        "Explain quorum intersection and leader-log restrictions.",
+        "Plan membership changes without creating competing majorities."
+      ],
+      "source_ids": [
+        "raft",
+        "etcd-membership"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-26-q1",
+            "prompt": "Does a timeout prove the leader is dead?",
+            "answer": "No. It may be slow or partitioned; elections and term rules must preserve safety despite false suspicions.",
+            "explanation": "No. It may be slow or partitioned; elections and term rules must preserve safety despite false suspicions."
+          },
+          {
+            "id": "sd-26-q2",
+            "prompt": "Why must membership changes be coordinated?",
+            "answer": "Independent old and new majorities can otherwise make conflicting decisions without intersecting.",
+            "explanation": "Independent old and new majorities can otherwise make conflicting decisions without intersecting."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-27",
+      "slug": "distributed-transactions",
+      "type": "lesson",
+      "title": "Distributed transactions and atomic commitment",
+      "summary": "A transaction spanning multiple authorities needs agreement about its outcome.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 27,
+      "estimated_minutes": 50,
+      "path": "lessons/27-distributed-transactions.md",
+      "prerequisite_ids": [
+        "sd-17",
+        "sd-25",
+        "sd-26"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "transactions",
+        "two-phase-commit",
+        "atomicity"
+      ],
+      "objectives": [
+        "Trace prepare and decision phases of atomic commitment.",
+        "Explain the blocking risk of an uncertain prepared participant.",
+        "Separate atomic commit from isolation and consensus."
+      ],
+      "source_ids": [
+        "two-phase"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-27-q1",
+            "prompt": "Can a prepared participant safely abort solely because its timer expired?",
+            "answer": "Not if a commit decision may already exist; it must follow the protocol's recovery rules.",
+            "explanation": "Not if a commit decision may already exist; it must follow the protocol's recovery rules."
+          },
+          {
+            "id": "sd-27-q2",
+            "prompt": "Does consensus automatically turn arbitrary database writes into a distributed transaction?",
+            "answer": "No. Consensus orders agreed state; atomic commitment and isolation across participants require additional protocol design.",
+            "explanation": "No. Consensus orders agreed state; atomic commitment and isolation across participants require additional protocol design."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-28",
+      "slug": "clocks-leases-fencing",
+      "type": "lesson",
+      "title": "Clocks, leases, and fencing tokens",
+      "summary": "A lease says an owner is valid for a bounded period under a particular time model.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 28,
+      "estimated_minutes": 50,
+      "path": "lessons/28-clocks-leases-fencing.md",
+      "prerequisite_ids": [
+        "sd-13",
+        "sd-14",
+        "sd-25",
+        "sd-26"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "clocks",
+        "leases",
+        "fencing"
+      ],
+      "objectives": [
+        "Separate elapsed time, wall time, and causal ordering.",
+        "Construct a stale lease-holder failure timeline.",
+        "Place fencing checks at the resource that must be protected."
+      ],
+      "source_ids": [
+        "logical-clocks",
+        "fencing"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-28-q1",
+            "prompt": "Does a distributed lock physically stop an expired worker?",
+            "answer": "No. The worker may continue; the protected resource must reject stale authority.",
+            "explanation": "No. The worker may continue; the protected resource must reject stale authority."
+          },
+          {
+            "id": "sd-28-q2",
+            "prompt": "Does a monotonic clock order events on different machines?",
+            "answer": "No. Its useful guarantee concerns elapsed time within its local clock domain.",
+            "explanation": "No. Its useful guarantee concerns elapsed time within its local clock domain."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-29",
+      "slug": "multi-region-conflicts",
+      "type": "lesson",
+      "title": "Multi-region replication and conflict resolution",
+      "summary": "Putting data in several regions improves locality and recovery options, but also creates the question of who may decide a conflicting update.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 29,
+      "estimated_minutes": 50,
+      "path": "lessons/29-multi-region-conflicts.md",
+      "prerequisite_ids": [
+        "sd-23",
+        "sd-24",
+        "sd-25",
+        "sd-26",
+        "sd-28"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "multi-region",
+        "crdt",
+        "conflicts"
+      ],
+      "objectives": [
+        "Choose write ownership per invariant.",
+        "Explain the loss hidden by last-writer-wins convergence.",
+        "Apply a mergeable data type without claiming arbitrary invariant safety."
+      ],
+      "source_ids": [
+        "crdt",
+        "crdt-paper",
+        "global"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-29-q1",
+            "prompt": "Does eventual convergence mean no user update was lost?",
+            "answer": "No. A deterministic winner policy can converge after discarding a concurrent intent.",
+            "explanation": "No. A deterministic winner policy can converge after discarding a concurrent intent."
+          },
+          {
+            "id": "sd-29-q2",
+            "prompt": "Can a CRDT counter alone guarantee never selling more than ten seats?",
+            "answer": "No. Independent increments may exceed the business limit; coordination or a proven allocation scheme is needed.",
+            "explanation": "No. Independent increments may exceed the business limit; coordination or a proven allocation scheme is needed."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sd-30",
+      "slug": "stream-processing-correctness",
+      "type": "lesson",
+      "title": "Stream processing, event time, and correctness",
+      "summary": "A stream has no natural final page.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 30,
+      "estimated_minutes": 50,
+      "path": "lessons/30-stream-processing-correctness.md",
+      "prerequisite_ids": [
+        "sd-15",
+        "sd-16",
+        "sd-20",
+        "sd-25"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "stream-processing",
+        "event-time",
+        "checkpoints"
+      ],
+      "objectives": [
+        "Separate event time from processing time and watermarks.",
+        "Define a late-data policy for a windowed result.",
+        "State the recovery boundary of an exactly-once processing claim."
+      ],
+      "source_ids": [
+        "event-time",
+        "stream-state"
+      ],
+      "suggested_topic": {
+        "slug": "databases-distributed-storage",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "practice",
+        "knowledge-check"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "sd-30-q1",
+            "prompt": "Does a watermark make later arrival of older events impossible?",
+            "answer": "No. It represents the processor's progress assumption; the system still needs a late-data policy.",
+            "explanation": "No. It represents the processor's progress assumption; the system still needs a late-data policy."
+          },
+          {
+            "id": "sd-30-q2",
+            "prompt": "Does restoring a checkpoint undo an email already sent by a sink?",
+            "answer": "No. External effects require their own transactional, idempotent, or compensating treatment.",
+            "explanation": "No. External effects require their own transactional, idempotent, or compensating treatment."
+          }
+        ]
+      }
+    },
+    {
+      "id": "cs-01",
+      "slug": "ticket-booking",
+      "type": "case_study",
+      "title": "Design a ticket-booking system",
+      "summary": "Build a reservation workflow whose correctness survives double clicks, expired holds, payment delays, and heavy contention.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 31,
+      "estimated_minutes": 75,
+      "path": "case-studies/01-ticket-booking.md",
+      "prerequisite_ids": [
+        "sd-04",
+        "sd-05",
+        "sd-06",
+        "sd-08",
+        "sd-14",
+        "sd-16",
+        "sd-17",
+        "sd-18"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "inventory",
+        "contention",
+        "reservations"
+      ],
+      "objectives": [
+        "Enforce exclusive ownership of a seat despite concurrent requests.",
+        "Model expiring holds and uncertain payment outcomes.",
+        "Protect the authoritative reservation path during a flash crowd."
+      ],
+      "source_ids": [
+        "pg-isolation",
+        "idempotency",
+        "outbox",
+        "saga"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-case-studies",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "design-practice",
+        "knowledge-check",
+        "architecture-builder-brief"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "cs-01-q1",
+            "prompt": "Can two users both see a seat as available without violating correctness?",
+            "answer": "Yes. The display may be stale; the authoritative claim and confirmation must still have one winner.",
+            "explanation": "Yes. The display may be stale; the authoritative claim and confirmation must still have one winner."
+          },
+          {
+            "id": "cs-01-q2",
+            "prompt": "Why not hold a database transaction open throughout payment?",
+            "answer": "A slow external call would retain locks/resources, and the transaction still cannot roll back a provider's independent effect.",
+            "explanation": "A slow external call would retain locks/resources, and the transaction still cannot roll back a provider's independent effect."
+          },
+          {
+            "id": "cs-01-q3",
+            "prompt": "What happens to a late successful payment after the seat is reassigned?",
+            "answer": "Reconcile and void/refund under an explicit workflow; do not issue a second ticket.",
+            "explanation": "Reconcile and void/refund under an explicit workflow; do not issue a second ticket."
+          }
+        ],
+        "rubric": {
+          "maximum_points": 20,
+          "suggested_mastery_points": 16,
+          "core_invariants_required": true,
+          "criteria": [
+            {
+              "id": "cs-01-r1",
+              "criterion": "Seat invariant",
+              "evidence": "Shows an enforceable uniqueness/conditional-update boundary.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-01-r2",
+              "criterion": "Expiry race",
+              "evidence": "Traces both winner orders without double confirmation.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-01-r3",
+              "criterion": "Payment uncertainty",
+              "evidence": "Uses stable identity, reconciliation, and compensation.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-01-r4",
+              "criterion": "Overload",
+              "evidence": "Protects authoritative work and separates browsing freshness.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-01-r5",
+              "criterion": "Recovery",
+              "evidence": "Uses durable workflow/outbox state and repeat-safe consumers.",
+              "max_points": 4
+            }
+          ]
+        }
+      },
+      "architecture": {
+        "status": "reference_design",
+        "components": [
+          {
+            "id": "client",
+            "label": "Buyer"
+          },
+          {
+            "id": "api",
+            "label": "Reservation API"
+          },
+          {
+            "id": "cache",
+            "label": "Seat-map cache"
+          },
+          {
+            "id": "db",
+            "label": "Reservation database"
+          },
+          {
+            "id": "payment",
+            "label": "Payment adapter"
+          },
+          {
+            "id": "provider",
+            "label": "Payment provider"
+          },
+          {
+            "id": "relay",
+            "label": "Outbox relay"
+          },
+          {
+            "id": "notify",
+            "label": "Notification worker"
+          }
+        ],
+        "connections": [
+          {
+            "from": "client",
+            "to": "api",
+            "label": "browse or reserve"
+          },
+          {
+            "from": "api",
+            "to": "cache",
+            "label": "display reads"
+          },
+          {
+            "from": "api",
+            "to": "db",
+            "label": "conditional holds and bookings"
+          },
+          {
+            "from": "api",
+            "to": "payment",
+            "label": "checkout workflow"
+          },
+          {
+            "from": "payment",
+            "to": "provider",
+            "label": "stable operation key"
+          },
+          {
+            "from": "payment",
+            "to": "db",
+            "label": "reconcile result"
+          },
+          {
+            "from": "db",
+            "to": "relay",
+            "label": "committed events"
+          },
+          {
+            "from": "relay",
+            "to": "notify",
+            "label": "booking confirmation"
+          }
+        ],
+        "builder_brief": "Required reasoning: the cache is a display path; the database is the reservation authority; the external payment has a recoverable identity. Challenge distractor: confirming a booking directly from a cached available flag. Accept alternate architectures only if they enforce the same ownership and recovery rules."
+      }
+    },
+    {
+      "id": "cs-02",
+      "slug": "payment-processing",
+      "type": "case_study",
+      "title": "Design a payment-processing workflow",
+      "summary": "Design the application-side payment workflow around stable operation identity, durable state, and reconciliation.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 32,
+      "estimated_minutes": 90,
+      "path": "case-studies/02-payment-processing.md",
+      "prerequisite_ids": [
+        "sd-14",
+        "sd-15",
+        "sd-16",
+        "sd-17",
+        "sd-19",
+        "sd-20",
+        "sd-23",
+        "sd-24"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "payments",
+        "ledger",
+        "reconciliation"
+      ],
+      "objectives": [
+        "Preserve one logical payment across retries and ambiguous responses.",
+        "Maintain an auditable balanced journal.",
+        "Reconcile provider state with local workflow and accounting state."
+      ],
+      "source_ids": [
+        "stripe-idem",
+        "webhooks",
+        "idempotency",
+        "outbox"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-case-studies",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "design-practice",
+        "knowledge-check",
+        "architecture-builder-brief"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "cs-02-q1",
+            "prompt": "Does a balanced journal prove the provider and application agree?",
+            "answer": "No. Entries can balance while being missing, duplicated under different identities, or assigned to the wrong business meaning.",
+            "explanation": "No. Entries can balance while being missing, duplicated under different identities, or assigned to the wrong business meaning."
+          },
+          {
+            "id": "cs-02-q2",
+            "prompt": "Can webhook arrival order be used as the authoritative payment sequence?",
+            "answer": "No. Delivery can be repeated or reordered; validate transitions and reconcile canonical state.",
+            "explanation": "No. Delivery can be repeated or reordered; validate transitions and reconcile canonical state."
+          },
+          {
+            "id": "cs-02-q3",
+            "prompt": "Why does a refund need its own operation identity?",
+            "answer": "It is a separate external effect that can also be retried or have an uncertain outcome.",
+            "explanation": "It is a separate external effect that can also be retried or have an uncertain outcome."
+          }
+        ],
+        "rubric": {
+          "maximum_points": 20,
+          "suggested_mastery_points": 16,
+          "core_invariants_required": true,
+          "criteria": [
+            {
+              "id": "cs-02-r1",
+              "criterion": "Identity",
+              "evidence": "Scopes and retains logical operation identities correctly.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-02-r2",
+              "criterion": "Atomic journal",
+              "evidence": "Checks balance and uniqueness within a durable transaction.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-02-r3",
+              "criterion": "External boundary",
+              "evidence": "Explains uncertain charge/refund results and provider limits.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-02-r4",
+              "criterion": "Webhooks",
+              "evidence": "Verifies, durably accepts, and processes duplicate/reordered events.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-02-r5",
+              "criterion": "Reconciliation",
+              "evidence": "Defines measurable discrepancy and repair workflows.",
+              "max_points": 4
+            }
+          ]
+        }
+      },
+      "architecture": {
+        "status": "reference_design",
+        "components": [
+          {
+            "id": "client",
+            "label": "Merchant client"
+          },
+          {
+            "id": "api",
+            "label": "Payments API"
+          },
+          {
+            "id": "db",
+            "label": "Workflow and journal store"
+          },
+          {
+            "id": "adapter",
+            "label": "Provider adapter"
+          },
+          {
+            "id": "provider",
+            "label": "External provider"
+          },
+          {
+            "id": "webhook",
+            "label": "Verified webhook ingress"
+          },
+          {
+            "id": "worker",
+            "label": "Event worker"
+          },
+          {
+            "id": "reconcile",
+            "label": "Reconciler"
+          }
+        ],
+        "connections": [
+          {
+            "from": "client",
+            "to": "api",
+            "label": "operation key"
+          },
+          {
+            "from": "api",
+            "to": "db",
+            "label": "durable command"
+          },
+          {
+            "from": "adapter",
+            "to": "db",
+            "label": "claim and record attempt"
+          },
+          {
+            "from": "adapter",
+            "to": "provider",
+            "label": "idempotent request"
+          },
+          {
+            "from": "provider",
+            "to": "webhook",
+            "label": "signed event"
+          },
+          {
+            "from": "webhook",
+            "to": "db",
+            "label": "durable event receipt"
+          },
+          {
+            "from": "db",
+            "to": "worker",
+            "label": "pending events"
+          },
+          {
+            "from": "worker",
+            "to": "db",
+            "label": "atomic posting and state"
+          },
+          {
+            "from": "reconcile",
+            "to": "provider",
+            "label": "canonical lookup"
+          },
+          {
+            "from": "reconcile",
+            "to": "db",
+            "label": "resolve discrepancies"
+          }
+        ],
+        "builder_brief": "Required reasoning: webhook receipt is distinct from business processing; the provider effect lies outside the local transaction. Challenge distractor: mark every timed-out payment failed and issue a new operation key. Grade journal invariants and uncertainty handling, not provider brand choice."
+      }
+    },
+    {
+      "id": "cs-03",
+      "slug": "job-scheduling",
+      "type": "case_study",
+      "title": "Design a durable job scheduler",
+      "summary": "Build a scheduler that can explain every accepted job through retries, stale workers, and leadership changes.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 33,
+      "estimated_minutes": 90,
+      "path": "case-studies/03-job-scheduling.md",
+      "prerequisite_ids": [
+        "sd-09",
+        "sd-10",
+        "sd-14",
+        "sd-16",
+        "sd-18",
+        "sd-20",
+        "sd-26",
+        "sd-28"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "scheduling",
+        "leases",
+        "fairness"
+      ],
+      "objectives": [
+        "Separate scheduling, dispatch, execution, and effect guarantees.",
+        "Recover jobs after worker and scheduler failures.",
+        "Use fencing and tenant budgets without promising universal exactly-once execution."
+      ],
+      "source_ids": [
+        "cron",
+        "pg-select",
+        "fencing",
+        "rabbit"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-case-studies",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "design-practice",
+        "knowledge-check",
+        "architecture-builder-brief"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "cs-03-q1",
+            "prompt": "Can lease expiry guarantee that only one worker is running?",
+            "answer": "No. An old worker may be paused or partitioned and later resume.",
+            "explanation": "No. An old worker may be paused or partitioned and later resume."
+          },
+          {
+            "id": "cs-03-q2",
+            "prompt": "What should identify one recurring occurrence?",
+            "answer": "A stable schedule identity plus a precisely defined occurrence, independent of which scheduler discovers it.",
+            "explanation": "A stable schedule identity plus a precisely defined occurrence, independent of which scheduler discovers it."
+          },
+          {
+            "id": "cs-03-q3",
+            "prompt": "Does fencing a result row deduplicate every external effect?",
+            "answer": "No. Every affected destination needs a compatible idempotency or authority protocol.",
+            "explanation": "No. Every affected destination needs a compatible idempotency or authority protocol."
+          }
+        ],
+        "rubric": {
+          "maximum_points": 20,
+          "suggested_mastery_points": 16,
+          "core_invariants_required": true,
+          "criteria": [
+            {
+              "id": "cs-03-r1",
+              "criterion": "Run identity",
+              "evidence": "Deduplicates scheduling and dispatch independently.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-03-r2",
+              "criterion": "Ownership",
+              "evidence": "Uses atomic epoch checks and traces stale-worker behavior.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-03-r3",
+              "criterion": "Effects",
+              "evidence": "States the limits of execution and effect guarantees.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-03-r4",
+              "criterion": "Fairness",
+              "evidence": "Bounds tenant work, retries, and starvation.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-03-r5",
+              "criterion": "Recovery",
+              "evidence": "Explains crash, cancellation, orphan, and version recovery.",
+              "max_points": 4
+            }
+          ]
+        }
+      },
+      "architecture": {
+        "status": "reference_design",
+        "components": [
+          {
+            "id": "api",
+            "label": "Scheduling API"
+          },
+          {
+            "id": "db",
+            "label": "Job and attempt store"
+          },
+          {
+            "id": "scheduler",
+            "label": "Due-job scheduler"
+          },
+          {
+            "id": "relay",
+            "label": "Dispatch relay"
+          },
+          {
+            "id": "queue",
+            "label": "Work broker"
+          },
+          {
+            "id": "worker",
+            "label": "Bounded workers"
+          },
+          {
+            "id": "result",
+            "label": "Result authority"
+          },
+          {
+            "id": "reaper",
+            "label": "Recovery loop"
+          }
+        ],
+        "connections": [
+          {
+            "from": "api",
+            "to": "db",
+            "label": "durable schedules"
+          },
+          {
+            "from": "scheduler",
+            "to": "db",
+            "label": "claim unique occurrences"
+          },
+          {
+            "from": "db",
+            "to": "relay",
+            "label": "outbox runs"
+          },
+          {
+            "from": "relay",
+            "to": "queue",
+            "label": "dispatch"
+          },
+          {
+            "from": "queue",
+            "to": "worker",
+            "label": "at-least-once delivery"
+          },
+          {
+            "from": "worker",
+            "to": "db",
+            "label": "attempt epoch and heartbeat"
+          },
+          {
+            "from": "worker",
+            "to": "result",
+            "label": "conditional publication"
+          },
+          {
+            "from": "reaper",
+            "to": "db",
+            "label": "expired attempts"
+          },
+          {
+            "from": "reaper",
+            "to": "queue",
+            "label": "eligible retries"
+          }
+        ],
+        "builder_brief": "Required reasoning: distinguish broker delivery from authoritative ownership and result publication. Challenge distractor: trust a worker's local clock and publish after any lease it once held. Accept queue-less implementations if they show equally durable claiming, bounded polling, and recovery."
+      }
+    },
+    {
+      "id": "cs-04",
+      "slug": "search-autocomplete",
+      "type": "case_study",
+      "title": "Design search and autocomplete",
+      "summary": "Design a search service that stays useful while its derived index lags, rebuilds, and handles repeated events.",
+      "stage": "advanced",
+      "stage_order": 3,
+      "order": 34,
+      "estimated_minutes": 75,
+      "path": "case-studies/04-search-autocomplete.md",
+      "prerequisite_ids": [
+        "sd-05",
+        "sd-08",
+        "sd-12",
+        "sd-15",
+        "sd-16",
+        "sd-18"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "search",
+        "indexing",
+        "autocomplete"
+      ],
+      "objectives": [
+        "Build a recoverable projection from authoritative content.",
+        "Define search freshness and deletion visibility.",
+        "Separate full-text relevance from prefix suggestions and authorization."
+      ],
+      "source_ids": [
+        "search",
+        "suggesters",
+        "search-page",
+        "outbox"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-case-studies",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "design-practice",
+        "knowledge-check",
+        "architecture-builder-brief"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "cs-04-q1",
+            "prompt": "Does source-database commit mean a document is immediately searchable?",
+            "answer": "No. Ingestion and search refresh introduce separate visibility stages.",
+            "explanation": "No. Ingestion and search refresh introduce separate visibility stages."
+          },
+          {
+            "id": "cs-04-q2",
+            "prompt": "Why keep version information on deletes?",
+            "answer": "A delayed update or snapshot replay must not resurrect a document deleted by a newer version.",
+            "explanation": "A delayed update or snapshot replay must not resurrect a document deleted by a newer version."
+          },
+          {
+            "id": "cs-04-q3",
+            "prompt": "Can autocomplete share the exact access policy of public search by assumption?",
+            "answer": "No. Suggestions can reveal private titles or sensitive queries and need their own explicit visibility controls.",
+            "explanation": "No. Suggestions can reveal private titles or sensitive queries and need their own explicit visibility controls."
+          }
+        ],
+        "rubric": {
+          "maximum_points": 20,
+          "suggested_mastery_points": 16,
+          "core_invariants_required": true,
+          "criteria": [
+            {
+              "id": "cs-04-r1",
+              "criterion": "Projection recovery",
+              "evidence": "Defines no-gap snapshot and change replay.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-04-r2",
+              "criterion": "Version semantics",
+              "evidence": "Handles stale updates, duplicates, and tombstones.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-04-r3",
+              "criterion": "Search quality",
+              "evidence": "Separates relevance, filters, prefix behavior, and pagination.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-04-r4",
+              "criterion": "Authorization",
+              "evidence": "Maintains privacy during lag and rebuild.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-04-r5",
+              "criterion": "Operations",
+              "evidence": "Measures freshness and bounds query/indexing load.",
+              "max_points": 4
+            }
+          ]
+        }
+      },
+      "architecture": {
+        "status": "reference_design",
+        "components": [
+          {
+            "id": "client",
+            "label": "Search client"
+          },
+          {
+            "id": "api",
+            "label": "Query API"
+          },
+          {
+            "id": "content",
+            "label": "Content authority"
+          },
+          {
+            "id": "outbox",
+            "label": "Change stream"
+          },
+          {
+            "id": "indexer",
+            "label": "Version-aware indexer"
+          },
+          {
+            "id": "search",
+            "label": "Search index"
+          },
+          {
+            "id": "suggest",
+            "label": "Suggestion index"
+          },
+          {
+            "id": "auth",
+            "label": "Authorization"
+          }
+        ],
+        "connections": [
+          {
+            "from": "client",
+            "to": "api",
+            "label": "query and filters"
+          },
+          {
+            "from": "api",
+            "to": "auth",
+            "label": "scope checks"
+          },
+          {
+            "from": "api",
+            "to": "search",
+            "label": "ranked retrieval"
+          },
+          {
+            "from": "api",
+            "to": "suggest",
+            "label": "prefix lookup"
+          },
+          {
+            "from": "content",
+            "to": "outbox",
+            "label": "committed content changes"
+          },
+          {
+            "from": "outbox",
+            "to": "indexer",
+            "label": "replayable events"
+          },
+          {
+            "from": "indexer",
+            "to": "search",
+            "label": "versioned documents"
+          },
+          {
+            "from": "indexer",
+            "to": "suggest",
+            "label": "eligible suggestions"
+          }
+        ],
+        "builder_brief": "Required reasoning: search is a rebuildable projection with an explicit freshness contract. Challenge distractor: trust stale indexed visibility for every private result. Alternative indexes are acceptable when they demonstrate filtering, deletion, replay, and query limits."
+      }
+    },
+    {
+      "id": "cs-05",
+      "slug": "feature-flags",
+      "type": "case_study",
+      "title": "Design a feature-flag service",
+      "summary": "Build a flag system whose rollout decisions remain predictable when configuration distribution fails.",
+      "stage": "production",
+      "stage_order": 4,
+      "order": 35,
+      "estimated_minutes": 75,
+      "path": "case-studies/05-feature-flags.md",
+      "prerequisite_ids": [
+        "sd-08",
+        "sd-14",
+        "sd-16",
+        "sd-19",
+        "sd-20",
+        "sd-22",
+        "sd-23"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "configuration",
+        "feature-flags",
+        "rollouts"
+      ],
+      "objectives": [
+        "Separate flag administration from request-time evaluation.",
+        "Keep cohorts deterministic across clients and restarts.",
+        "Define safe behavior during stale or unavailable configuration."
+      ],
+      "source_ids": [
+        "flags",
+        "canary",
+        "owasp"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-case-studies",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "design-practice",
+        "knowledge-check",
+        "architecture-builder-brief"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "cs-05-q1",
+            "prompt": "Will increasing a threshold preserve the old cohort if the rollout salt also changes?",
+            "answer": "Not generally. Changing the hash input reshuffles buckets.",
+            "explanation": "Not generally. Changing the hash input reshuffles buckets."
+          },
+          {
+            "id": "cs-05-q2",
+            "prompt": "Can a local flag cache guarantee immediate response to a kill switch during a partition?",
+            "answer": "No. A bounded guarantee needs an expiry or online protocol and a stated failure policy.",
+            "explanation": "No. A bounded guarantee needs an expiry or online protocol and a stated failure policy."
+          },
+          {
+            "id": "cs-05-q3",
+            "prompt": "Does enabling a feature flag grant permission to its API?",
+            "answer": "No. Authorization must independently enforce access.",
+            "explanation": "No. Authorization must independently enforce access."
+          }
+        ],
+        "rubric": {
+          "maximum_points": 20,
+          "suggested_mastery_points": 16,
+          "core_invariants_required": true,
+          "criteria": [
+            {
+              "id": "cs-05-r1",
+              "criterion": "Evaluation contract",
+              "evidence": "Defines types, defaults, and authorization separation.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-05-r2",
+              "criterion": "Distribution",
+              "evidence": "Handles atomic versions, gaps, and reconnect recovery.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-05-r3",
+              "criterion": "Cohorts",
+              "evidence": "Specifies stable identity, hashing, salt, and test vectors.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-05-r4",
+              "criterion": "Failure policy",
+              "evidence": "States stale-config and emergency-disable limits.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-05-r5",
+              "criterion": "Lifecycle",
+              "evidence": "Provides audit, rollback, telemetry, and flag retirement.",
+              "max_points": 4
+            }
+          ]
+        }
+      },
+      "architecture": {
+        "status": "reference_design",
+        "components": [
+          {
+            "id": "admin",
+            "label": "Authorized administrator"
+          },
+          {
+            "id": "control",
+            "label": "Control API"
+          },
+          {
+            "id": "db",
+            "label": "Versioned config and audit"
+          },
+          {
+            "id": "publish",
+            "label": "Distribution service"
+          },
+          {
+            "id": "sdk",
+            "label": "Local SDK snapshot"
+          },
+          {
+            "id": "app",
+            "label": "Application"
+          },
+          {
+            "id": "telemetry",
+            "label": "Evaluation telemetry"
+          }
+        ],
+        "connections": [
+          {
+            "from": "admin",
+            "to": "control",
+            "label": "validated change"
+          },
+          {
+            "from": "control",
+            "to": "db",
+            "label": "version and audit commit"
+          },
+          {
+            "from": "db",
+            "to": "publish",
+            "label": "configuration updates"
+          },
+          {
+            "from": "publish",
+            "to": "sdk",
+            "label": "snapshot or delta"
+          },
+          {
+            "from": "app",
+            "to": "sdk",
+            "label": "typed evaluation"
+          },
+          {
+            "from": "sdk",
+            "to": "app",
+            "label": "value or default"
+          },
+          {
+            "from": "sdk",
+            "to": "telemetry",
+            "label": "bounded diagnostics"
+          }
+        ],
+        "builder_brief": "Required reasoning: distinguish the control plane from evaluation and demonstrate safe defaults. Challenge distractor: fetch remote configuration synchronously for every local-mode evaluation without a deadline/fallback. Grade deterministic cohorts and stale-config behavior rather than a specific vendor."
+      }
+    },
+    {
+      "id": "cs-06",
+      "slug": "multi-region-saas",
+      "type": "case_study",
+      "title": "Design a multi-region SaaS platform",
+      "summary": "Design regional operation and failover around a precise authority model, measurable recovery targets, and tenant isolation.",
+      "stage": "expert",
+      "stage_order": 5,
+      "order": 36,
+      "estimated_minutes": 100,
+      "path": "case-studies/06-multi-region-saas.md",
+      "prerequisite_ids": [
+        "sd-19",
+        "sd-20",
+        "sd-21",
+        "sd-23",
+        "sd-24",
+        "sd-25",
+        "sd-26",
+        "sd-28",
+        "sd-29"
+      ],
+      "related_existing_concept_slugs": [],
+      "tags": [
+        "multi-region",
+        "tenancy",
+        "failover"
+      ],
+      "objectives": [
+        "Place write authority and data by tenant and invariant.",
+        "Recover regional service without creating competing writers.",
+        "Make latency, recovery, isolation, and cost trade-offs explicit."
+      ],
+      "source_ids": [
+        "global",
+        "fencing",
+        "raft",
+        "backup",
+        "rls"
+      ],
+      "suggested_topic": {
+        "slug": "system-design-case-studies",
+        "status": "existing"
+      },
+      "legacy_difficulty": 3,
+      "content_status": "documented",
+      "activities": [
+        "study",
+        "design-practice",
+        "knowledge-check",
+        "architecture-builder-brief"
+      ],
+      "assessment": {
+        "format": "short_answer",
+        "questions": [
+          {
+            "id": "cs-06-q1",
+            "prompt": "Does changing DNS establish a single writer?",
+            "answer": "No. Existing connections and partitioned old servers can continue; authority must be enforced at the write boundary.",
+            "explanation": "No. Existing connections and partitioned old servers can continue; authority must be enforced at the write boundary."
+          },
+          {
+            "id": "cs-06-q2",
+            "prompt": "Can the same RPO be assumed for every data class?",
+            "answer": "No. Replication, acknowledgement, retention, and recovery rules can differ by invariant and data class.",
+            "explanation": "No. Replication, acknowledgement, retention, and recovery rules can differ by invariant and data class."
+          },
+          {
+            "id": "cs-06-q3",
+            "prompt": "Is a globally reachable directory enough to make a service region-independent?",
+            "answer": "No. Its own quorum, data plane dependencies, identity services, keys, and recovery paths must survive the required failures.",
+            "explanation": "No. Its own quorum, data plane dependencies, identity services, keys, and recovery paths must survive the required failures."
+          }
+        ],
+        "rubric": {
+          "maximum_points": 20,
+          "suggested_mastery_points": 16,
+          "core_invariants_required": true,
+          "criteria": [
+            {
+              "id": "cs-06-r1",
+              "criterion": "Authority",
+              "evidence": "Prevents conflicting writes during partition and failover.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-06-r2",
+              "criterion": "Data contracts",
+              "evidence": "Separates consistency and RPO by invariant and failure model.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-06-r3",
+              "criterion": "Tenant isolation",
+              "evidence": "Enforces scope and placement during routing/recovery.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-06-r4",
+              "criterion": "Capacity and cost",
+              "evidence": "Budgets failed-region load and replication overhead.",
+              "max_points": 4
+            },
+            {
+              "id": "cs-06-r5",
+              "criterion": "Recovery evidence",
+              "evidence": "Defines measurable drills, failback, and honest unavailable states.",
+              "max_points": 4
+            }
+          ]
+        }
+      },
+      "architecture": {
+        "status": "reference_design",
+        "components": [
+          {
+            "id": "client",
+            "label": "Tenant clients"
+          },
+          {
+            "id": "edge",
+            "label": "Global routing"
+          },
+          {
+            "id": "directory",
+            "label": "Tenant directory and authority"
+          },
+          {
+            "id": "a",
+            "label": "Region A application"
+          },
+          {
+            "id": "b",
+            "label": "Region B application"
+          },
+          {
+            "id": "c",
+            "label": "Region C application"
+          },
+          {
+            "id": "da",
+            "label": "Region A data"
+          },
+          {
+            "id": "db",
+            "label": "Region B data"
+          },
+          {
+            "id": "dc",
+            "label": "Region C data"
+          },
+          {
+            "id": "backup",
+            "label": "Recovery backups"
+          }
+        ],
+        "connections": [
+          {
+            "from": "client",
+            "to": "edge",
+            "label": "tenant request"
+          },
+          {
+            "from": "edge",
+            "to": "directory",
+            "label": "placement and epoch"
+          },
+          {
+            "from": "edge",
+            "to": "a",
+            "label": "allowed routing"
+          },
+          {
+            "from": "edge",
+            "to": "b",
+            "label": "allowed routing"
+          },
+          {
+            "from": "edge",
+            "to": "c",
+            "label": "allowed routing"
+          },
+          {
+            "from": "a",
+            "to": "da",
+            "label": "authorized writes"
+          },
+          {
+            "from": "b",
+            "to": "db",
+            "label": "authorized writes"
+          },
+          {
+            "from": "c",
+            "to": "dc",
+            "label": "authorized writes"
+          },
+          {
+            "from": "da",
+            "to": "db",
+            "label": "configured replication"
+          },
+          {
+            "from": "da",
+            "to": "dc",
+            "label": "configured replication"
+          },
+          {
+            "from": "da",
+            "to": "backup",
+            "label": "recoverable history"
+          }
+        ],
+        "builder_brief": "The diagram shows one illustrative home-region replication arrangement, not permission for all three replicas to write the same tenant simultaneously. Required reasoning: authority, replication, and routing each have explicit protocols. Challenge distractor: promote an async replica and update DNS without fencing the previous writer."
+      }
+    }
+  ]
+}
+

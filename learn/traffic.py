@@ -126,8 +126,9 @@ def _lessons(params, plan, ticks, breaches, used_301):
     lessons = []
     if sum(1 for cfg in plan if not cfg['cache']) > 40:
         lessons.append(
-            'Without a cache, every redirect is a database read. A URL shortener serves about '
-            '10 reads per write, so the database gives out first.')
+            'Without a cache, every redirect is a database read. This shortener serves about '
+            f'{round(params["reads_per_sec"] / params["writes_per_sec"])} reads per write, so the database '
+            'gives out first.')
     if any(ticks[i]['breach'] for i in range(first, min(last, TICKS - 1) + 1)):
         peak = max(demand(params, i, 302)['total'] for i in range(first, last + 1))
         lessons.append(
@@ -137,7 +138,8 @@ def _lessons(params, plan, ticks, breaches, used_301):
     if used_301:
         lessons.append(
             f'301s cut server load because browsers stop asking, but marketing lost click analytics '
-            f'(−{params["score"]["analytics"]}). That\'s why Chapter 8 prefers 302 when analytics matter.')
+            f'(−{params["score"]["analytics"]}). A 301 is cacheable by default (RFC 9110), so repeat '
+            'visits never reach you. Use 302 when clicks must be counted.')
     server_spend = sum(cfg['servers'] * params['hourly_cost']['app'] / TICKS_PER_HOUR for cfg in plan)
     if server_spend > OVERPROVISIONED_SERVER_SPEND:
         lessons.append(

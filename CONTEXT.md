@@ -3,6 +3,55 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-27 session: replaced the book-derived content with the curriculum
+
+The notes and quizzes used to be chapter-by-chapter summaries of five
+published books (Xu's *System Design Interview*, *Grokking*, *Database
+Internals*, DDIA, *Linux Pocket Guide*), two of them from direct competitors.
+They are gone. The system design content is now the original curriculum in
+`docs/learning` (30 lessons, 6 case studies, 55 primary sources).
+
+- **Loader.** `learn/curriculum.py` `curriculum_chapters()` reads the
+  catalogue, sources and Markdown at seed time and returns one chapter dict
+  per item. Notes come from the document sections (answer guidance becomes a
+  deep dive; a case study's reference architecture is listed from the
+  catalogue graph; the rubric table becomes lines). Metadata goes into the new
+  `Concept.curriculum` JSONField (migration `0011_concept_curriculum`). sd-01
+  keeps its hand-adapted notes/questions/walkthrough.
+- **Questions.** `learn/curriculum_questions.py`: 5–6 hand-authored MCQ and
+  multi questions per item (185 in all, 219 with the reference chapters).
+- **Structure.** One topic per stage (slugs `system-design-fundamentals`,
+  `scale-a-service`, `distributed-failures`, `operate-reliably`,
+  `reason-about-guarantees`) plus `system-design-case-studies`; unlock levels
+  1/2/4/6/8 for lessons and 5/7/9 for case studies. Concept slugs are the
+  catalogue slugs. Books are now `system-design-engineering-notes` plus the two
+  compiled reference collections (Python, OS), whose chapters were kept.
+- **Seeding.** `learn/seeding.py` is shared by `seed_content` (full replace:
+  also deletes stale chapters/concepts/topics/books) and `seed_curriculum`
+  (additive). Questions are now updated in place keyed by prompt, so a reseed
+  no longer wipes quiz attempts. `seed_content` refuses to delete concepts
+  holding admin-made coding challenges unless `--delete-coding-challenges`.
+- **Games.** All book-derived builder/matching/ordering games were replaced:
+  6 builders from the case-study graphs (hand-picked distractors, not the
+  full catalog), 23 matching and 10 ordering games covering every lesson.
+  Python/OS games unchanged. Spot the Flaw moved to `queues-background-jobs`,
+  Traffic Day to `caching-invalidation`, Quorum Casino to
+  `consistency-histories`; their book-chapter citations were replaced. Traffic
+  Day now runs 12,000 reads / 1,000 writes / a 24,000 spike (was Xu's
+  11,600 / 1,160 / 23,200); balance is unchanged (steady best 573, tick-by-tick
+  806 vs 808).
+- **Gaps.** The curriculum has no lesson on partitioning/consistent hashing,
+  replication basics, or storage engines. The Ring Balancer game, built in a
+  parallel session, was attached to `caching-invalidation` for now; which
+  lesson it belongs under is still the user's call.
+- **Tests.** `learn/test_curriculum.py` checks every item's notes, sources and
+  quiz, every lesson has a game, every builder wires only required parts, and
+  that no seeded text names the old books. 58 tests passed.
+- Local `db.sqlite3` was migrated and reseeded (backup in this session's
+  scratchpad). **Neon has not been touched**: it needs `migrate`,
+  `seed_content`, `seed_games` after deploy, which deletes the old book
+  concepts and learners' attempts on them.
+
 ## 2026-09-27 session: added Quorum Casino (8th play-to-learn activity)
 
 Ported idea 12 from `docs/games/prototypes/quorum-casino.html`. The three

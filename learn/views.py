@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import quorum, services
+from .curriculum import DNS_TCP_TLS
 from .context_processors import _chapter_href
 from .models import (
     Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
@@ -197,6 +198,7 @@ def concept_detail(request, concept_slug):
         'concept': concept,
         'mastery': mastery,
         'question_count': concept.questions.count(),
+        'request_lesson': DNS_TCP_TLS if concept.slug == DNS_TCP_TLS['slug'] else None,
         'design_challenges': concept.design_challenges.all(),
         'matching_challenges': concept.matching_challenges.all(),
         'ordering_challenges': concept.ordering_challenges.all(),

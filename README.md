@@ -1,20 +1,22 @@
 # SysDesign Quest
 
-A gamified learning app for system design interview prep, built on five
-loaded books: *System Design Interview: An Insider's Guide* (Alex Xu),
-*Grokking the System Design Interview*, *Database Internals*, *Designing
-Data-Intensive Applications*, and the *Linux Pocket Guide*.
+A gamified learning app for system design interview prep, built on an
+original curriculum ([docs/learning](docs/learning/README.md)): 30 lessons
+and 6 case studies that cite standards, papers and official documentation
+rather than summarizing any textbook.
 
 ## What's inside
 
-- 19 chapters -> 19 concept cards -> 147 quiz questions across all five
-  books. Content is split into two kinds of item: concrete "design a
-  system" items (Design a URL Shortener, Designing Twitter, etc. — each
-  guaranteed its own architecture-builder game and a 6-7 question quiz)
-  and bigger merged "domain" items that bundle several more
-  general/theoretical chapters together (e.g. Storage Engines, or all six
-  Linux command-line chapters) into one combined quiz (9-14 questions)
-  with multiple matching/ordering mini-games attached.
+- 36 curriculum items -> 36 concept pages -> 185 quiz questions, plus two
+  compiled reference chapters (Python internals, OS file handling). The
+  lessons run in five stages, one dashboard topic each: Beginner
+  (understand a request), Intermediate (scale a service), Advanced (handle
+  distributed failures), Production (operate reliably) and Expert (reason
+  about guarantees). Each lesson page shows its ID, study time, objectives,
+  prerequisite links and sources, and has at least one game. The six case
+  studies (ticket booking, payments, job scheduling, search, feature flags,
+  multi-region SaaS) each have an Architecture Builder built from their
+  reference architecture.
 - **Quizzes have a clear ending** — each concept's quiz walks through
   every question in its bank exactly once, in shuffled order, with a
   "Question X of N" progress bar. Finish them all and you get a "Quiz
@@ -30,23 +32,23 @@ Data-Intensive Applications*, and the *Linux Pocket Guide*.
 - **Three mini-games per concept, in addition to quizzes:**
   - **Architecture Builder** — drag components from a pool onto a canvas,
     click two placed components to wire them together, and submit a
-    system design (e.g. "Design a URL Shortener"). Correct required parts
+    system design (e.g. "Build the Ticket-booking Flow"). Correct required parts
     and correct wires score points; parts that don't belong and wrong or
     missing wires cost points. A flawless design earns a bonus and the
     "Architect" badge.
-  - **Matching** — drag definitions onto the terms they define (e.g. CAP
-    theorem, rate-limiting algorithms). Right matches score, wrong matches
+  - **Matching** — drag definitions onto the terms they define (e.g.
+    consistency models, retry controls). Right matches score, wrong matches
     cost you.
-  - **Ordering** — drag steps into the correct sequence (e.g. the 7-step
-    design framework, scaling a single server to millions of users).
+  - **Ordering** — drag steps into the correct sequence (e.g. two-phase
+    commit, renaming a column with expand-migrate-contract).
     Steps in the right slot score, misplaced ones cost you.
 
 All three mini-games use the same negative-scoring principle you asked
 for: guessing wrong is never free, so there's a real incentive to reason
-through the answer rather than spam every option. Every concrete
-"design a system" item (URL Shortener, Twitter, Key-Value Store, etc.) is
-guaranteed an Architecture Builder challenge; domain items instead get one
-or more Matching/Ordering games.
+through the answer rather than spam every option. Every case study is
+guaranteed an Architecture Builder challenge, whose distractors are the
+wrong turns its builder brief warns about (a cache-only seat lock, a
+DNS-only failover switch); lessons get Matching/Ordering games.
 - **Superuser preview toggle** — a "🔒 Unlock All Content" button appears
   in the top nav for superusers only. Clicking it flips a per-superuser
   flag that bypasses all chapter level-gating, so you can browse and test
@@ -107,12 +109,10 @@ or more Matching/Ordering games.
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
-  sections (2-6 per concept) that explicitly cite the book/chapter they're
-  drawn from, each written as a few full paragraphs rather than a single
-  dense block. Particularly gnarly sub-topics (split brain, write skew,
-  SIGTERM vs. SIGKILL, why total order broadcast = consensus, etc.) get an
-  expandable "🔍 Click to know more" deep-dive so the main flow stays
-  readable. A "🧠 Study mode" toggle turns the same sections into a
+  sections taken from the lesson (Intuition, How it works, Worked example,
+  Trade-offs and failure modes, Practice), with the practice task's answer
+  guidance behind an expandable "🔍 Click to know more" deep-dive so you
+  try it first. The lesson's sources are listed beside the notes. A "🧠 Study mode" toggle turns the same sections into a
   one-card-at-a-time flashcard walkthrough (heading + body, Back/Next,
   progress bar) and a "🔊 Read aloud" button reads the notes via the
   browser's speech synthesis.
@@ -128,7 +128,7 @@ source venv/bin/activate        # on Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 python manage.py migrate
-python manage.py seed_content   # loads the book content + quiz questions
+python manage.py seed_content   # loads the curriculum lessons + quiz questions
 python manage.py seed_games     # loads the architecture/matching/ordering/spot-the-flaw/traffic-day/quorum-casino games
 python manage.py createsuperuser   # optional, for /admin access
 
@@ -150,8 +150,42 @@ with the superuser you created).
 
 ## Adding more content
 
-- Quiz content and notes both live in `learn/management/commands/seed_content.py`
-  — each concept's `notes=[...]` is a list of
+### The curriculum
+
+The system design content is the curriculum in
+[docs/learning](docs/learning/README.md). `learn/curriculum.py` reads its
+Markdown, `catalogue.json` and `sources.json` when you seed, and turns each
+lesson and case study into one chapter and concept (see
+[the integration guide](docs/learning/dashboard-integration.md) for the
+mapping). Stages unlock at levels 1, 2, 4, 6 and 8; case studies at 5, 7
+and 9.
+
+- To change a lesson's notes, objectives or sources, edit its Markdown or
+  the catalogue and re-seed. Keep the section headings the loader expects
+  (it raises if one is missing).
+- Quiz questions are authored by hand in `learn/curriculum_questions.py`,
+  keyed by lesson ID, because the catalogue's checks are short-answer.
+  Re-seeding updates a bank in place, keyed by prompt text, so learners'
+  attempts survive unless the prompt itself changes.
+- sd-01 (**DNS, TCP, and TLS: follow a request**) keeps its hand-adapted
+  notes, questions and interactive request walkthrough in
+  `learn/curriculum.py`.
+- `seed_content` seeds the curriculum plus the two reference chapters and
+  **removes every chapter, concept, topic and book no longer defined**,
+  including learners' attempts on them. It refuses to remove a concept that
+  holds an admin-made coding challenge unless you pass
+  `--delete-coding-challenges`. `seed_curriculum` adds or updates the
+  curriculum without removing anything.
+
+```bash
+python manage.py seed_content
+python manage.py seed_games
+python manage.py collectstatic --noinput
+```
+
+- The two reference chapters (Python internals, OS file handling) live in
+  `learn/management/commands/seed_content.py` as `REFERENCE_CHAPTERS`. Each
+  concept's `notes=[...]` is a list of
   `dict(heading=..., body=..., deep_dive=dict(title=..., body=...) | omitted)`
   dicts, rendered behind the View Notes toggle and reused as Study Mode's
   flashcards.
@@ -176,21 +210,16 @@ with the superuser you created).
   `status`, `sync` and `read` steps. `learn/quorum.py` documents the step
   shapes, and the tests run `quorum.validate_tables` over every seeded
   script.
+Both commands are idempotent, so re-running updates existing content
+instead of duplicating it.
 
-Both are plain Python data structures — add entries and re-run the
-matching `manage.py` command; both commands are idempotent, so re-running
-updates existing content instead of duplicating it (re-running
-`seed_content` also deletes any chapter/concept no longer listed in
-`CHAPTERS`, so a merge/rename is safe to do in place).
-
-When adding a new concrete system to design, give it its own chapter +
-concept in `seed_content.py` and make sure it gets a `DesignChallenge` in
-`seed_games.py` — every "design a system" item is expected to have a
-builder game. For more general/theoretical content that doesn't warrant
-its own item, prefer folding it into an existing (or new) merged "domain"
-chapter alongside related topics, with a combined summary/quiz and however
-many matching/ordering games make sense — a `Concept` can hold any number
-of each.
+When adding a new case study, add it to the curriculum (Markdown, catalogue
+entry with an `architecture` graph, and a question bank) and give it a
+`DesignChallenge` in `seed_games.py`: every case study is expected to have a
+builder game, and every lesson at least one other game. The tests check
+both. Don't add content that summarizes a published book or names one as a
+source; `learn/test_curriculum.py` checks seeded text for the titles and
+authors the earlier content used.
 
 ### Adding a new coding challenge
 
@@ -212,7 +241,9 @@ need, then add an entry to `DESIGN_CHALLENGES` with the concept it belongs
 to, a `prompt` describing the scenario, a list of `required` component
 slugs, a list of `distractors` (wrong-for-this-scenario components that
 penalize the player if used), and the correct `connections` as
-`(from_slug, to_slug)` pairs.
+`(from_slug, to_slug)` pairs. The pool shown to the player is exactly the
+required parts plus these distractors, and every required part must be
+wired at least once (the tests check this).
 
 ## Notes
 

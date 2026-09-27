@@ -90,6 +90,15 @@ class Concept(models.Model):
         ),
     )
 
+    curriculum = models.JSONField(
+        default=dict, blank=True,
+        help_text=(
+            'Curriculum lesson or case study metadata from docs/learning/catalogue.json: '
+            '{id, type, stage, stage_title, minutes, objectives, prerequisites, sources, scope}. '
+            'Empty for content outside the curriculum.'
+        ),
+    )
+
     class Meta:
         ordering = ['chapter__topic__order', 'chapter__difficulty', 'chapter__order', 'order', 'id']
         unique_together = [('chapter', 'slug')]
