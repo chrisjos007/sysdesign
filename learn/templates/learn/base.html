@@ -1,62 +1,134 @@
-{% load static %}
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SysDesign Quest{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { theme: { extend: { colors: {
-        ink: '#0f0f1a', panel: '#1a1a2e', accent: '#8b5cf6', accent2: '#06b6d4',
-      } } } }
-    </script>
-    <style>
-      input[type=text], input[type=password], input[type=email] {
-        background:#0f0f1a; border:1px solid #334155; color:#f1f5f9;
-        border-radius:0.5rem; padding:0.5rem 0.75rem; width:100%;
-      }
-      input[type=text]:focus, input[type=password]:focus, input[type=email]:focus {
-        outline:none; border-color:#8b5cf6;
-      }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap">
+    <link rel="stylesheet" href="{% static 'learn/quest.css' %}">
+    {% block head %}{% endblock %}
 </head>
-<body class="bg-ink text-slate-100 min-h-screen">
-    <nav class="bg-panel border-b border-slate-800 px-6 py-3 flex items-center justify-between">
-        <a href="{% url 'learn:dashboard' %}" class="text-xl font-bold text-accent">⚡ SysDesign Quest</a>
-        {% if user.is_authenticated %}
-        <div class="flex items-center gap-4 text-sm">
-            <a href="{% url 'learn:dashboard' %}" class="hover:text-accent">Dashboard</a>
-            <a href="{% url 'learn:review_queue' %}" class="hover:text-accent">Daily Review</a>
-            <a href="{% url 'learn:badges' %}" class="hover:text-accent">Badges</a>
-            {% if show_unlock_toggle %}
-            <form method="post" action="{% url 'learn:toggle_unlock_all' %}" class="inline">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.path }}">
-                <button
-                    class="px-3 py-1 rounded-full text-xs font-semibold border transition
-                    {% if unlock_all_active %}bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500
-                    {% else %}bg-slate-800 border-slate-600 text-slate-300 hover:border-accent{% endif %}"
-                    title="Superuser preview: bypass all chapter level-gating">
-                    {% if unlock_all_active %}🔓 All Content Unlocked{% else %}🔒 Unlock All Content{% endif %}
-                </button>
-            </form>
+<body{% for t in nav_tabs %}{% if t.current %} data-stock="{{ t.stock }}"{% endif %}{% endfor %}>
+    {% include "learn/_icons.html" %}
+    <a class="visually-hidden" href="#main">Skip to content</a>
+
+    <header class="drawer-front">
+        <div class="drawer-front__inner">
+            <a href="{% url 'learn:dashboard' %}" class="label-holder" aria-label="SysDesign Quest, overview">
+                <span class="label-holder__card">SysDesign Quest</span>
+            </a>
+            {% if user.is_authenticated %}
+            <div class="readout">
+                <div class="readout__item" title="{{ nav_profile.xp }} XP total">
+                    <span class="readout__label readout__muted">Level</span>
+                    <strong class="num"><span class="visually-hidden">Level </span>{{ nav_profile.level }}</strong>
+                </div>
+                <div class="readout__item readout__xp" title="{{ nav_profile.xp_into_level }} of {{ nav_profile.xp_for_next_level }} XP to level {{ nav_profile.level|add:1 }}">
+                    <div class="meter" role="img" aria-label="{{ nav_profile.xp_into_level }} of {{ nav_profile.xp_for_next_level }} XP to the next level">
+                        <div class="meter__fill" style="width: {{ nav_xp_pct }}%"></div>
+                    </div>
+                    <span class="readout__muted num">{{ nav_profile.xp_into_level }}/{{ nav_profile.xp_for_next_level }}</span>
+                </div>
+                <div class="readout__item" title="Longest streak: {{ nav_profile.longest_streak }} days">
+                    <svg class="icon"><use href="#i-flame"/></svg>
+                    <strong class="num">{{ nav_profile.current_streak }}</strong>
+                    <span class="readout__label readout__muted">day{{ nav_profile.current_streak|pluralize }}</span>
+                </div>
+                <details class="user-menu">
+                    <summary>
+                        <svg class="icon"><use href="#i-user"/></svg>
+                        <span class="readout__label">{{ user.username }}</span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-down"/></svg>
+                    </summary>
+                    <div class="user-menu__panel">
+                        {% if show_unlock_toggle %}
+                        <form method="post" action="{% url 'learn:toggle_unlock_all' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <button class="menu-item{% if unlock_all_active %} menu-item--on{% endif %}" title="Superuser preview: bypass all chapter level-gating">
+                                <svg class="icon"><use href="#{% if unlock_all_active %}i-unlock{% else %}i-lock{% endif %}"/></svg>
+                                {% if unlock_all_active %}All content unlocked{% else %}Unlock all content{% endif %}
+                                <span class="menu-item__note">Preview</span>
+                            </button>
+                        </form>
+                        {% endif %}
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button class="menu-item"><svg class="icon"><use href="#i-logout"/></svg>Log out</button>
+                        </form>
+                    </div>
+                </details>
+            </div>
             {% endif %}
-            <span class="text-slate-400">{{ user.username }}</span>
-            <form method="post" action="{% url 'logout' %}" class="inline">
-                {% csrf_token %}
-                <button class="hover:text-red-400">Logout</button>
-            </form>
+        </div>
+    </header>
+
+    {% if user.is_authenticated %}
+    <nav class="tabs" aria-label="Topics">
+        <div class="tabs__rail" id="tab-rail">
+            <a href="{% url 'learn:dashboard' %}" class="tab tab--home"{% if nav_section == 'dashboard' %} aria-current="page"{% endif %}>
+                <svg class="icon icon--sm"><use href="#i-drawer"/></svg> Overview
+            </a>
+            {% for t in nav_tabs %}
+            <a href="{{ t.url }}" class="tab tab--topic{% if t.current %} is-current{% endif %}" data-stock="{{ t.stock }}" title="{{ t.title }}"{% if t.current and nav_section == 'topic_detail' %} aria-current="page"{% elif t.current %} aria-current="location"{% endif %}>
+                <span class="tab__no num">{{ t.number }}</span> {{ t.label }}
+            </a>
+            {% endfor %}
+            <span class="tabs__spacer"></span>
+            <a href="{% url 'learn:review_queue' %}" class="tab"{% if nav_section == 'review_queue' %} aria-current="page"{% endif %}>
+                <svg class="icon icon--sm"><use href="#i-review"/></svg> Review
+                {% if nav_due_count %}<span class="tab__count num" aria-label="{{ nav_due_count }} due">{{ nav_due_count }}</span>{% endif %}
+            </a>
+            <a href="{% url 'learn:badges' %}" class="tab"{% if nav_section == 'badges' %} aria-current="page"{% endif %}>
+                <svg class="icon icon--sm"><use href="#i-stamp"/></svg> Badges
+            </a>
+        </div>
+        <div class="tabs__band"></div>
+    </nav>
+    {% endif %}
+
+    <main class="page" id="main">
+        {% if nav_trail %}
+        <nav class="trail" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'learn:dashboard' %}">Overview</a></li>
+                {% for crumb in nav_trail %}
+                <li>{% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>{% else %}<span aria-current="page">{{ crumb.label }}</span>{% endif %}</li>
+                {% endfor %}
+            </ol>
+        </nav>
+        {% endif %}
+
+        {% if messages %}
+        <div class="slips" role="status">
+            {% for message in messages %}
+            <div class="slip{% if message.tags %} slip--{{ message.tags }}{% endif %}">{{ message }}</div>
+            {% endfor %}
         </div>
         {% endif %}
-    </nav>
-    <main class="max-w-4xl mx-auto px-4 py-8">
-        {% if messages %}
-          {% for message in messages %}
-            <div class="mb-4 px-4 py-2 rounded bg-amber-900/40 border border-amber-700 text-amber-200 text-sm">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
+
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+    (function () {
+        // Keep the current tab in view when the tab rail scrolls on phones.
+        var rail = document.getElementById('tab-rail');
+        var current = rail && rail.querySelector('[aria-current]');
+        if (current && rail.scrollWidth > rail.clientWidth) {
+            rail.scrollLeft = current.offsetLeft - 16;
+        }
+        // Close the user menu when clicking elsewhere.
+        var menu = document.querySelector('.user-menu');
+        if (menu) {
+            document.addEventListener('click', function (e) {
+                if (menu.open && !menu.contains(e.target)) menu.open = false;
+            });
+        }
+    })();
+    </script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,446 @@
+{
+  "schema_version": "1.0",
+  "research_date": "2026-09-27",
+  "sources": [
+    {
+      "id": "dns",
+      "title": "RFC 1034: Domain names — concepts and facilities",
+      "publisher": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc1034",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "tcp",
+      "title": "RFC 9293: Transmission Control Protocol",
+      "publisher": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9293.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "tls",
+      "title": "RFC 8446: TLS 1.3",
+      "publisher": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc8446",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "http",
+      "title": "RFC 9110: HTTP Semantics",
+      "publisher": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "http3",
+      "title": "RFC 9114: HTTP/3",
+      "publisher": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9114",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "http-cache",
+      "title": "RFC 9111: HTTP Caching",
+      "publisher": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pg-plan",
+      "title": "Using EXPLAIN",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/using-explain.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pg-index",
+      "title": "Multicolumn Indexes",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/indexes-multicolumn.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pg-isolation",
+      "title": "Transaction Isolation",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/transaction-iso.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "asyncio",
+      "title": "Coroutines and Tasks",
+      "publisher": "Python Software Foundation",
+      "url": "https://docs.python.org/3/library/asyncio-task.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "little-law",
+      "title": "Queueing: Little's Law, lecture 8",
+      "publisher": "MIT OpenCourseWare",
+      "url": "https://ocw.mit.edu/courses/15-760a-operations-management-spring-2002/e6c66bef8fc37c9f4928ea8f816895ab_lecture8_feb22.pdf",
+      "accessed_on": "2026-09-27",
+      "kind": "course_notes"
+    },
+    {
+      "id": "probes",
+      "title": "Configure Liveness, Readiness and Startup Probes",
+      "publisher": "Kubernetes",
+      "url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "cache",
+      "title": "Caching Challenges and Strategies",
+      "publisher": "Amazon Builders' Library",
+      "url": "https://aws.amazon.com/builders-library/caching-challenges-and-strategies/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pool",
+      "title": "PgBouncer Features",
+      "publisher": "PgBouncer",
+      "url": "https://www.pgbouncer.org/features.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "rabbit",
+      "title": "Consumer Acknowledgements and Publisher Confirms",
+      "publisher": "RabbitMQ",
+      "url": "https://www.rabbitmq.com/docs/confirms",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "kafka",
+      "title": "Design: Message Delivery Semantics",
+      "publisher": "Apache Kafka",
+      "url": "https://kafka.apache.org/41/design/design/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "outbox",
+      "title": "Outbox Event Router",
+      "publisher": "Debezium",
+      "url": "https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "saga",
+      "title": "Saga Orchestration Pattern",
+      "publisher": "AWS Prescriptive Guidance",
+      "url": "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/saga-orchestration.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "overload",
+      "title": "Handling Overload",
+      "publisher": "Google SRE",
+      "url": "https://sre.google/sre-book/handling-overload/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "jitter",
+      "title": "Exponential Backoff and Jitter",
+      "publisher": "AWS Architecture Blog",
+      "url": "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "retry",
+      "title": "Control and Limit Retry Calls",
+      "publisher": "AWS Well-Architected",
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_mitigate_interaction_failure_limit_retries.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "idempotency",
+      "title": "Making Retries Safe with Idempotent APIs",
+      "publisher": "Amazon Builders' Library",
+      "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "slo",
+      "title": "Service Level Objectives",
+      "publisher": "Google SRE",
+      "url": "https://sre.google/sre-book/service-level-objectives/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "otel",
+      "title": "Signals",
+      "publisher": "OpenTelemetry",
+      "url": "https://opentelemetry.io/docs/concepts/signals/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "k6",
+      "title": "Open and Closed Models",
+      "publisher": "Grafana k6",
+      "url": "https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/open-vs-closed/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "canary",
+      "title": "Canarying Releases",
+      "publisher": "Google SRE Workbook",
+      "url": "https://sre.google/workbook/canarying-releases/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pg-alter",
+      "title": "ALTER TABLE",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/sql-altertable.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "owasp",
+      "title": "API1:2023 Broken Object Level Authorization",
+      "publisher": "OWASP",
+      "url": "https://api-security.owasp.org/editions/2023/en/0xa1-broken-object-level-authorization/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "rls",
+      "title": "Row Security Policies",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "backup",
+      "title": "Continuous Archiving and Point-in-Time Recovery",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/continuous-archiving.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "linearizable",
+      "title": "Linearizability",
+      "publisher": "Jepsen",
+      "url": "https://jepsen.io/consistency/models/linearizable",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "serializable",
+      "title": "Serializability",
+      "publisher": "Jepsen",
+      "url": "https://jepsen.io/consistency/models/serializable",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "raft",
+      "title": "In Search of an Understandable Consensus Algorithm (extended version)",
+      "publisher": "Diego Ongaro and John Ousterhout",
+      "url": "https://raft.github.io/raft.pdf",
+      "accessed_on": "2026-09-27",
+      "kind": "paper"
+    },
+    {
+      "id": "two-phase",
+      "title": "PREPARE TRANSACTION",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/sql-prepare-transaction.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "fencing",
+      "title": "How to Do Distributed Locking",
+      "publisher": "Martin Kleppmann",
+      "url": "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "crdt",
+      "title": "About CRDTs",
+      "publisher": "CRDT research community",
+      "url": "https://crdt.tech/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "global",
+      "title": "Using DynamoDB Global Tables",
+      "publisher": "AWS",
+      "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-global-table-design.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "event-time",
+      "title": "Timely Stream Processing",
+      "publisher": "Apache Flink",
+      "url": "https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "stream-state",
+      "title": "Stateful Stream Processing",
+      "publisher": "Apache Flink",
+      "url": "https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/stateful-stream-processing/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "stripe-idem",
+      "title": "Idempotent Requests",
+      "publisher": "Stripe",
+      "url": "https://docs.stripe.com/api/idempotent_requests",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "webhooks",
+      "title": "Webhooks",
+      "publisher": "Stripe",
+      "url": "https://docs.stripe.com/webhooks",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "search",
+      "title": "Near Real-Time Search",
+      "publisher": "Elastic",
+      "url": "https://www.elastic.co/docs/manage-data/data-store/near-real-time-search",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "flags",
+      "title": "Flag Evaluation API",
+      "publisher": "OpenFeature",
+      "url": "https://openfeature.dev/specification/sections/flag-evaluation/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "cron",
+      "title": "Distributed Periodic Scheduling with Cron",
+      "publisher": "Google SRE",
+      "url": "https://sre.google/sre-book/distributed-periodic-scheduling/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "s3",
+      "title": "What Is Amazon S3?",
+      "publisher": "AWS",
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pagination",
+      "title": "LIMIT and OFFSET",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/queries-limit.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "pg-select",
+      "title": "SELECT: Locking Clauses",
+      "publisher": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "search-page",
+      "title": "Paginate Search Results",
+      "publisher": "Elastic",
+      "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/paginate-search-results",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "slo-workbook",
+      "title": "Implementing SLOs",
+      "publisher": "Google SRE Workbook",
+      "url": "https://sre.google/workbook/implementing-slos/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "authentication",
+      "title": "Authentication Cheat Sheet",
+      "publisher": "OWASP",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "trace-context",
+      "title": "Trace Context",
+      "publisher": "W3C",
+      "url": "https://www.w3.org/TR/trace-context/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "etcd-membership",
+      "title": "Raft Learner",
+      "publisher": "etcd",
+      "url": "https://etcd.io/docs/v3.6/learning/design-learner/",
+      "kind": "primary_documentation",
+      "accessed_on": "2026-09-27"
+    },
+    {
+      "id": "logical-clocks",
+      "title": "Time, Clocks, and the Ordering of Events in a Distributed System",
+      "publisher": "Leslie Lamport",
+      "url": "https://lamport.azurewebsites.net/pubs/time-clocks.pdf",
+      "kind": "paper",
+      "accessed_on": "2026-09-27"
+    },
+    {
+      "id": "crdt-paper",
+      "title": "Conflict-free Replicated Data Types",
+      "publisher": "Nuno Preguica, Carlos Baquero, Marc Shapiro",
+      "url": "https://arxiv.org/abs/1805.06358",
+      "kind": "paper",
+      "accessed_on": "2026-09-27"
+    },
+    {
+      "id": "suggesters",
+      "title": "Suggesters: Completion Suggester",
+      "publisher": "Elastic",
+      "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-suggesters",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    }
+  ]
+}

@@ -20,20 +20,58 @@ class Book(models.Model):
         return self.title
 
 
+class Topic(models.Model):
+    """A cross-book section that groups content by system-logic (e.g.
+    'Databases & Distributed Storage'), not by which book it came from.
+    This is the primary organizing unit for browsing — see Chapter.topic."""
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    order = models.PositiveIntegerField(default=0)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.title
+
+
 class Chapter(models.Model):
+    BEGINNER = 1
+    INTERMEDIATE = 2
+    ADVANCED = 3
+    DIFFICULTY_CHOICES = [
+        (BEGINNER, 'Beginner'),
+        (INTERMEDIATE, 'Intermediate'),
+        (ADVANCED, 'Advanced'),
+    ]
+
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='chapters')
+    topic = models.ForeignKey(
+        Topic, on_delete=models.CASCADE, related_name='chapters', null=True, blank=True,
+        help_text='Cross-book section this chapter belongs to (drives dashboard grouping). '
+                   '`book` is kept only for provenance/attribution and the book_worm badge.',
+    )
     slug = models.SlugField()
     title = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
     summary = models.TextField(blank=True)
     unlock_level = models.PositiveIntegerField(default=1)
+    difficulty = models.PositiveSmallIntegerField(
+        choices=DIFFICULTY_CHOICES, default=BEGINNER,
+        help_text='Difficulty tier used to level content within a topic section.',
+    )
 
     class Meta:
-        ordering = ['book__order', 'order', 'id']
+        ordering = ['topic__order', 'difficulty', 'order', 'id']
         unique_together = [('book', 'slug')]
 
     def __str__(self):
         return f'{self.book.title} - {self.title}'
+
+    @property
+    def difficulty_label(self) -> str:
+        return dict(self.DIFFICULTY_CHOICES).get(self.difficulty, 'Beginner')
 
 
 class Concept(models.Model):
@@ -52,8 +90,17 @@ class Concept(models.Model):
         ),
     )
 
+    curriculum = models.JSONField(
+        default=dict, blank=True,
+        help_text=(
+            'Curriculum lesson or case study metadata from docs/learning/catalogue.json: '
+            '{id, type, stage, stage_title, minutes, objectives, prerequisites, sources, scope}. '
+            'Empty for content outside the curriculum.'
+        ),
+    )
+
     class Meta:
-        ordering = ['chapter__book__order', 'chapter__order', 'order', 'id']
+        ordering = ['chapter__topic__order', 'chapter__difficulty', 'chapter__order', 'order', 'id']
         unique_together = [('chapter', 'slug')]
 
     def __str__(self):
@@ -62,8 +109,13 @@ class Concept(models.Model):
 
 class Question(models.Model):
     MCQ = 'mcq'
+    MULTI_SELECT = 'multi'
     TRUE_FALSE = 'tf'
-    KIND_CHOICES = [(MCQ, 'Multiple choice'), (TRUE_FALSE, 'True / False')]
+    KIND_CHOICES = [
+        (MCQ, 'Multiple choice (single answer)'),
+        (MULTI_SELECT, 'Multiple choice (select all that apply)'),
+        (TRUE_FALSE, 'True / False'),
+    ]
 
     concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='questions')
     kind = models.CharField(max_length=8, choices=KIND_CHOICES, default=MCQ)
@@ -73,6 +125,10 @@ class Question(models.Model):
 
     def __str__(self):
         return self.prompt[:60]
+
+    @property
+    def is_multi_select(self) -> bool:
+        return self.kind == self.MULTI_SELECT
 
 
 class Choice(models.Model):
@@ -382,6 +438,242 @@ class OrderingStep(models.Model):
 class OrderingAttempt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ordering_attempts')
     challenge = models.ForeignKey(OrderingChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class CodingChallenge(models.Model):
+    """Write-a-program challenge: the learner submits Python that reads from
+    stdin and prints to stdout; submissions are graded against TestCases.
+    Generated (title/prompt/starter_code/test cases) from an admin's free-text
+    scenario via the Gemini API — see learn/llm.py — same relationship to
+    Concept as DesignChallenge/MatchingChallenge/OrderingChallenge, so it
+    shows up as just another activity card on the concept page rather than
+    a separate section."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='coding_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Full problem statement shown to the learner: task, input/output format, example.')
+    constraints = models.TextField(blank=True)
+    starter_code = models.TextField(blank=True, help_text='Python 3 stub shown in the editor before the learner edits it.')
+    difficulty = models.PositiveSmallIntegerField(default=1)
+    source_scenario = models.TextField(
+        blank=True,
+        help_text="The admin's original free-text scenario this was generated from, kept for audit/regeneration.",
+    )
+
+    class Meta:
+        ordering = ['difficulty', 'id']
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def sample_test_cases(self):
+        return self.test_cases.filter(is_sample=True)
+
+
+class TestCase(models.Model):
+    """One stdin -> expected stdout pair used to grade a CodingChallenge submission."""
+    challenge = models.ForeignKey(CodingChallenge, on_delete=models.CASCADE, related_name='test_cases')
+    stdin = models.TextField(blank=True)
+    expected_output = models.TextField(blank=True)
+    is_sample = models.BooleanField(
+        default=False,
+        help_text='Sample cases are shown to the learner up front; non-samples stay hidden and only count toward grading.',
+    )
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.challenge.title} · case {self.order}'
+
+
+class CodingAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='coding_attempts')
+    challenge = models.ForeignKey(CodingChallenge, on_delete=models.CASCADE, related_name='attempts')
+    code = models.TextField(blank=True)
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class FlawChallenge(models.Model):
+    """Spot the Flaw: an architecture diagram with a few design mistakes
+    planted in it. The learner taps the boxes and arrows they think are
+    wrong and then picks why. Which parts are flawed, and which reason is
+    right, stay on the server until the learner commits to an answer; see
+    services.inspect_flaw_part / answer_flaw_part."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='flaw_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the diagram, e.g. how many flaws are planted.')
+    canvas_width = models.PositiveIntegerField(default=1000, help_text='SVG viewBox width the part geometry is drawn in.')
+    canvas_height = models.PositiveIntegerField(default=430, help_text='SVG viewBox height the part geometry is drawn in.')
+
+    def __str__(self):
+        return self.title
+
+
+class FlawPart(models.Model):
+    """One tappable box (node) or arrow (edge) in a FlawChallenge diagram."""
+    NODE = 'node'
+    EDGE = 'edge'
+    KIND_CHOICES = [(NODE, 'Box'), (EDGE, 'Arrow')]
+
+    challenge = models.ForeignKey(FlawChallenge, on_delete=models.CASCADE, related_name='parts')
+    key = models.SlugField(max_length=40, help_text='Stable id within the diagram, used by the page and seed data.')
+    kind = models.CharField(max_length=4, choices=KIND_CHOICES, default=NODE)
+    label = models.CharField(max_length=100, help_text='Box title, or the spoken name of an arrow.')
+    sublabel = models.CharField(
+        max_length=100, blank=True,
+        help_text="Box: second line under the title. Arrow: caption drawn beside it (optional).",
+    )
+    geometry = models.JSONField(
+        default=dict,
+        help_text='Box: {"x", "y", "w", "h"}. Arrow: {"d": SVG path} plus {"lx", "ly"} if it has a caption.',
+    )
+    is_flaw = models.BooleanField(default=False)
+    explanation = models.TextField(
+        blank=True,
+        help_text="Healthy parts: why this part is fine. Flawed parts show their correct reason instead.",
+    )
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+        unique_together = [('challenge', 'key')]
+
+    def __str__(self):
+        return f'{self.challenge.title}: {self.label}'
+
+
+class FlawReason(models.Model):
+    """A candidate answer to 'why is this part wrong?' on a flawed FlawPart."""
+    part = models.ForeignKey(FlawPart, on_delete=models.CASCADE, related_name='reasons')
+    text = models.CharField(max_length=300)
+    is_correct = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class FlawAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='flaw_attempts')
+    challenge = models.ForeignKey(FlawChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class TrafficChallenge(models.Model):
+    """Traffic Day: run a system through one simulated day of traffic,
+    changing its design as you go, and keep it inside the SLO for as little
+    money as possible. `params` holds the scenario's numbers; the load model
+    itself lives in learn/traffic.py (and its JavaScript twin)."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='traffic_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the simulator.')
+    params = models.JSONField(
+        default=dict,
+        help_text='Traffic, capacities, hourly prices, SLO, spike, scoring, control limits, '
+                  'starting design and ops-log events. See seed_games.TRAFFIC_CHALLENGES.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class TrafficAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='traffic_attempts')
+    challenge = models.ForeignKey(TrafficChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class QuorumChallenge(models.Model):
+    """Quorum Casino: replicas hold the key x while the learner steps through
+    writes, crashes and partitions, betting before each read on the chance it
+    returns the last successful write. `tables` is the script; learn/quorum.py
+    plays it and documents its shape."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='quorum_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the table.')
+    source = models.CharField(max_length=255, blank=True, help_text='Chapters this is drawn from.')
+    tables = models.JSONField(
+        default=list,
+        help_text='A list of tables, each with name, N, W, R, outro and steps. See learn/quorum.py.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class QuorumAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='quorum_attempts')
+    challenge = models.ForeignKey(QuorumChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class RingChallenge(models.Model):
+    """Ring Balancer: cache keys on a consistent-hash ring. The learner adds
+    virtual nodes to even out the load, predicts how many keys move when a
+    server crashes, and makes room for a bigger machine. `stages` is the
+    script; learn/ring.py plays it and documents its shape."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='ring_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the ring.')
+    source = models.CharField(max_length=255, blank=True, help_text='Chapters this is drawn from.')
+    stages = models.JSONField(
+        default=list,
+        help_text='A list of balance and predict stages. See learn/ring.py.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class RingAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ring_attempts')
+    challenge = models.ForeignKey(RingChallenge, on_delete=models.CASCADE, related_name='attempts')
     score = models.IntegerField(default=0)
     xp_awarded = models.IntegerField(default=0)
     is_perfect = models.BooleanField(default=False)

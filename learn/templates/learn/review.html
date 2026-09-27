@@ -1,49 +1,93 @@
 {% extends "learn/base.html" %}
-{% block title %}Daily Review{% endblock %}
+{% block title %}Daily Review — SysDesign Quest{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-1">🧠 Daily Review</h1>
-<p class="text-slate-400 mb-6">Spaced repetition resurfaces concepts right before you'd forget them.</p>
+<header class="page-head">
+    <h1>Daily Review</h1>
+    <p class="page-head__lede">Spaced repetition brings each concept back just before you'd forget it. A right answer moves its card up a box; a wrong one sends it back to box 1.</p>
+</header>
 
 {% if result %}
-<div class="mb-6 rounded-xl border p-5 {% if result.is_correct %}border-emerald-700 bg-emerald-950/40{% else %}border-red-700 bg-red-950/40{% endif %}">
-    <div class="font-bold text-lg mb-1">
-        {% if result.is_correct %}✅ Correct! +{{ result.xp_awarded }} XP{% else %}❌ Not quite — +{{ result.xp_awarded }} XP for trying{% endif %}
+<section class="card verdict verdict--{% if result.is_correct %}right{% else %}wrong{% endif %}" aria-live="polite">
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use href="#{% if result.is_correct %}i-check{% else %}i-x{% endif %}"/></svg></span>
+            {% if result.is_correct %}Correct{% else %}Not quite{% endif %}
+            <span class="verdict__xp num">+{{ result.xp_awarded }} XP{% if not result.is_correct %} for trying{% endif %}</span>
+        </div>
+        {% if box_after %}
+        <p class="verdict__answer">
+            <span class="stamp"><span class="stamp__swatch box-pattern-{{ box_after }}"></span>{% if box_before and box_before != box_after %}Moved from box {{ box_before }} to box {{ box_after }}{% else %}Filed in box {{ box_after }}{% endif %}</span>
+        </p>
+        {% endif %}
+        {% if not result.is_correct and result.correct_choices %}
+        <p class="verdict__answer">Correct answer{{ result.correct_choices|pluralize }}:
+            {% for c in result.correct_choices %}<strong>{{ c.text }}</strong>{% if not forloop.last %}; {% endif %}{% endfor %}</p>
+        {% endif %}
+        {% if result.question.explanation %}<p class="verdict__explain">{{ result.question.explanation }}</p>{% endif %}
+        {% include "learn/_verdict_extras.html" %}
     </div>
-    {% if not result.is_correct and result.correct_choice %}
-    <div class="text-sm text-slate-300 mb-2">Correct answer: <strong>{{ result.correct_choice.text }}</strong></div>
+</section>
+<div class="btn-row">
+    {% if due_left %}
+    <a href="{% url 'learn:review_queue' %}" class="btn btn--primary">Next card <span class="num">({{ due_left }} left)</span> <svg class="icon"><use href="#i-arrow-right"/></svg></a>
+    {% else %}
+    <a href="{% url 'learn:review_queue' %}" class="btn btn--primary">Continue <svg class="icon"><use href="#i-arrow-right"/></svg></a>
     {% endif %}
-    {% if result.question.explanation %}
-    <p class="text-sm text-slate-400">{{ result.question.explanation }}</p>
-    {% endif %}
-    {% if result.leveled_up %}
-    <div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>
-    {% endif %}
-    {% for badge in result.new_badges %}
-    <div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>
-    {% endfor %}
+    <a href="{% url 'learn:dashboard' %}" class="btn btn--quiet">Back to the overview</a>
 </div>
-<a href="{% url 'learn:review_queue' %}" class="inline-block bg-accent2 text-ink font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Continue reviewing &rarr;</a>
 
 {% elif empty %}
-<div class="p-5 rounded-xl bg-panel border border-slate-800 text-slate-300">
-    Nothing due for review right now. Come back later, or go learn something new.
+<div class="card card--head empty">
+    <div class="card__pad">
+        <h2>Nothing due right now</h2>
+        {% if next_due %}
+        <p>Your next card comes due in {{ next_due|timeuntil }}. Until then, study something new: every first quiz answer files a concept in box 1.</p>
+        {% else %}
+        <p>No cards are filed yet. Take a quiz on any concept and it lands in box 1, ready to come back here.</p>
+        {% endif %}
+        <a href="{% url 'learn:dashboard' %}" class="btn btn--primary"><svg class="icon"><use href="#i-drawer"/></svg> Open the drawer</a>
+    </div>
 </div>
+
 {% elif next_question %}
-<div class="text-sm text-slate-500 mb-2">{{ due_total }} card{{ due_total|pluralize }} due · reviewing: <strong>{{ card.concept.title }}</strong></div>
-<form method="post" action="{% url 'learn:review_queue' %}" class="bg-panel border border-slate-800 rounded-xl p-5">
+<form method="post" action="{% url 'learn:review_queue' %}" class="card card--head is-due sheet">
     {% csrf_token %}
     <input type="hidden" name="card_id" value="{{ card.id }}">
     <input type="hidden" name="question_id" value="{{ next_question.id }}">
-    <div class="font-semibold mb-4">{{ next_question.prompt }}</div>
-    <div class="space-y-2 mb-5">
-        {% for choice in choices %}
-        <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-700 hover:border-accent2 cursor-pointer">
-            <input type="radio" name="choice_id" value="{{ choice.id }}" required class="accent-accent2">
-            <span>{{ choice.text }}</span>
-        </label>
-        {% endfor %}
+    <input type="hidden" name="box_before" value="{{ box }}">
+    <div class="sheet__margin">
+        <span class="sheet__qno num">{{ box }}</span>
+        <span class="sheet__qof">box</span>
     </div>
-    <button type="submit" class="bg-accent2 text-ink font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Answer</button>
+    <div class="sheet__main">
+        <p class="meta sheet__context"><span class="num">{{ due_total }}</span> card{{ due_total|pluralize }} due · {{ card.concept.title }}</p>
+        <fieldset class="bare-fieldset">
+            <legend class="sheet__prompt">{{ next_question.prompt }}</legend>
+            {% if next_question.kind == 'multi' %}<p class="sheet__hint">Select all that apply. Every correct option must be picked.</p>{% endif %}
+            <div class="choices">
+                {% for choice in choices %}
+                <label class="choice{% if next_question.kind == 'multi' %} choice--multi{% endif %}">
+                    {% if next_question.kind == 'multi' %}
+                    <input type="checkbox" name="choice_id" value="{{ choice.id }}">
+                    {% else %}
+                    <input type="radio" name="choice_id" value="{{ choice.id }}" required>
+                    {% endif %}
+                    <span class="choice__key" aria-hidden="true"></span>
+                    <span class="choice__text">{{ choice.text }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+        <button type="submit" class="btn btn--primary">Submit answer <svg class="icon"><use href="#i-arrow-right"/></svg></button>
+    </div>
 </form>
+{% else %}
+<div class="card empty">
+    <div class="card__pad">
+        <h2>This card has no questions</h2>
+        <p>{{ card.concept.title }} is due, but its question bank is empty.</p>
+        <a href="{% url 'learn:concept_detail' card.concept.slug %}" class="btn btn--quiet">Open {{ card.concept.title }}</a>
+    </div>
+</div>
 {% endif %}
 {% endblock %}

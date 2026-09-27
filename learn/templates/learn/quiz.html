@@ -1,70 +1,83 @@
 {% extends "learn/base.html" %}
-{% block title %}Quiz — {{ concept.title }}{% endblock %}
+{% block title %}Quiz: {{ concept.title }} — SysDesign Quest{% endblock %}
 {% block content %}
-<a href="{% url 'learn:concept_detail' concept.slug %}" class="text-sm text-slate-400 hover:text-accent">&larr; {{ concept.title }}</a>
+<header class="page-head">
+    <h1>{{ concept.title }} quiz</h1>
+    {% if not empty %}<p class="page-head__meta num"><span>{{ run.total }} question{{ run.total|pluralize }}, each once, in shuffled order</span>{% if run.answered %}<span>{{ run.correct }} of {{ run.answered }} correct so far</span>{% endif %}</p>{% endif %}
+</header>
 
-{% if not empty and not finished and run %}
-<div class="mt-3 mb-1 flex items-center justify-between text-xs text-slate-400">
-    <span>Question {{ run.answered|add:1 }} of {{ run.total }}</span>
-    <span>{{ run.correct }} correct so far</span>
-</div>
-<div class="w-full h-1.5 bg-slate-800 rounded-full mb-4 overflow-hidden">
-    <div class="h-full bg-accent" style="width: {% widthratio run.answered run.total 100 %}%"></div>
+{% if not empty %}
+<div class="run-bar" aria-hidden="true">
+    {% for t in run_ticks %}<span class="run-bar__tick is-{{ t }}"></span>{% endfor %}
 </div>
 {% endif %}
 
 {% if result %}
-<div class="mb-6 rounded-xl border p-5 {% if result.is_correct %}border-emerald-700 bg-emerald-950/40{% else %}border-red-700 bg-red-950/40{% endif %}">
-    <div class="font-bold text-lg mb-1">
-        {% if result.is_correct %}✅ Correct! +{{ result.xp_awarded }} XP{% else %}❌ Not quite — +{{ result.xp_awarded }} XP for trying{% endif %}
+<section class="card verdict verdict--{% if result.is_correct %}right{% else %}wrong{% endif %}" aria-live="polite">
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use href="#{% if result.is_correct %}i-check{% else %}i-x{% endif %}"/></svg></span>
+            {% if result.is_correct %}Correct{% else %}Not quite{% endif %}
+            <span class="verdict__xp num">+{{ result.xp_awarded }} XP{% if not result.is_correct %} for trying{% endif %}</span>
+        </div>
+        {% if not result.is_correct and result.correct_choices %}
+        <p class="verdict__answer">Correct answer{{ result.correct_choices|pluralize }}:
+            {% for c in result.correct_choices %}<strong>{{ c.text }}</strong>{% if not forloop.last %}; {% endif %}{% endfor %}</p>
+        {% endif %}
+        {% if result.question.explanation %}<p class="verdict__explain">{{ result.question.explanation }}</p>{% endif %}
+        {% include "learn/_verdict_extras.html" %}
     </div>
-    {% if not result.is_correct and result.correct_choice %}
-    <div class="text-sm text-slate-300 mb-2">Correct answer: <strong>{{ result.correct_choice.text }}</strong></div>
-    {% endif %}
-    {% if result.question.explanation %}
-    <p class="text-sm text-slate-400">{{ result.question.explanation }}</p>
-    {% endif %}
-    {% if result.leveled_up %}
-    <div class="mt-2 text-accent font-bold">🎉 Level up! You're now level {{ result.new_level }}.</div>
-    {% endif %}
-    {% for badge in result.new_badges %}
-    <div class="mt-2 text-amber-300 font-semibold">🏅 Badge earned: {{ badge.icon }} {{ badge.name }}</div>
-    {% endfor %}
-</div>
+</section>
 {% endif %}
 
 {% if empty %}
-<p class="text-slate-400">No questions available for this concept yet.</p>
-{% elif finished %}
-<div class="bg-panel border border-slate-800 rounded-xl p-6 text-center">
-    <div class="text-3xl mb-2">🏁</div>
-    <div class="text-xl font-bold mb-1">Quiz Complete!</div>
-    <p class="text-slate-300 mb-4">
-        You got <strong>{{ run.correct }}</strong> out of <strong>{{ run.total }}</strong> correct
-        ({% widthratio run.correct run.total 100 %}%) and earned
-        <strong class="text-accent">{{ run.xp_total }} XP</strong> this round.
-    </p>
-    <div class="flex items-center justify-center gap-3">
-        <a href="{% url 'learn:concept_quiz' concept.slug %}?restart=1"
-           class="bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Retake Quiz</a>
-        <a href="{% url 'learn:concept_detail' concept.slug %}"
-           class="border border-slate-600 text-slate-200 font-semibold px-5 py-2.5 rounded-lg hover:border-accent">Back to Concept</a>
+<div class="card empty">
+    <div class="card__pad">
+        <h2>No questions yet</h2>
+        <p>This concept's question bank is empty. Read the notes or try one of its games instead.</p>
+        <a href="{% url 'learn:concept_detail' concept.slug %}" class="btn btn--quiet"><svg class="icon"><use href="#i-arrow-left"/></svg> Back to {{ concept.title }}</a>
     </div>
 </div>
+{% elif finished %}
+<section class="card card--head card--ruled finish" aria-labelledby="finish-title">
+    <div class="card__pad">
+        <h2 id="finish-title" class="visually-hidden">Quiz complete</h2>
+        <div class="finish__score num">{{ run.correct }}/{{ run.total }}</div>
+        <p class="finish__line">Quiz complete: {% widthratio run.correct run.total 100 %}% correct, <strong class="num">{{ run.xp_total }} XP</strong> earned this round.</p>
+        <div class="btn-row">
+            <a href="{% url 'learn:concept_quiz' concept.slug %}?restart=1" class="btn btn--primary"><svg class="icon"><use href="#i-retry"/></svg> Retake with a fresh shuffle</a>
+            <a href="{% url 'learn:concept_detail' concept.slug %}" class="btn btn--quiet">Back to {{ concept.title }}</a>
+        </div>
+    </div>
+</section>
 {% elif next_question %}
-<form method="post" action="{% url 'learn:concept_quiz' concept.slug %}" class="bg-panel border border-slate-800 rounded-xl p-5">
+<form method="post" action="{% url 'learn:concept_quiz' concept.slug %}" class="card card--head sheet">
     {% csrf_token %}
     <input type="hidden" name="question_id" value="{{ next_question.id }}">
-    <div class="font-semibold mb-4">{{ next_question.prompt }}</div>
-    <div class="space-y-2 mb-5">
-        {% for choice in choices %}
-        <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-700 hover:border-accent cursor-pointer">
-            <input type="radio" name="choice_id" value="{{ choice.id }}" required class="accent-accent">
-            <span>{{ choice.text }}</span>
-        </label>
-        {% endfor %}
+    <div class="sheet__margin">
+        <span class="sheet__qno num">{{ run.answered|add:1 }}</span>
+        <span class="sheet__qof num">of {{ run.total }}</span>
     </div>
-    <button type="submit" class="bg-accent text-white font-semibold px-5 py-2.5 rounded-lg hover:opacity-90">Submit Answer</button>
+    <div class="sheet__main">
+        <fieldset class="bare-fieldset">
+            <legend class="sheet__prompt">{{ next_question.prompt }}</legend>
+            {% if next_question.kind == 'multi' %}<p class="sheet__hint">Select all that apply. Every correct option must be picked.</p>{% endif %}
+            <div class="choices">
+                {% for choice in choices %}
+                <label class="choice{% if next_question.kind == 'multi' %} choice--multi{% endif %}">
+                    {% if next_question.kind == 'multi' %}
+                    <input type="checkbox" name="choice_id" value="{{ choice.id }}">
+                    {% else %}
+                    <input type="radio" name="choice_id" value="{{ choice.id }}" required>
+                    {% endif %}
+                    <span class="choice__key" aria-hidden="true"></span>
+                    <span class="choice__text">{{ choice.text }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+        <button type="submit" class="btn btn--primary">Submit answer <svg class="icon"><use href="#i-arrow-right"/></svg></button>
+    </div>
 </form>
 {% endif %}
 {% endblock %}

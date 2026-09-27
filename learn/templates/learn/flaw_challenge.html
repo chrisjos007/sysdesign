@@ -1,0 +1,340 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Spot the Flaw{% endblock %}
+{% block content %}
+<div class="flaw-game">
+<div class="game-head">
+    <header class="page-head">
+        <h1>{{ challenge.title }}</h1>
+        <p class="page-head__lede">{{ challenge.prompt }}</p>
+        {% if challenge.concept.source_note %}<p class="page-head__meta"><span>Source: {{ challenge.concept.source_note }}</span></p>{% endif %}
+    </header>
+    <div class="tally">
+        <span class="label">Score</span>
+        <strong class="num" id="flaw-score">{{ snapshot.score }}</strong>
+    </div>
+</div>
+
+<div class="howto">
+    <p><strong>How to play:</strong> tap a box or arrow you think is wrong, then pick why. Finish the review when you think you've found every flaw.</p>
+    <ul class="rules">
+        <li><span class="plus num">+{{ points.found }}</span> flaw with the right reason</li>
+        <li><span class="minus num">&minus;{{ points.wrong }}</span> wrong reason</li>
+        <li><span class="minus num">&minus;{{ points.healthy }}</span> tapping a healthy part</li>
+        <li><span class="minus num">&minus;{{ points.missed }}</span> each flaw you miss</li>
+        <li><span class="plus num">+{{ points.perfect }}</span> clean review, no wrong taps</li>
+    </ul>
+</div>
+
+<section class="card verdict" id="flaw-verdict" tabindex="-1" hidden>
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use id="flaw-verdict-icon" href="#i-check"/></svg></span>
+            <span id="flaw-verdict-title"></span>
+            <span class="verdict__xp num" id="flaw-verdict-xp"></span>
+        </div>
+        <p class="verdict__answer" id="flaw-verdict-line"></p>
+        <ul class="verdict__list" id="flaw-verdict-fixes"></ul>
+        <div class="verdict__extras" id="flaw-verdict-extras" hidden></div>
+        <div><a href="{% url 'learn:flaw_challenge' challenge.slug %}" class="btn btn--quiet btn--sm"><svg class="icon icon--sm"><use href="#i-retry"/></svg> Play again</a></div>
+    </div>
+</section>
+
+<section class="card flaw-board" id="flaw-board" aria-label="Diagram and inspector">
+    <p class="flaw-scroll-hint meta"><svg class="icon icon--sm"><use href="#i-arrow-right"/></svg> Scroll the diagram sideways to see all of it.</p>
+    <div class="flaw-canvas">
+        <svg class="flaw-diagram" viewBox="0 0 {{ challenge.canvas_width }} {{ challenge.canvas_height }}" role="group" aria-label="{{ challenge.title }}: architecture diagram">
+            <defs>
+                <marker id="flaw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M0 0 L10 5 L0 10 z" class="flaw-arrowhead"/>
+                </marker>
+            </defs>
+            {% for e in edges %}
+            <g class="flaw-part flaw-edge" data-key="{{ e.key }}" data-label="{{ e.label }}" role="button" tabindex="0" aria-label="{{ e.label }}">
+                <path d="{{ e.d }}" class="flaw-edge__hit"/>
+                <path d="{{ e.d }}" class="flaw-edge__line" marker-end="url(#flaw-arrow)"/>
+                {% if e.caption %}
+                <text x="{{ e.lx }}" y="{{ e.ly }}" text-anchor="middle" class="flaw-edge__caption">{{ e.caption }}</text>
+                <text x="{{ e.lx }}" y="{{ e.tag_y }}" text-anchor="middle" class="flaw-tag"></text>
+                {% endif %}
+            </g>
+            {% endfor %}
+            {% for n in nodes %}
+            <g class="flaw-part flaw-node" data-key="{{ n.key }}" data-label="{{ n.label }}" role="button" tabindex="0" aria-label="{{ n.label }}{% if n.sublabel %}, {{ n.sublabel }}{% endif %}">
+                <rect x="{{ n.x }}" y="{{ n.y }}" width="{{ n.w }}" height="{{ n.h }}" rx="3"/>
+                <text x="{{ n.cx }}" y="{{ n.title_y }}" text-anchor="middle" class="flaw-node__title">{{ n.label }}</text>
+                {% if n.sublabel %}<text x="{{ n.cx }}" y="{{ n.sub_y }}" text-anchor="middle" class="flaw-node__sub">{{ n.sublabel }}</text>{% endif %}
+                <text x="{{ n.tag_x }}" y="{{ n.tag_y }}" text-anchor="end" class="flaw-tag"></text>
+            </g>
+            {% endfor %}
+        </svg>
+    </div>
+
+    <div class="flaw-panels">
+        <div class="flaw-panel" id="flaw-inspector">
+            <h2 class="panel-label">Inspector</h2>
+            <p id="flaw-msg">Tap any box or arrow in the diagram.</p>
+            <div class="reasons" id="flaw-reasons" role="group" aria-label="Why is it wrong?"></div>
+            <div class="flaw-feedback" id="flaw-feedback" aria-live="polite"></div>
+        </div>
+        <div class="flaw-panel">
+            <h2 class="panel-label">Review</h2>
+            <p>Flaws found <strong class="num" id="flaw-count">{{ snapshot.found }} of {{ snapshot.flaws }}</strong><span class="flaw-pips" id="flaw-pips" aria-hidden="true"></span></p>
+            <p class="meta" id="flaw-review-note">Finish when you think you've found them all. Each flaw still hidden costs {{ points.missed }}.</p>
+            <div class="btn-row">
+                <button type="button" class="btn btn--primary" id="flaw-finish">Finish review</button>
+                <a href="{% url 'learn:flaw_challenge' challenge.slug %}" class="btn btn--quiet" id="flaw-again" hidden><svg class="icon icon--sm"><use href="#i-retry"/></svg> Play again</a>
+            </div>
+        </div>
+    </div>
+    {% csrf_token %}
+</section>
+</div>
+{{ snapshot|json_script:"flaw-snapshot" }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var moveUrl = "{% url 'learn:flaw_move' challenge.slug %}";
+  var board = document.getElementById('flaw-board');
+  var csrf = board.querySelector('[name=csrfmiddlewaretoken]').value;
+  var snap = JSON.parse(document.getElementById('flaw-snapshot').textContent);
+
+  var scoreEl = document.getElementById('flaw-score');
+  var msg = document.getElementById('flaw-msg');
+  var reasonsEl = document.getElementById('flaw-reasons');
+  var feedback = document.getElementById('flaw-feedback');
+  var inspector = document.getElementById('flaw-inspector');
+  var countEl = document.getElementById('flaw-count');
+  var pipsEl = document.getElementById('flaw-pips');
+  var finishBtn = document.getElementById('flaw-finish');
+  var againBtn = document.getElementById('flaw-again');
+  var reviewNote = document.getElementById('flaw-review-note');
+
+  var TAG = { found: 'FLAW FOUND', fine: 'FINE', missed: 'MISSED FLAW' };
+  var SPOKEN = { found: 'flaw found', fine: 'checked, it is fine', missed: 'missed flaw' };
+  var IDLE = 'Tap any box or arrow in the diagram.';
+  var narrow = window.matchMedia('(max-width: 959px)');
+  var calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var parts = {};
+  Array.prototype.forEach.call(board.querySelectorAll('.flaw-part'), function (g) {
+    parts[g.dataset.key] = { g: g, label: g.dataset.label, name: g.getAttribute('aria-label'), tag: g.querySelector('.flaw-tag') };
+  });
+  var active = null;
+  var busy = false;
+
+  function num(v) { return v < 0 ? '−' + Math.abs(v) : String(v); }
+  function signed(v) { return v > 0 ? '+' + v : num(v); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function icon(id, cls) {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'icon icon--sm' + (cls ? ' ' + cls : ''));
+    svg.setAttribute('aria-hidden', 'true');
+    var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#' + id);
+    svg.appendChild(use);
+    return svg;
+  }
+
+  function paint() {
+    scoreEl.textContent = num(snap.score);
+    var missed = 0;
+    Object.keys(parts).forEach(function (key) {
+      var p = parts[key];
+      var state = snap.parts[key] ? snap.parts[key].state : '';
+      if (state === 'missed') missed++;
+      p.g.classList.toggle('is-found', state === 'found');
+      p.g.classList.toggle('is-fine', state === 'fine');
+      p.g.classList.toggle('is-missed', state === 'missed');
+      p.g.classList.toggle('is-active', key === active);
+      if (p.tag) p.tag.textContent = TAG[state] || '';
+      p.g.setAttribute('aria-label', p.name + (SPOKEN[state] ? ', ' + SPOKEN[state] : ''));
+    });
+    countEl.textContent = snap.found + ' of ' + snap.flaws;
+    pipsEl.textContent = '';
+    for (var i = 0; i < snap.flaws; i++) {
+      pipsEl.appendChild(el('i', i < snap.found ? 'is-on' : i < snap.found + missed ? 'is-miss' : ''));
+    }
+  }
+
+  function say(kind, points, text) {
+    var slip = el('div', 'slip slip--' + kind);
+    if (points) slip.appendChild(el('strong', 'slip__pts num', signed(points)));
+    slip.appendChild(el('span', null, text));
+    feedback.replaceChildren(slip);
+  }
+
+  function lead(label, rest) {
+    msg.replaceChildren(el('strong', null, label), rest);
+  }
+
+  function drawReasons(key, reasons) {
+    reasonsEl.replaceChildren.apply(reasonsEl, reasons.map(function (r) {
+      var b = el('button', 'reason', r.text);
+      b.type = 'button';
+      if (r.tried) {
+        b.disabled = true;
+        b.appendChild(el('span', 'visually-hidden', ' (ruled out)'));
+      }
+      b.addEventListener('click', function () { answer(key, r.id); });
+      return b;
+    }));
+  }
+
+  function idle(text) {
+    active = null;
+    reasonsEl.replaceChildren();
+    msg.textContent = text || IDLE;
+  }
+
+  function reveal() {
+    if (narrow.matches) inspector.scrollIntoView({ block: 'nearest', behavior: calm.matches ? 'auto' : 'smooth' });
+  }
+
+  function post(data) {
+    busy = true;
+    board.classList.add('is-busy');
+    return fetch(moveUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf },
+      body: new URLSearchParams(data),
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok || !body.snapshot) throw new Error(body.error || "That move didn't save. Reload the page and try again.");
+        snap = body.snapshot;
+        return body;
+      });
+    }).catch(function (err) {
+      say('wrong', 0, err instanceof TypeError ? "Couldn't reach the server. Check your connection and tap again." : err.message);
+      throw err;
+    }).finally(function () {
+      busy = false;
+      board.classList.remove('is-busy');
+    });
+  }
+
+  function pick(key) {
+    if (busy) return;
+    var p = parts[key];
+    var known = snap.parts[key];
+    if (known) {
+      idle(snap.done ? 'Review closed. Tap any part to read why it is fine or flawed.' : IDLE);
+      lead(p.label, ': ' + known.note);
+      paint();
+      reveal();
+      return;
+    }
+    post({ action: 'inspect', part: key }).then(function (body) {
+      var r = body.result;
+      if (r.verdict === 'fine') {
+        idle();
+        say('wrong', r.points, p.label + ' is fine. ' + snap.parts[key].note);
+      } else if (r.verdict === 'suspect') {
+        active = key;
+        lead(p.label, ' looks wrong to you. Why?');
+        drawReasons(key, r.reasons);
+        feedback.replaceChildren();
+      }
+      paint();
+      reveal();
+      if (body.finished) finish(body.finished);
+    }, function () {});
+  }
+
+  function answer(key, reasonId) {
+    if (busy) return;
+    post({ action: 'answer', part: key, reason: reasonId }).then(function (body) {
+      var r = body.result;
+      if (r.verdict === 'right') {
+        idle();
+        say('right', r.points, snap.parts[key].note);
+      } else if (r.verdict === 'wrong') {
+        drawReasons(key, r.reasons);
+        say('wrong', r.points, "That isn't the problem with this part. Pick another reason, or tap a different part.");
+        var next = reasonsEl.querySelector('.reason:not(:disabled)');
+        if (next) next.focus();
+      }
+      paint();
+      if (body.finished) finish(body.finished);
+    }, function () {});
+  }
+
+  function finish(f) {
+    idle('Review closed. Tap any part to read why it is fine or flawed.');
+    feedback.replaceChildren();
+    finishBtn.hidden = true;
+    againBtn.hidden = false;
+    reviewNote.textContent = 'Every flaw is marked in the diagram now.';
+    paint();
+
+    var verdict = document.getElementById('flaw-verdict');
+    var tone = f.is_perfect ? 'right' : f.score >= 0 ? 'partial' : 'wrong';
+    verdict.className = 'card verdict verdict--' + tone;
+    document.getElementById('flaw-verdict-icon').setAttribute('href', f.is_perfect ? '#i-check' : f.score >= 0 ? '#i-flaw' : '#i-x');
+    document.getElementById('flaw-verdict-title').textContent = f.is_perfect ? 'Perfect review' : num(f.score) + ' points';
+    document.getElementById('flaw-verdict-xp').textContent = '+' + f.xp_awarded + ' XP';
+
+    var missed = f.detail.missed.length;
+    var line = 'You found ' + snap.found + ' of ' + snap.flaws + ' flaws.';
+    if (missed) line += ' The ' + (missed === 1 ? 'one' : missed) + ' you missed cost ' + (missed * {{ points.missed }}) + '.';
+    if (f.is_perfect) line += ' No wrong taps, so you earned the +{{ points.perfect }} bonus.';
+    document.getElementById('flaw-verdict-line').textContent = line;
+
+    var fixes = document.getElementById('flaw-verdict-fixes');
+    fixes.replaceChildren();
+    Object.keys(snap.parts).forEach(function (key) {
+      var st = snap.parts[key];
+      if (st.state !== 'found' && st.state !== 'missed') return;
+      var li = el('li');
+      li.appendChild(icon(st.state === 'found' ? 'i-check' : 'i-x', st.state === 'found' ? 'is-right' : 'is-wrong'));
+      var span = el('span');
+      span.appendChild(el('strong', null, parts[key].label + ': '));
+      span.appendChild(document.createTextNode(st.note));
+      li.appendChild(span);
+      fixes.appendChild(li);
+    });
+
+    var extras = document.getElementById('flaw-verdict-extras');
+    extras.replaceChildren();
+    if (f.leveled_up) {
+      var lv = el('div', 'verdict__extra verdict__extra--level');
+      lv.append(icon('i-level'), " Level up! You're now level " + f.new_level + '.');
+      extras.appendChild(lv);
+    }
+    f.new_badges.forEach(function (name) {
+      var b = el('div', 'verdict__extra verdict__extra--badge');
+      b.append(icon('i-stamp'), ' Badge earned: ' + name);
+      extras.appendChild(b);
+    });
+    extras.hidden = !extras.children.length;
+
+    verdict.hidden = false;
+    verdict.scrollIntoView({ block: 'start', behavior: calm.matches ? 'auto' : 'smooth' });
+    verdict.focus({ preventScroll: true });
+  }
+
+  Object.keys(parts).forEach(function (key) {
+    var g = parts[key].g;
+    g.addEventListener('click', function () { pick(key); });
+    g.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(key); }
+    });
+  });
+
+  finishBtn.addEventListener('click', function () {
+    if (busy) return;
+    post({ action: 'finish' }).then(function (body) { finish(body.finished); }, function () {});
+  });
+
+  if (Object.keys(snap.parts).length) msg.textContent = "You're partway through this review. " + IDLE;
+  paint();
+})();
+</script>
+{% endblock %}

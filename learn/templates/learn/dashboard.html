@@ -1,57 +1,189 @@
 {% extends "learn/base.html" %}
-{% block title %}Dashboard — SysDesign Quest{% endblock %}
+{% block title %}Overview — SysDesign Quest{% endblock %}
 {% block content %}
+<h1 class="visually-hidden">Overview</h1>
 
-<div class="bg-panel rounded-xl p-6 mb-8 border border-slate-800">
-    <div class="flex items-center justify-between mb-2">
-        <div>
-            <div class="text-2xl font-bold">Level {{ profile.level }}</div>
-            <div class="text-slate-400 text-sm">{{ profile.xp }} XP total · 🔥 {{ profile.current_streak }} day streak (best {{ profile.longest_streak }})</div>
+<div class="desk">
+    {% if continue_concept %}
+    <article class="card card--head card--ruled continue{% if continue_concept.id in due_concept_ids %} is-due{% endif %}" aria-labelledby="continue-title">
+        <div class="card__pad">
+            <div class="continue__path">
+                <a href="{% url 'learn:topic_detail' continue_concept.chapter.topic.slug %}">{{ continue_concept.chapter.topic.title }}</a>
+                / {{ continue_concept.chapter.title }}
+            </div>
+            <h2 class="continue__title" id="continue-title">
+                <a href="{% url 'learn:concept_detail' continue_concept.slug %}">{{ continue_concept.title }}</a>
+            </h2>
+            <p class="continue__summary">{{ continue_concept.summary }}</p>
+            <div class="continue__foot">
+                <div class="btn-row">
+                    <a href="{% url 'learn:concept_detail' continue_concept.slug %}" class="btn btn--primary">
+                        <svg class="icon"><use href="#i-notes"/></svg> {% if continue_resumed %}Continue studying{% else %}Start studying{% endif %}
+                    </a>
+                    <a href="{% url 'learn:concept_quiz' continue_concept.slug %}" class="btn btn--quiet">
+                        <svg class="icon"><use href="#i-quiz"/></svg> Take the quiz
+                    </a>
+                </div>
+                <div class="continue__facts">
+                    <span>{% if continue_resumed %}Last studied{% else %}Next in your drawer{% endif %}</span>
+                    <span class="num">{{ continue_concept.questions.count }} questions</span>
+                    <span class="num">{{ continue_activities }} activit{{ continue_activities|pluralize:"y,ies" }}</span>
+                </div>
+            </div>
         </div>
-        {% if due_count > 0 %}
-        <a href="{% url 'learn:review_queue' %}" class="bg-accent2 text-ink font-semibold px-4 py-2 rounded-lg hover:opacity-90">
-            🧠 {{ due_count }} review{{ due_count|pluralize }} due
-        </a>
-        {% else %}
-        <span class="text-sm text-slate-500">No reviews due — nice work</span>
-        {% endif %}
-    </div>
-    <div class="w-full bg-slate-800 rounded-full h-3 mt-3">
-        <div class="bg-gradient-to-r from-accent to-accent2 h-3 rounded-full" style="width: {{ xp_progress_pct }}%"></div>
-    </div>
-    <div class="text-xs text-slate-500 mt-1">{{ profile.xp_into_level }} / {{ profile.xp_for_next_level }} XP to level {{ profile.level|add:1 }}</div>
+    </article>
+    {% else %}
+    <article class="card card--head continue">
+        <div class="card__pad">
+            <h2 class="continue__title">Every unlocked card is mastered</h2>
+            <p class="continue__summary">Keep your streak alive in Daily Review, or level up to unlock the next chapters.</p>
+            <div class="continue__foot">
+                <a href="{% url 'learn:review_queue' %}" class="btn btn--primary"><svg class="icon"><use href="#i-review"/></svg> Open Daily Review</a>
+            </div>
+        </div>
+    </article>
+    {% endif %}
+
+    <section class="card leitner" aria-labelledby="leitner-title">
+        <div class="card__pad">
+            <div class="leitner__head">
+                <div>
+                    <h2 id="leitner-title">Review box</h2>
+                    <p class="leitner__sub">
+                        {% if due_count %}<span class="leitner__due num">{{ due_count }} card{{ due_count|pluralize }} due</span> · {% endif %}<span class="num">{{ filed_total }}</span> filed
+                    </p>
+                </div>
+                {% if due_count %}
+                <a href="{% url 'learn:review_queue' %}" class="btn btn--due btn--sm"><svg class="icon icon--sm"><use href="#i-review"/></svg> Review</a>
+                {% endif %}
+            </div>
+
+            <div class="leitner__box" role="group" aria-label="Compartments. Select one to show only its cards below.">
+                {% for box in boxes %}
+                <button type="button" class="slot" data-box="{{ box.number }}" aria-pressed="false"
+                        aria-label="Box {{ box.number }}, {{ box.label }}: {{ box.count }} card{{ box.count|pluralize }}{% if box.due %}, {{ box.due }} due{% endif %}">
+                    <span class="slot__no num">{{ box.number }}</span>
+                    <span class="slot__count num">{{ box.count }}</span>
+                    <span class="slot__stack box-pattern-{{ box.number }}{% if not box.count %} is-empty{% endif %}"
+                          style="height: calc({% widthratio box.count filed_max 100 %}% * 0.58)">
+                        {% if box.due %}<span class="slot__due" style="height: {% widthratio box.due box.count 100 %}%"></span>{% endif %}
+                    </span>
+                </button>
+                {% endfor %}
+            </div>
+            <div class="leitner__legend" aria-hidden="true">
+                {% for box in boxes %}<span>{{ box.label }}</span>{% endfor %}
+            </div>
+
+            <div class="leitner__foot">
+                {% if filed_total %}
+                <span>A wrong answer sends a card back to box 1.</span>
+                {% else %}
+                <span>Answer any quiz question and its concept is filed in box 1.</span>
+                {% endif %}
+                {% if unfiled %}
+                <button type="button" class="btn btn--ghost btn--sm" data-box-filter="0">
+                    <span class="stamp stamp--unfiled"><span class="stamp__swatch"></span></span> <span class="num">{{ unfiled }}</span> not filed yet
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 </div>
 
-{% if earned_badges %}
-<div class="mb-8 flex flex-wrap gap-2">
-    {% for ub in earned_badges %}
-    <span class="bg-panel border border-slate-700 rounded-full px-3 py-1 text-sm" title="{{ ub.badge.description }}">{{ ub.badge.icon }} {{ ub.badge.name }}</span>
+<section class="drawer" aria-labelledby="drawer-title">
+    <div class="section__head">
+        <h2 id="drawer-title">The drawer</h2>
+        <span class="meta num">{{ topic_data|length }} topics</span>
+    </div>
+
+    <div class="drawer__filter" id="drawer-filter" hidden>
+        <span id="drawer-filter-label"></span>
+        <button type="button" class="btn btn--ghost btn--sm" id="drawer-filter-clear"><svg class="icon icon--sm"><use href="#i-x"/></svg> Show all cards</button>
+    </div>
+
+    {% for entry in topic_data %}
+    <div class="divider" data-stock="{% cycle 1 2 3 4 5 6 %}">
+        <div class="divider__tab">
+            <span class="divider__no num">{{ forloop.counter }}</span>
+            <h3 class="divider__title"><a href="{% url 'learn:topic_detail' entry.topic.slug %}">{{ entry.topic.title }}</a></h3>
+            <span class="divider__count num">{{ entry.mastered }} of {{ entry.total }} mastered</span>
+        </div>
+        <div class="divider__body">
+            <div class="file-grid">
+                {% for c in entry.chapters %}
+                {% if c.unlocked %}
+                <a href="{{ c.href }}" class="card card--head card--ruled file-card{% if c.due %} is-due{% endif %}" data-box="{{ c.box|default:'0' }}">
+                    <span class="file-card__title">{{ c.chapter.title }}</span>
+                    <span class="file-card__foot">
+                        {% if c.box %}
+                        <span class="stamp{% if c.due %} stamp--due{% endif %}"><span class="stamp__swatch box-pattern-{{ c.box }}"></span>Box {{ c.box }}{% if c.due %} · due{% endif %}</span>
+                        {% else %}
+                        <span class="stamp stamp--unfiled"><span class="stamp__swatch"></span>Not filed</span>
+                        {% endif %}
+                        <span class="file-card__mastery num">{{ c.tier }}{% if c.total > 1 %} · {{ c.mastered }}/{{ c.total }}{% endif %}</span>
+                    </span>
+                </a>
+                {% else %}
+                <div class="card file-card file-card--locked" data-box="locked" aria-label="{{ c.chapter.title }}, locked until level {{ c.chapter.unlock_level }}">
+                    <span class="file-card__title">{{ c.chapter.title }}</span>
+                    <span class="file-card__foot">
+                        <span class="file-card__lock"><svg class="icon icon--sm"><use href="#i-lock"/></svg> Level <span class="num">{{ c.chapter.unlock_level }}</span></span>
+                        <span class="file-card__mastery">{{ c.tier }}</span>
+                    </span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
     {% endfor %}
-</div>
-{% endif %}
+</section>
+{% endblock %}
 
-{% for entry in book_data %}
-<div class="mb-8">
-    <h2 class="text-lg font-bold mb-3">{{ entry.book.title }}</h2>
-    <div class="grid gap-3 sm:grid-cols-2">
-        {% for c in entry.chapters %}
-        <a href="{% if c.unlocked %}{% url 'learn:chapter_detail' c.chapter.slug %}{% else %}#{% endif %}"
-           class="block rounded-lg border p-4 {% if c.unlocked %}border-slate-700 bg-panel hover:border-accent{% else %}border-slate-800 bg-slate-900/50 opacity-60 cursor-not-allowed{% endif %}">
-            <div class="flex justify-between items-center">
-                <span class="font-semibold">{% if not c.unlocked %}🔒{% endif %} {{ c.chapter.title }}</span>
-                <span class="text-xs text-slate-400">{{ c.mastered }}/{{ c.total }}</span>
-            </div>
-            {% if not c.unlocked %}
-            <div class="text-xs text-slate-500 mt-1">Unlocks at level {{ c.chapter.unlock_level }}</div>
-            {% else %}
-            <div class="w-full bg-slate-800 rounded-full h-2 mt-2">
-                <div class="bg-accent h-2 rounded-full" style="width: {{ c.pct }}%"></div>
-            </div>
-            {% endif %}
-        </a>
-        {% endfor %}
-    </div>
-</div>
-{% endfor %}
+{% block scripts %}
+<script>
+(function () {
+    // Signature interaction: pull one compartment's cards out of the drawer.
+    var slots = Array.prototype.slice.call(document.querySelectorAll('.slot'));
+    var unfiledBtn = document.querySelector('[data-box-filter="0"]');
+    var bar = document.getElementById('drawer-filter');
+    var label = document.getElementById('drawer-filter-label');
+    var clearBtn = document.getElementById('drawer-filter-clear');
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.file-card'));
+    var dividers = Array.prototype.slice.call(document.querySelectorAll('.divider'));
+    var active = null;
 
+    function apply(box) {
+        active = box;
+        slots.forEach(function (s) { s.setAttribute('aria-pressed', String(s.dataset.box === box)); });
+        var shown = 0;
+        cards.forEach(function (c) {
+            var hide = box !== null && c.dataset.box !== box;
+            c.classList.toggle('is-filtered', hide);
+            if (!hide) shown++;
+        });
+        dividers.forEach(function (d) {
+            d.classList.toggle('is-filtered', box !== null && !d.querySelector('.file-card:not(.is-filtered)'));
+        });
+        if (box === null) { bar.hidden = true; return; }
+        bar.hidden = false;
+        var what = box === '0' ? 'not filed yet' : 'in box ' + box;
+        label.textContent = shown ? shown + ' card' + (shown === 1 ? '' : 's') + ' ' + what
+                                  : 'No cards ' + what + ' yet.';
+    }
+
+    slots.forEach(function (s) {
+        s.addEventListener('click', function () {
+            apply(active === s.dataset.box ? null : s.dataset.box);
+            if (active !== null) bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    });
+    if (unfiledBtn) unfiledBtn.addEventListener('click', function () {
+        apply(active === '0' ? null : '0');
+        if (active !== null) bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    clearBtn.addEventListener('click', function () { apply(null); });
+})();
+</script>
 {% endblock %}

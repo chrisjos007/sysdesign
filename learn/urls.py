@@ -6,7 +6,7 @@ app_name = 'learn'
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
-    path('book/<slug:book_slug>/', views.book_detail, name='book_detail'),
+    path('topic/<slug:topic_slug>/', views.topic_detail, name='topic_detail'),
     path('chapter/<slug:chapter_slug>/', views.chapter_detail, name='chapter_detail'),
     path('concept/<slug:concept_slug>/', views.concept_detail, name='concept_detail'),
     path('concept/<slug:concept_slug>/quiz/', views.concept_quiz, name='concept_quiz'),
@@ -17,4 +17,13 @@ urlpatterns = [
     path('build/<slug:challenge_slug>/', views.design_challenge, name='design_challenge'),
     path('match/<slug:challenge_slug>/', views.matching_challenge, name='matching_challenge'),
     path('order/<slug:challenge_slug>/', views.ordering_challenge, name='ordering_challenge'),
+    path('code/<slug:challenge_slug>/', views.coding_challenge, name='coding_challenge'),
+    path('flaw/<slug:challenge_slug>/', views.flaw_challenge, name='flaw_challenge'),
+    path('flaw/<slug:challenge_slug>/move/', views.flaw_move, name='flaw_move'),
+    path('traffic/<slug:challenge_slug>/', views.traffic_challenge, name='traffic_challenge'),
+    path('traffic/<slug:challenge_slug>/finish/', views.traffic_finish, name='traffic_finish'),
+    path('quorum/<slug:challenge_slug>/', views.quorum_challenge, name='quorum_challenge'),
+    path('quorum/<slug:challenge_slug>/move/', views.quorum_move, name='quorum_move'),
+    path('ring/<slug:challenge_slug>/', views.ring_challenge, name='ring_challenge'),
+    path('ring/<slug:challenge_slug>/move/', views.ring_move, name='ring_move'),
 ]

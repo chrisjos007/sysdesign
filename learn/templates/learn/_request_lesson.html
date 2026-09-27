@@ -1,0 +1,88 @@
+<section class="request-lesson" id="request-lesson" aria-labelledby="request-lesson-title">
+    <div class="request-lesson__intro">
+        <h2 id="request-lesson-title">Follow one HTTPS request</h2>
+        <p class="meta">{{ request_lesson.id }} · Beginner · {{ request_lesson.estimated_minutes }} minutes · No prerequisites</p>
+        <ul class="request-lesson__objectives">
+            {% for objective in request_lesson.objectives %}<li>{{ objective }}</li>{% endfor %}
+        </ul>
+    </div>
+
+    <section class="request-trace" aria-labelledby="request-trace-title">
+        <h3 id="request-trace-title">Where do the 190 milliseconds go?</h3>
+        <p>Open <code>https://shop.example/orders</code> using HTTP/2. Compare what the browser already has before it sends a request.</p>
+        <div class="request-trace__controls" id="request-connection-controls" role="group" aria-label="Connection scenario" hidden>
+            <button type="button" class="btn btn--quiet" data-connection="cold" aria-pressed="true">New connection</button>
+            <button type="button" class="btn btn--quiet" data-connection="cached" aria-pressed="false">DNS cached</button>
+            <button type="button" class="btn btn--quiet" data-connection="reused" aria-pressed="false">Connection reused</button>
+        </div>
+        <p class="request-trace__total" role="status" aria-live="polite" aria-atomic="true">
+            <strong id="request-total">190 ms</strong>
+            <span id="request-equation">20 DNS + 40 TCP + 40 TLS + 90 HTTP</span>
+        </p>
+        <div class="request-trace__bar" aria-hidden="true">
+            {% for step in request_lesson.steps %}<span class="request-trace__bar-segment request-trace__bar-segment--{{ step.key }}" data-bar="{{ step.key }}" style="flex-grow: {{ step.ms }}"></span>{% endfor %}
+        </div>
+        <p id="request-scenario-note" class="meta">No cached answer or open connection. All four stages contribute to the total.</p>
+        <ol class="request-trace__steps">
+            {% for step in request_lesson.steps %}
+            <li data-step="{{ step.key }}">
+                <div class="request-trace__row">
+                    <span class="request-trace__number num">{{ forloop.counter }}</span>
+                    <span><strong>{{ step.title }}</strong><span class="request-trace__job">{{ step.job }}</span></span>
+                    <span class="request-trace__cost num" data-cost="{{ step.key }}">{{ step.ms }} ms</span>
+                </div>
+                <details class="request-trace__detail">
+                    <summary>What {{ step.title }} does and does not guarantee</summary>
+                    <p>{{ step.detail }}</p>
+                    <p><strong>The boundary:</strong> {{ step.boundary }}</p>
+                </details>
+            </li>
+            {% endfor %}
+        </ol>
+        <p class="request-lesson__scope">An illustrative model, not measured timings. Connection validity, TLS session resumption, packet loss, and geography change real results. HTTP/3 uses QUIC instead of TCP.</p>
+        <noscript><p class="meta">With a valid DNS cache only, the total is 170 ms. With a valid established connection, it is 90 ms. Enable JavaScript to compare the stages interactively.</p></noscript>
+    </section>
+
+    <section class="request-practice" id="request-practice" aria-labelledby="request-practice-title">
+        <h3 id="request-practice-title">One timeout. Two possible histories.</h3>
+        <p>You submit an order, then see “Request timed out.” Before opening the timelines, sketch a lost request and a lost response. Mark the last event the client and server can each observe.</p>
+        <details class="request-practice__answer">
+            <summary>Compare the two timelines</summary>
+            <div class="request-practice__histories">
+                <section>
+                    <h4>The request never arrives</h4>
+                    <ol>
+                        <li>Client sends an order request.</li>
+                        <li>The request is lost before reaching the server.</li>
+                        <li>Server receives nothing and saves no order.</li>
+                        <li>Client times out without a response.</li>
+                    </ol>
+                </section>
+                <section>
+                    <h4>The response never arrives</h4>
+                    <ol>
+                        <li>Server receives the order request.</li>
+                        <li>Server commits the order and sends a response.</li>
+                        <li>The response is lost before reaching the client.</li>
+                        <li>Client times out without a response.</li>
+                    </ol>
+                </section>
+            </div>
+            <p><strong>The client sees the same outcome.</strong> The server can distinguish no request from a committed order; the client cannot infer that distinction from its timeout. Consult server-side state or a stable operation identifier and use an application contract for safe retries.</p>
+        </details>
+        <details class="request-practice__answer">
+            <summary>Which setup steps can the next request reuse?</summary>
+            <p>It may reuse a valid cached DNS answer and a valid established TCP/TLS connection. DNS caching alone does not reuse a connection. A broken connection needs fresh setup.</p>
+        </details>
+        <p class="meta">Mastery checkpoint: explain the latency example without notes, draw both histories, and justify the TCP acknowledgement and DNS cache answers in the quiz.</p>
+        <a class="btn btn--primary" href="{% url 'learn:concept_quiz' concept.slug %}">Check your understanding <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
+    </section>
+
+    <details class="request-lesson__sources">
+        <summary>Sources and further reading</summary>
+        <p class="meta">Original teaching scenario from curriculum lesson sd-01. Technical references:</p>
+        <ul>{% for source in request_lesson.sources %}<li><a href="{{ source.url }}">{{ source.title }}</a></li>{% endfor %}</ul>
+    </details>
+    <h3 class="request-lesson__notes-heading">Study notes</h3>
+</section>
+{{ request_lesson|json_script:"request-lesson-data" }}

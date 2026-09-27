@@ -1,11 +1,15 @@
 """Gamification engine: XP, streaks, spaced repetition scheduling, mini-game scoring, badges."""
+import random
+
 from django.db.models import Count
 from django.utils import timezone
 
+from . import quorum, ring, traffic
+from .code_runner import grade_submission
 from .models import (
     Attempt, Badge, Book, Chapter, ConceptMastery,
-    DesignAttempt, MatchingAttempt, OrderingAttempt,
-    ReviewCard, UserBadge, UserProfile,
+    CodingAttempt, DesignAttempt, FlawAttempt, MatchingAttempt, OrderingAttempt,
+    QuorumAttempt, ReviewCard, RingAttempt, TrafficAttempt, UserBadge, UserProfile,
 )
 
 XP_CORRECT_BASE = 10
@@ -27,6 +31,24 @@ POINTS_MATCH_WRONG = 5
 POINTS_ORDER_CORRECT = 8
 POINTS_ORDER_WRONG = 4
 
+# Coding-challenge scoring
+POINTS_TEST_PASSED = 12
+POINTS_TEST_FAILED = 3
+
+# Spot-the-flaw scoring
+POINTS_FLAW_FOUND = 25
+POINTS_FLAW_WRONG_REASON = 10
+POINTS_FLAW_HEALTHY_TAP = 10
+POINTS_FLAW_MISSED = 15
+
+# Traffic Day scores in the hundreds (it starts at 1,000), so it pays XP at
+# a tenth of its score to stay in line with the other games.
+TRAFFIC_POINTS_PER_XP = 10
+
+# Ring Balancer scores up to about 260 (two balanced rings and two right
+# predictions), so it pays XP at half its score.
+RING_POINTS_PER_XP = 2
+
 PERFECT_BONUS = 25
 
 
@@ -35,9 +57,19 @@ def get_profile(user) -> UserProfile:
     return profile
 
 
-def record_quiz_answer(user, question, selected_choice, is_review=False):
-    """Handles one quiz-question submission. Returns dict with result info."""
-    is_correct = bool(selected_choice and selected_choice.is_correct)
+def record_quiz_answer(user, question, selected_choice_ids, is_review=False):
+    """Handles one quiz-question submission. `selected_choice_ids` is an
+    iterable of Choice ids the learner picked (a single-element iterable for
+    MCQ/True-False; any number for a "select all that apply" multi-select
+    question). Grading is an exact-set match against every choice marked
+    `is_correct=True` on the question — every correct option must be picked
+    and no incorrect one — so the "one confirmed correct answer" guarantee
+    holds for single-answer questions and the analogous "every correct box
+    checked, no wrong one" guarantee holds for multi-select. Returns dict
+    with result info."""
+    selected_ids = {int(cid) for cid in selected_choice_ids if cid is not None}
+    correct_ids = set(question.choices.filter(is_correct=True).values_list('id', flat=True))
+    is_correct = bool(selected_ids) and selected_ids == correct_ids
     xp = XP_CORRECT_BASE * question.difficulty if is_correct else XP_WRONG_PARTICIPATION
 
     Attempt.objects.create(user=user, question=question, is_correct=is_correct, xp_awarded=xp)
@@ -218,6 +250,310 @@ def record_ordering_attempt(user, challenge, submitted_order_ids):
     }
 
 
+def record_coding_attempt(user, challenge, code):
+    """Grades `code` against every one of the challenge's test cases (via
+    learn.code_runner, in a subprocess sandbox — see that module's docstring
+    for what is and isn't isolated), then scores it with the same
+    never-free-to-guess-wrong principle as the other mini-games: passing
+    tests score, failing ones cost a little, and a fully-passing run earns
+    the perfect bonus."""
+    grading = grade_submission(code, challenge.test_cases.all())
+    passed, total = grading['passed_count'], grading['total_count']
+
+    score = passed * POINTS_TEST_PASSED - (total - passed) * POINTS_TEST_FAILED
+    is_perfect = bool(total > 0 and passed == total)
+    if is_perfect:
+        score += PERFECT_BONUS
+
+    xp_awarded = max(0, score)
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    # Hidden test cases stay hidden even in the result detail — only
+    # pass/fail, not stdin/expected/stdout — sample cases show the full diff
+    # so the learner has something to debug against.
+    visible_results = []
+    for r in grading['results']:
+        if r['is_sample']:
+            visible_results.append(r)
+        else:
+            visible_results.append({
+                'test_case_id': r['test_case_id'], 'is_sample': False, 'passed': r['passed'],
+                'timed_out': r['timed_out'], 'blocked_reason': r['blocked_reason'],
+            })
+
+    detail = {'passed': passed, 'total': total, 'results': visible_results}
+    CodingAttempt.objects.create(
+        user=user, challenge=challenge, code=code, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Spot the Flaw
+#
+# Unlike the other games, this one gives feedback on every tap, so a run is
+# a small state machine that the view keeps in the session instead of one
+# form submit at the end. The run only records what the learner has done
+# (flaws found, healthy parts tapped, wrong reasons tried) and the score is
+# recomputed from that. Whether a part is flawed, and which reason is right,
+# never reaches the page until the learner has committed to an answer.
+# ---------------------------------------------------------------------------
+
+def new_flaw_run():
+    return {'seed': random.randrange(1 << 30), 'found': [], 'cleared': [], 'wrong': {}, 'done': False}
+
+
+def _flaw_parts(challenge):
+    return {p.key: p for p in challenge.parts.prefetch_related('reasons')}
+
+
+def _flaw_note(part):
+    """What a part says once it's resolved: the fix for a flaw, or why a healthy part is fine."""
+    if part.is_flaw:
+        right = next((r for r in part.reasons.all() if r.is_correct), None)
+        return right.text if right else part.explanation
+    return part.explanation
+
+
+def _missed_keys(parts, run):
+    if not run['done']:
+        return []
+    return [k for k, p in parts.items() if p.is_flaw and k not in run['found']]
+
+
+def _flaw_is_perfect(parts, run):
+    flaw_keys = {k for k, p in parts.items() if p.is_flaw}
+    return bool(flaw_keys and set(run['found']) == flaw_keys
+                and not run['cleared'] and not any(run['wrong'].values()))
+
+
+def _flaw_score(parts, run):
+    score = (
+        len(run['found']) * POINTS_FLAW_FOUND
+        - len(run['cleared']) * POINTS_FLAW_HEALTHY_TAP
+        - sum(len(ids) for ids in run['wrong'].values()) * POINTS_FLAW_WRONG_REASON
+        - len(_missed_keys(parts, run)) * POINTS_FLAW_MISSED
+    )
+    if run['done'] and _flaw_is_perfect(parts, run):
+        score += PERFECT_BONUS
+    return score
+
+
+def flaw_snapshot(challenge, run):
+    """The public view of a run: the score so far and, for each part the
+    learner has resolved (or every part, once the review is closed), its
+    state and note. Unresolved parts are left out entirely."""
+    parts = _flaw_parts(challenge)
+    missed = set(_missed_keys(parts, run))
+    public = {}
+    for key, part in parts.items():
+        if key in run['found']:
+            state = 'found'
+        elif key in run['cleared']:
+            state = 'fine'
+        elif key in missed:
+            state = 'missed'
+        elif run['done']:
+            state = 'unchecked'
+        else:
+            continue
+        public[key] = {'state': state, 'note': _flaw_note(part)}
+    return {
+        'score': _flaw_score(parts, run),
+        'found': len(run['found']),
+        'flaws': sum(1 for p in parts.values() if p.is_flaw),
+        'done': run['done'],
+        'parts': public,
+    }
+
+
+def _reason_options(part, run):
+    reasons = list(part.reasons.all())
+    random.Random(f"{run['seed']}:{part.key}").shuffle(reasons)
+    tried = set(run['wrong'].get(part.key, []))
+    return [{'id': r.id, 'text': r.text, 'tried': r.id in tried} for r in reasons]
+
+
+def inspect_flaw_part(challenge, run, key):
+    """The learner tapped a part. A healthy part costs points on its first
+    tap and is marked fine; a flawed part asks them why it's wrong.
+    Returns None for a key that isn't in the diagram."""
+    part = _flaw_parts(challenge).get(key)
+    if part is None:
+        return None
+    if run['done'] or key in run['found'] or key in run['cleared']:
+        return {'verdict': 'resolved', 'points': 0}
+    if not part.is_flaw:
+        run['cleared'].append(key)
+        return {'verdict': 'fine', 'points': -POINTS_FLAW_HEALTHY_TAP}
+    return {'verdict': 'suspect', 'points': 0, 'reasons': _reason_options(part, run)}
+
+
+def answer_flaw_part(challenge, run, key, reason_id):
+    """The learner said why a flawed part is wrong. A wrong reason costs
+    points once and is crossed off; the right one marks the flaw found.
+    Returns None unless the reason belongs to a flawed part with that key."""
+    part = _flaw_parts(challenge).get(key)
+    if part is None or not part.is_flaw:
+        return None
+    reason = next((r for r in part.reasons.all() if r.id == reason_id), None)
+    if reason is None:
+        return None
+    if run['done'] or key in run['found']:
+        return {'verdict': 'resolved', 'points': 0}
+    if reason.is_correct:
+        run['found'].append(key)
+        return {'verdict': 'right', 'points': POINTS_FLAW_FOUND}
+    tried = run['wrong'].setdefault(key, [])
+    points = 0
+    if reason.id not in tried:
+        tried.append(reason.id)
+        points = -POINTS_FLAW_WRONG_REASON
+    return {'verdict': 'wrong', 'points': points, 'reasons': _reason_options(part, run)}
+
+
+def all_flaws_found(challenge, run):
+    return all(k in run['found'] for k, p in _flaw_parts(challenge).items() if p.is_flaw)
+
+
+def record_flaw_attempt(user, challenge, run):
+    """Closes the review: every flaw still hidden costs points, a clean run
+    earns the perfect bonus, and the attempt is filed like every other game."""
+    run['done'] = True
+    parts = _flaw_parts(challenge)
+    missed = _missed_keys(parts, run)
+    is_perfect = _flaw_is_perfect(parts, run)
+    score = _flaw_score(parts, run)
+
+    xp_awarded = max(0, score)
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {
+        'found': [parts[k].label for k in run['found'] if k in parts],
+        'missed': [parts[k].label for k in missed],
+        'healthy_taps': [parts[k].label for k in run['cleared'] if k in parts],
+        'wrong_reasons': sum(len(ids) for ids in run['wrong'].values()),
+    }
+    FlawAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
+def record_traffic_attempt(user, challenge, raw_plan):
+    """Replays the learner's day on the server (learn/traffic.py) from the
+    design they ran at each tick, rather than trusting a score from the
+    browser. A day inside the SLO with analytics intact is a clean day and
+    earns the perfect bonus. Returns None if the plan doesn't validate."""
+    plan = traffic.parse_plan(challenge.params, raw_plan)
+    if plan is None:
+        return None
+    day = traffic.score_day(challenge.params, plan)
+    is_perfect = day['is_clean']
+    xp_awarded = max(0, day['score']) // TRAFFIC_POINTS_PER_XP + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    changes = sum(1 for a, b in zip(plan, plan[1:]) if a != b)
+    detail = {'breaches': day['breaches'], 'spent': day['spent'], 'used_301': day['used_301'],
+              'design_changes': changes}
+    TrafficAttempt.objects.create(
+        user=user, challenge=challenge, score=day['score'], xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': day['score'], 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'lessons': day['lessons'], 'new_badges': check_badges(user),
+    }
+
+
+def record_quorum_attempt(user, challenge, run):
+    """Files a finished Quorum Casino run. The score is the sum of the bets
+    and pays XP 1:1. A calibrated run, every bet within
+    quorum.CALIBRATED_WITHIN points of the exact chance, earns the perfect
+    bonus whatever the draws did, since bad luck can sink a well-judged bet."""
+    reads = quorum.all_reads(challenge.tables, run)
+    score = sum(r['points'] for r in reads)
+    is_perfect = bool(reads) and all(r['calibrated'] for r in reads)
+    xp_awarded = max(0, score) + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {
+        'reads': [{'table': challenge.tables[r['table']]['name'], 'bet': r['pct'], 'exact': r['exact'],
+                   'outcome': r['outcome'], 'points': r['points'], 'calibrated': r['calibrated']}
+                  for r in reads],
+        'calibrated': sum(1 for r in reads if r['calibrated']),
+    }
+    QuorumAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
+def record_ring_attempt(user, challenge, run):
+    """Files a finished Ring Balancer run. A clean run, with no unbalanced
+    lock-in and no wrong prediction, earns the perfect bonus."""
+    lines = ring.summary(challenge.stages, run)
+    score = sum(line['points'] for line in lines)
+    misses = sum(line.get('misses', 0) for line in lines)
+    wrong = sum(line['questions'] - line['right'] for line in lines if line['kind'] == 'predict')
+    is_perfect = misses == 0 and wrong == 0
+    xp_awarded = max(0, score) // RING_POINTS_PER_XP + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {'stages': lines, 'misses': misses, 'wrong': wrong}
+    RingAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -231,7 +567,14 @@ BADGE_DEFS = [
     ('architect', 'Architect', 'Build a perfect system design — no wrong parts, no wrong wires.', '🏗️'),
     ('matchmaker', 'Matchmaker', 'Get every match correct in a matching challenge.', '🧩'),
     ('sequencer', 'Sequencer', 'Put every step in exactly the right order.', '🔢'),
-    ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, and ordering games.', '🎮'),
+    ('coder', 'Coder', 'Pass every test case on a coding challenge.', '💻'),
+    ('flaw_finder', 'Flaw Finder', 'Find every planted flaw without a wrong tap or a wrong reason.', '🔍'),
+    ('on_call', 'On Call', 'Run a whole Traffic Day inside the SLO without breaking click analytics.', '📟'),
+    ('card_counter', 'Card Counter',
+     f'Bet within {quorum.CALIBRATED_WITHIN} points of the exact chance on every read in Quorum Casino.', '🎲'),
+    ('ring_master', 'Ring Master',
+     'Clear Ring Balancer without an unbalanced lock-in or a wrong prediction.', '⭕'),
+    ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
 
@@ -291,10 +634,16 @@ def check_badges(user):
     has_perfect_design = DesignAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_match = MatchingAttempt.objects.filter(user=user, is_perfect=True).exists()
     has_perfect_order = OrderingAttempt.objects.filter(user=user, is_perfect=True).exists()
+    has_perfect_coding = CodingAttempt.objects.filter(user=user, is_perfect=True).exists()
+    maybe('flaw_finder', FlawAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('on_call', TrafficAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('card_counter', QuorumAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('ring_master', RingAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)
-    maybe('game_master', has_perfect_design and has_perfect_match and has_perfect_order)
+    maybe('coder', has_perfect_coding)
+    maybe('game_master', has_perfect_design and has_perfect_match and has_perfect_order and has_perfect_coding)
 
     return newly_earned
 

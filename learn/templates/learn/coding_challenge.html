@@ -1,0 +1,161 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Coding{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+{% endblock %}
+{% block content %}
+<header class="page-head">
+    <h1>{{ challenge.title }}</h1>
+    <p class="page-head__meta"><span class="num">Difficulty {{ challenge.difficulty }} of 5</span><span>Python 3: read from stdin, print to stdout</span></p>
+</header>
+
+<div class="code-layout">
+    <div class="stack">
+        <section class="card card--head" aria-labelledby="problem-title">
+            <div class="card__pad">
+                <h2 id="problem-title" class="visually-hidden">Problem</h2>
+                <div id="problem-statement" class="markdown-body">{{ challenge.prompt }}</div>
+                {{ challenge.prompt|json_script:"problem-statement-raw" }}
+            </div>
+        </section>
+
+        {% if sample_test_cases %}
+        <section class="card" aria-labelledby="examples-title">
+            <div class="card__pad">
+                <h2 id="examples-title" class="panel-label">Examples</h2>
+                {% for tc in sample_test_cases %}
+                <div class="example">
+                    <div class="example__head">Example <span class="num">{{ forloop.counter }}</span></div>
+                    <div class="io"><span class="io__label">Input</span><pre>{{ tc.stdin }}</pre></div>
+                    <div class="io"><span class="io__label">Output</span><pre>{{ tc.expected_output }}</pre></div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if challenge.constraints %}
+        <section class="card" aria-labelledby="constraints-title">
+            <div class="card__pad">
+                <h2 id="constraints-title" class="panel-label">Constraints</h2>
+                <div class="constraints">{{ challenge.constraints }}</div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if request.user.is_superuser %}
+        <section class="card admin-card" aria-labelledby="admin-title">
+            <div class="card__pad">
+                <div class="panel-label">
+                    <h2 id="admin-title" class="panel-label__title">Admin: all test cases</h2>
+                    <button id="all-tests-toggle" type="button" class="btn btn--quiet btn--sm" aria-expanded="false" aria-controls="all-tests-panel">
+                        <svg class="icon icon--sm"><use href="#i-eye"/></svg> <span>Show all <span class="num">{{ all_test_cases|length }}</span></span>
+                    </button>
+                </div>
+                <div id="all-tests-panel" hidden>
+                    {% for tc in all_test_cases %}
+                    <div class="example">
+                        <div class="example__head"><span>Test case <span class="num">{{ forloop.counter }}</span></span><span class="meta">{% if tc.is_sample %}sample{% else %}hidden{% endif %}</span></div>
+                        <div class="io"><span class="io__label">stdin</span><pre>{{ tc.stdin }}</pre></div>
+                        <div class="io"><span class="io__label">expected stdout</span><pre>{{ tc.expected_output }}</pre></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </div>
+
+    <div class="stack code-layout__editor">
+        {% if result %}
+        <section class="card verdict verdict--{% if result.is_perfect %}right{% elif result.score >= 0 %}partial{% else %}wrong{% endif %}" aria-live="polite">
+            <div class="card__pad">
+                <div class="verdict__head">
+                    <span class="verdict__mark"><svg class="icon icon--lg"><use href="#{% if result.is_perfect %}i-check{% elif result.score >= 0 %}i-code{% else %}i-x{% endif %}"/></svg></span>
+                    {% if result.is_perfect %}All tests passed{% else %}<span class="num">{{ result.detail.passed }} of {{ result.detail.total }}</span>&nbsp;tests passed{% endif %}
+                    <span class="verdict__xp num">{{ result.score }} pts · +{{ result.xp_awarded }} XP</span>
+                </div>
+                {% include "learn/_verdict_extras.html" %}
+                <div class="test-results">
+                    {% for r in result.detail.results %}
+                    <div class="test test--{% if r.passed %}pass{% else %}fail{% endif %}">
+                        <div class="test__head">
+                            <svg class="icon icon--sm"><use href="#{% if r.passed %}i-check{% else %}i-x{% endif %}"/></svg>
+                            {% if r.is_sample %}Sample test{% else %}Hidden test{% endif %}{% if r.timed_out %}: timed out{% endif %}
+                        </div>
+                        {% if r.is_sample %}
+                        {% if r.timed_out %}
+                        <p class="test__note">Timed out. Check for an infinite loop.</p>
+                        {% elif r.blocked_reason %}
+                        <p class="test__note">{{ r.blocked_reason }}</p>
+                        {% else %}
+                        <div class="io"><span class="io__label">Your stdout</span><pre>{{ r.stdout }}</pre></div>
+                        {% if r.stderr %}<div class="io"><span class="io__label">stderr</span><pre>{{ r.stderr }}</pre></div>{% endif %}
+                        {% endif %}
+                        {% elif r.blocked_reason %}
+                        <p class="test__note">{{ r.blocked_reason }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <form id="code-form" method="post" action="{% url 'learn:coding_challenge' challenge.slug %}" class="card card--head editor-card">
+            {% csrf_token %}
+            <label for="code-editor" class="visually-hidden">Your Python program</label>
+            <textarea id="code-editor" name="code">{{ submitted_code }}</textarea>
+            <div class="editor-card__bar">
+                <span class="meta">Runs against every test case, sample and hidden</span>
+                <button type="submit" class="btn btn--primary"><svg class="icon"><use href="#i-play"/></svg> Run &amp; submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    // Problem Statement is stored as Markdown and rendered client-side.
+    // json_script safely round-trips the raw text; if marked.js fails to
+    // load, the div keeps showing its raw-text fallback.
+    var promptDataEl = document.getElementById('problem-statement-raw');
+    var problemStatementEl = document.getElementById('problem-statement');
+    if (promptDataEl && problemStatementEl && window.marked) {
+        marked.setOptions({ breaks: true, gfm: true });
+        problemStatementEl.innerHTML = marked.parse(JSON.parse(promptDataEl.textContent));
+    }
+
+    if (window.CodeMirror) {
+        var editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            mode: 'python',
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            viewportMargin: Infinity,
+        });
+        // CodeMirror doesn't keep the hidden <textarea> in sync as you type;
+        // save() copies the editor's content back right before submission.
+        document.getElementById('code-form').addEventListener('submit', function () { editor.save(); });
+    }
+
+    var toggle = document.getElementById('all-tests-toggle');
+    var panel = document.getElementById('all-tests-panel');
+    if (toggle && panel) {
+        var label = toggle.querySelector('span');
+        var showLabel = label.innerHTML;
+        toggle.addEventListener('click', function () {
+            panel.hidden = !panel.hidden;
+            toggle.setAttribute('aria-expanded', String(!panel.hidden));
+            label.innerHTML = panel.hidden ? showLabel : 'Hide all';
+        });
+    }
+})();
+</script>
+{% endblock %}
