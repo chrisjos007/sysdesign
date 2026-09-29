@@ -1,0 +1,24 @@
+.capacity-lesson { margin-top: var(--s6); }
+.capacity-lesson [hidden] { display: none !important; }
+.capacity-lesson h2 { font-size: var(--fs-xl); }
+.capacity-lesson h3 { font-size: var(--fs-lg); }
+.capacity-lesson p { max-width: 68ch; }
+.capacity-lesson > p { margin-top: var(--s3); }
+.capacity-lab, .capacity-notes-heading { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); scroll-margin-top: 5rem; }
+.capacity-lab > * + * { margin-top: var(--s4); }
+.capacity-controls { display: grid; gap: var(--s4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.capacity-lab label { display: block; margin-bottom: var(--s2); }
+.capacity-lab select { width: 100%; min-height: 44px; padding: var(--s3); border: 1px solid var(--card-edge); background: var(--card); color: var(--ink); font: inherit; }
+.capacity-lab .btn { min-height: 44px; white-space: normal; font-size: var(--fs-sm); }
+.capacity-lesson :is(select, summary, a, button):focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+.capacity-result p + p { margin-top: var(--s3); }
+.capacity-lesson ul { padding-left: var(--s5); }
+.capacity-result { padding: var(--s4); background: var(--card-back); font-weight: 600; font-variant-numeric: tabular-nums; }
+.capacity-lesson summary { cursor: pointer; color: var(--cobalt); min-height: 44px; padding: var(--s3) 0; }
+.capacity-lesson summary:hover { color: var(--cobalt-press); }
+.capacity-lesson ol { padding-left: var(--s5); }
+.capacity-lesson li { padding: var(--s2) 0; }
+.capacity-lesson pre { padding: var(--s4); background: var(--card-back); white-space: pre-wrap; overflow-wrap: anywhere; }
+.capacity-lesson code { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .capacity-controls { grid-template-columns: 1fr; } }
+

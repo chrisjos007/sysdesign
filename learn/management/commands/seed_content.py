@@ -10,7 +10,7 @@ from learn.services import ensure_badges_exist
 # Content data.
 #
 # The system design material is the original curriculum in docs/learning:
-# 30 lessons and 6 case studies built on standards, papers and official
+# 31 lessons and 6 case studies built on standards, papers and official
 # documentation. learn/curriculum.py reads it and returns one chapter dict
 # per lesson, in the same shape as REFERENCE_CHAPTERS below. Each chapter
 # holds one concept.
@@ -106,10 +106,10 @@ REFERENCE_CHAPTERS = [
                         "hashable objects can be keys — a stable __hash__ plus an __eq__ that agrees with it — "
                         "which is exactly why mutable builtins like list and dict can't be keys: a key's hash "
                         "changing after insertion would corrupt its own slot invariant. String and bytes hashes "
-                        "are salted per-process by default (SipHash, since Python 3.3) specifically to prevent "
-                        "hash-flooding attacks that degrade lookups toward O(n); this is also why dict iteration "
-                        "order with string keys can differ across separate process runs despite being stable "
-                        "within one run."
+                        "are salted per process by default (since Python 3.3, computed with SipHash since 3.4) "
+                        "to prevent hash-flooding attacks that degrade lookups toward O(n). Insertion order "
+                        "decides iteration order, so a dict iterates the same way in every run; what changes "
+                        "between runs is the hash values, and with them the order of a set of strings."
                      )),
                 dict(heading="Dictionary Variants",
                      body=(
@@ -137,12 +137,13 @@ REFERENCE_CHAPTERS = [
                      body=(
                         "The GIL lets only one thread execute Python bytecode at a time per process, so "
                         "multiprocessing sidesteps it entirely with separate OS processes, each its own "
-                        "interpreter and memory space. The start method matters: fork (Linux/macOS default "
-                        "historically) copy-on-write clones the parent's memory instantly but can be unsafe with "
-                        "inherited threads/file descriptors; spawn (Windows and modern macOS default) boots a "
-                        "clean new interpreter and re-imports the target module, which is why Windows/spawn code "
-                        "needs an `if __name__ == \"__main__\":` guard; forkserver forks children from one clean "
-                        "server process forked early, as a safer middle ground. Since processes don't share "
+                        "interpreter and memory space. The start method matters: fork copy-on-write clones the "
+                        "parent's memory instantly but can be unsafe with inherited threads and file descriptors "
+                        "(it was the Linux default until Python 3.14); spawn (the Windows and macOS default) boots "
+                        "a clean new interpreter and re-imports the target module, which is why spawn code needs "
+                        "an `if __name__ == \"__main__\":` guard; forkserver (the default on Linux and other POSIX "
+                        "systems since 3.14) forks children from one clean server process started early, a safer "
+                        "middle ground. Since processes don't share "
                         "memory, data crosses via Queue/Pipe (pickled through an OS pipe), Value/Array (shared "
                         "ctypes memory with an optional Lock), Manager() (a separate process proxying Python "
                         "objects), or multiprocessing.shared_memory for true unpickled shared buffers. Everything "
@@ -158,16 +159,16 @@ REFERENCE_CHAPTERS = [
                         "x += 1 aren't atomic at the bytecode level, so unsynchronized concurrent updates can "
                         "still lose data despite the GIL preventing outright memory corruption; Lock/RLock, "
                         "Condition, Event, Semaphore, and Barrier coordinate this. concurrent.futures."
-                        "ThreadPoolExecutor is the modern high-level layer over raw threading. PEP 703 introduced "
-                        "an experimental free-threaded (no-GIL) CPython build starting around 3.13, an active "
-                        "area of change."
+                        "ThreadPoolExecutor is the modern high-level layer over raw threading. PEP 703 added an "
+                        "optional free-threaded (no-GIL) CPython build: experimental in 3.13 and officially "
+                        "supported, though still a separate build, from 3.14 (PEP 779)."
                      )),
                 dict(heading="Memory Management & the Garbage Collector",
                      body=(
                         "Every object is reference-counted and deallocated immediately, deterministically, once "
                         "its count hits zero. Reference cycles (two objects referencing each other) can't be "
-                        "freed by refcounting alone, so a separate generational garbage collector (3 generations, "
-                        "young objects collected most often) handles those; gc.collect() forces a pass. CPython's "
+                        "freed by refcounting alone, so a separate generational cycle collector handles those, "
+                        "scanning young objects most often; gc.collect() forces a pass. CPython's "
                         "own small-object allocator, pymalloc, handles allocations under roughly 512 bytes in "
                         "arenas/pools/blocks to avoid calling the system malloc for every tiny object."
                      )),
@@ -201,123 +202,123 @@ REFERENCE_CHAPTERS = [
             ],
             questions=[
                 dict(prompt="Since the CPython 3.6 'compact dict' redesign, what two structures does a dict's internal storage split into?",
-                     choices=[("A sparse index array of small integers, and a dense array of (hash, key, value) triples in insertion order", True),
-                              ("Two identical hash tables kept in sync for redundancy", False),
-                              ("A B-tree of keys and a separate linked list of values", False),
-                              ("A single flat array of key-value pairs sorted by hash", False)],
+                     choices=[("A sparse index array, plus a dense array of entries in insertion order", True),
+                              ("Two identical hash tables that are kept in sync for redundancy", False),
+                              ("A B-tree of the keys, plus a separate linked list of the values", False),
+                              ("One flat array of all key-value pairs, kept sorted by their hash values", False)],
                      explanation="The sparse array maps hash slots to positions in the dense array, which is what lets iteration order match insertion order for free.",
                      difficulty=2),
                 dict(prompt="Why does splitting a dict into a sparse index array and a dense entries array make iteration order match insertion order?",
-                     choices=[("Iterating just walks the dense array, which is already in insertion order since entries are appended there directly", True),
-                              ("Python re-sorts the dict alphabetically before every iteration", False),
-                              ("It doesn't — dict order is still random even in modern CPython", False),
-                              ("The sparse array is what gets iterated, and it happens to be insertion-ordered", False)],
+                     choices=[("Iteration walks the dense array, where entries are appended in order", True),
+                              ("Python quietly re-sorts the keys alphabetically before each iteration", False),
+                              ("It does not; dict order is still arbitrary in modern CPython", False),
+                              ("Iteration walks the sparse array, which happens to be ordered", False)],
                      explanation="The dense array holds entries contiguously in the order they were inserted; the sparse array is only used for hashing to a position, not for iteration.",
                      difficulty=2),
                 dict(prompt="What happens on a dict lookup when the initial slot's stored hash doesn't match the key being looked up?",
-                     choices=[("CPython immediately raises KeyError with no further checking", False),
-                              ("CPython follows an open-addressing probe sequence to check subsequent slots until it finds a match or an empty slot", True),
-                              ("The dict automatically resizes on every single mismatch", False),
-                              ("CPython falls back to a linear scan of every key in the dict", False)],
+                     choices=[("CPython raises KeyError at once, without checking other slots", False),
+                              ("CPython probes further slots until it finds a match or an empty one", True),
+                              ("The dict resizes itself every single time the first slot is a mismatch", False),
+                              ("CPython falls back to a linear scan over every key in the dict", False)],
                      explanation="A hash collision triggers CPython's specific probing scheme (not simple linear probing) rather than an immediate failure or full scan.",
                      difficulty=2),
                 dict(prompt="Why can't a plain Python list be used as a dict key?",
-                     choices=[("Lists are too large to hash efficiently", False),
-                              ("Lists are mutable, so their contents (and thus their hash) could change after insertion, corrupting the key's slot invariant", True),
-                              ("Only numeric types can ever be dict keys", False),
-                              ("Dicts technically allow it, but silently ignore list keys", False)],
+                     choices=[("Lists are too large for Python to hash in a reasonable time", False),
+                              ("Lists are mutable, so their hash could change after insertion", True),
+                              ("Only numeric types such as int and float can be dict keys", False),
+                              ("Dicts accept list keys but silently ignore them on lookup", False)],
                      explanation="If a key's hash changed after it was placed in a slot, the dict would no longer be able to find it — mutability and hashability are fundamentally incompatible.",
                      difficulty=2),
                 dict(prompt="Why are Python string hashes randomized (salted) per process by default since Python 3.3?",
-                     choices=[("To make dicts use less memory", False),
-                              ("To prevent hash-flooding denial-of-service attacks where crafted keys deliberately collide and degrade lookups toward O(n)", True),
-                              ("To guarantee dict iteration order is always alphabetical", False),
-                              ("It's a leftover from Python 2 with no current purpose", False)],
-                     explanation="SipHash-based per-process salting means an attacker can't precompute colliding keys in advance, which is exactly the hash-flooding attack it defends against.",
+                     choices=[("To make dictionaries use less memory for string keys", False),
+                              ("To stop attackers crafting colliding keys that slow lookups", True),
+                              ("To guarantee that dicts iterate in alphabetical order", False),
+                              ("It is a leftover from Python 2 that has no current purpose", False)],
+                     explanation="Per-process salting (the default since Python 3.3, with SipHash as the hash since 3.4) means an attacker can't precompute keys that collide and push lookups toward O(n), which is the hash-flooding attack it defends against.",
                      difficulty=3),
                 dict(prompt="What does the 'key-sharing dictionary' optimization (PEP 412) do?",
-                     choices=[("It compresses dict values to save disk space", False),
-                              ("It lets many instances of the same class share one keys array in memory, storing only a per-instance values array", True),
-                              ("It shares one dict object across multiple threads for thread safety", False),
-                              ("It merges two dicts into one when their keys overlap", False)],
+                     choices=[("It compresses dict values to save space when pickled to disk", False),
+                              ("Instances of one class share a keys array, with per-instance values", True),
+                              ("It shares one dict object across all threads to make it thread-safe", False),
+                              ("It merges two dicts into one whenever their keys overlap", False)],
                      explanation="When many instances of a class have the same attribute names, sharing the keys array is a substantial memory win over each instance holding a full independent dict.",
                      difficulty=3),
                 dict(prompt="Which of the following are true about `collections.defaultdict`, `Counter`, and `ChainMap`? (select all that apply)",
                      kind='multi',
-                     choices=[("`defaultdict` calls a factory function automatically on missing-key access", True),
-                              ("`Counter` supports arithmetic operators like `+` and `-` directly on counts", True),
-                              ("`ChainMap` layers multiple dicts as one view without copying or merging them", True),
-                              ("All three eagerly copy and merge their source dicts into one new dict at creation time", False)],
+                     choices=[("`defaultdict` calls a factory function for a missing key", True),
+                              ("`Counter` supports `+` and `-` directly on its counts", True),
+                              ("`ChainMap` layers several dicts as one view without copying", True),
+                              ("All three copy and merge their source dicts when created", False)],
                      explanation="All three avoid the corresponding manual boilerplate — missing-key checks, count bookkeeping, and dict merging — without extra copying (except where the dict itself is mutated).",
                      difficulty=2),
                 dict(prompt="Why does the CPython GIL exist in the first place?",
-                     choices=[("To make single-threaded code run faster", False),
-                              ("Because CPython's reference-counting memory management isn't thread-safe by default, so a single mutex prevents concurrent refcount corruption", True),
-                              ("To prevent programs from using more than one CPU core for any reason", False),
-                              ("It's required by the Python language specification itself", False)],
+                     choices=[("To make single-threaded code run faster than it would otherwise", False),
+                              ("Reference counting is not thread-safe, so one lock protects it", True),
+                              ("To stop programs from using more than one CPU core at all", False),
+                              ("Because the Python language specification requires it", False)],
                      explanation="Without the GIL, concurrent increments/decrements of an object's refcount from multiple threads could race and corrupt object lifetimes.",
                      difficulty=2),
                 dict(prompt="Why does `threading` still help with I/O-bound workloads despite the GIL?",
-                     choices=[("Threading doesn't actually help I/O-bound workloads at all", False),
-                              ("I/O operations release the GIL while waiting, letting other threads run Python bytecode during that wait", True),
-                              ("The GIL only applies to CPU-bound code, never to I/O", False),
-                              ("Each thread gets its own separate GIL", False)],
+                     choices=[("It does not; threads give no benefit to I/O-bound work", False),
+                              ("I/O calls release the GIL while waiting, so others can run", True),
+                              ("The GIL applies only to CPU-bound code, never to I/O code", False),
+                              ("Each thread gets its own separate GIL for its I/O calls", False)],
                      explanation="A blocked network call or disk read releases the GIL, so other threads get real concurrency during that wait even though only one thread ever executes Python bytecode at a time.",
                      difficulty=2),
                 dict(prompt="What is the key architectural difference between `multiprocessing` and `threading`?",
-                     choices=[("They are two names for the exact same underlying mechanism", False),
-                              ("multiprocessing uses separate OS processes with independent memory (bypassing the GIL); threading uses threads sharing one process's memory (subject to the GIL)", True),
-                              ("threading is always faster than multiprocessing for every kind of workload", False),
-                              ("multiprocessing can only be used for network I/O, never CPU-bound work", False)],
+                     choices=[("They are two names for the same underlying mechanism", False),
+                              ("Processes have separate memory and GILs; threads share both", True),
+                              ("Threading is faster than multiprocessing for every workload", False),
+                              ("Multiprocessing works for network I/O only, never CPU work", False)],
                      explanation="Separate processes mean separate interpreters and memory spaces, which is what lets multiprocessing achieve true multi-core parallelism that threading cannot for CPU-bound code.",
                      difficulty=1),
                 dict(prompt="On Windows, why does `multiprocessing` code typically require an `if __name__ == \"__main__\":` guard?",
-                     choices=[("It's just a stylistic convention with no functional effect", False),
-                              ("The default 'spawn' start method boots a fresh interpreter and re-imports the target module, so top-level code would otherwise re-run in every child process", True),
-                              ("Windows doesn't support multiprocessing without this guard", False),
-                              ("The guard is only needed when using threading, not multiprocessing", False)],
+                     choices=[("It is a stylistic convention with no effect on how code runs", False),
+                              ("Spawn re-imports the module, so top-level code would re-run", True),
+                              ("Windows refuses to create any process without the guard", False),
+                              ("The guard is needed for threading, not for multiprocessing", False)],
                      explanation="Without the guard, re-importing the module in each spawned child would re-execute any top-level process-creation code, potentially spawning processes recursively.",
                      difficulty=3),
                 dict(prompt="Why must objects passed between processes in `multiprocessing` (via Queue, Pool, etc.) be picklable?",
-                     choices=[("Because separate processes don't share memory, so data must be serialized to cross between them", True),
-                              ("Pickling is only a performance optimization, not a requirement", False),
-                              ("Only numeric data can ever be sent between processes", False),
-                              ("Picklability is required for threading too, not just multiprocessing", False)],
+                     choices=[("Processes do not share memory, so data must be serialized", True),
+                              ("Pickling is only a speed optimization, not a requirement", False),
+                              ("Only numeric data can ever be sent between two processes", False),
+                              ("Threads need picklable data too, so the rule is universal", False)],
                      explanation="Unlike threads, processes have independent memory spaces, so any data crossing between them (arguments, return values, queue items) must be serialized and deserialized.",
                      difficulty=2),
                 dict(prompt="What is the risk of writing to a `subprocess.Popen`'s stdout/stderr pipes without using `.communicate()`?",
-                     choices=[("There is no risk — pipes have unlimited buffer size", False),
-                              ("A deadlock: the OS pipe buffer can fill, blocking the child, while the parent is also blocked reading/writing in the wrong order", True),
-                              ("The subprocess module will raise an ImportError", False),
-                              ("The child process will silently ignore all output", False)],
+                     choices=[("There is no risk at all, because OS pipes have unlimited buffers", False),
+                              ("Deadlock: a full pipe blocks the child while the parent waits", True),
+                              ("The subprocess module raises an ImportError at that point", False),
+                              ("The child process silently discards all of its output", False)],
                      explanation="`.communicate()` uses internal reader threads specifically to avoid this classic deadlock pattern around fixed-size OS pipe buffers.",
                      difficulty=3),
                 dict(prompt="What does a Python generator function (using `yield`) provide that a regular function returning a list does not?",
-                     choices=[("Faster execution in every case, with no other difference", False),
-                              ("Lazy, on-demand evaluation — values are computed one at a time instead of all being materialized in memory upfront", True),
-                              ("Automatic parallel execution across multiple CPU cores", False),
-                              ("Guaranteed thread-safety with no locking needed", False)],
+                     choices=[("Faster execution in every case, and no other difference at all", False),
+                              ("Lazy evaluation: values are produced one at a time on demand", True),
+                              ("Automatic parallel execution across several CPU cores", False),
+                              ("Guaranteed thread safety without needing any locks", False)],
                      explanation="A generator suspends execution at each `yield` and resumes on the next `next()` call, which is what enables streaming large or infinite sequences without holding them all in memory.",
                      difficulty=1),
                 dict(prompt="What is a Python descriptor?",
-                     choices=[("A type hint used only for static analysis, with no runtime effect", False),
-                              ("Any object implementing `__get__`, `__set__`, or `__delete__`, used to customize attribute access when placed as a class attribute", True),
-                              ("A special kind of comment describing what a function does", False),
-                              ("A synonym for a Python decorator", False)],
+                     choices=[("A type hint used by static analysis with no runtime effect", False),
+                              ("An object with `__get__`/`__set__`/`__delete__`, used as a class attribute", True),
+                              ("A special kind of docstring comment that describes what a function does", False),
+                              ("Another name for a decorator that is applied to a class attribute or method", False)],
                      explanation="`property`, `staticmethod`, and `classmethod` are all built on the descriptor protocol — it's the general mechanism behind customized attribute access.",
                      difficulty=3),
                 dict(prompt="What does a Python metaclass do?",
-                     choices=[("It defines default values for a class's instance attributes", False),
-                              ("It is 'the class of a class' — it intercepts and can customize how the class object itself is constructed", True),
-                              ("It is just another name for a base class in inheritance", False),
-                              ("It controls only how instances are printed with `repr()`", False)],
+                     choices=[("It sets the default values for all of a class's instance attributes", False),
+                              ("It is the class of a class, controlling how classes are built", True),
+                              ("It is another name for a base class used in inheritance", False),
+                              ("It controls only how instances are printed by `repr()`", False)],
                      explanation="By default a class's metaclass is `type`; supplying a custom metaclass lets you hook into class creation itself, which is how frameworks like Django's ORM and `abc.ABCMeta` work.",
                      difficulty=3),
                 dict(prompt="Why does calling a blocking, synchronous function inside an `async def` coroutine cause problems in `asyncio`?",
-                     choices=[("It raises a SyntaxError immediately", False),
-                              ("It blocks the entire single-threaded event loop, preventing every other coroutine from making progress until it returns", True),
-                              ("asyncio automatically runs it in a background thread with no code changes needed", False),
-                              ("It has no effect since `async def` functions ignore blocking calls", False)],
+                     choices=[("It raises a SyntaxError as soon as the module is imported", False),
+                              ("It blocks the whole event loop, so no other coroutine runs", True),
+                              ("asyncio automatically moves it onto a background thread", False),
+                              ("Nothing happens, since async functions ignore blocking calls", False)],
                      explanation="asyncio's concurrency model depends on coroutines voluntarily yielding at `await` points; a blocking call never yields, so it stalls the whole loop until it finishes.",
                      difficulty=2),
             ]),
@@ -436,8 +437,9 @@ REFERENCE_CHAPTERS = [
                         "Storage devices expose fixed-size sectors, and the filesystem groups these into blocks "
                         "(commonly 4KB on ext4) — the true allocation unit, so even a 1-byte file consumes a "
                         "full block. A superblock holds filesystem-wide metadata (block/inode counts, block "
-                        "size, clean/dirty state); the inode table holds every inode (pre-allocated in older "
-                        "designs, which is why a filesystem can run out of inodes despite having free bytes); "
+                        "size, clean/dirty state); the inode table holds every inode (ext2/3/4 fix its size when "
+                        "the filesystem is created, which is why one can run out of inodes despite having free "
+                        "bytes; XFS and Btrfs allocate inodes dynamically); "
                         "and modern filesystems (ext4, XFS, Btrfs) use extents — a (start_block, length) pair — "
                         "instead of per-block pointer lists, cutting metadata size and fragmentation for large "
                         "files. Journaling logs pending metadata changes so a crash mid-write can be replayed or "
@@ -453,36 +455,36 @@ REFERENCE_CHAPTERS = [
                         "can open the same inode concurrently, flock() (whole-file, tied to the open file "
                         "description) and fcntl() record locks (byte-range, tied to process+inode) coordinate "
                         "access — both are advisory, meaning the kernel doesn't force an uncooperative process "
-                        "to respect them, unlike rarely-used mandatory locking."
+                        "to respect them. Linux dropped its mandatory-locking option entirely in kernel 5.15."
                      )),
             ],
             questions=[
                 dict(prompt="Where does a file's name actually live, given that the inode doesn't store it?",
-                     choices=[("In a directory entry that maps a name to an inode number", True),
-                              ("Inside the inode's data blocks alongside the file's content", False),
-                              ("In the filesystem's superblock", False),
-                              ("Filenames aren't stored anywhere — they're computed from the inode number", False)],
+                     choices=[("In a directory entry that maps the name to an inode number", True),
+                              ("In the inode's data blocks, alongside the file's content", False),
+                              ("In the filesystem's superblock, with the other metadata", False),
+                              ("Nowhere; names are computed from the inode number itself", False)],
                      explanation="The inode holds metadata and data-block pointers, but the name-to-inode mapping lives in the directory that contains the file — which is exactly what makes hard links possible.",
                      difficulty=2),
                 dict(prompt="Why does deleting one hard link to a file not necessarily free its disk space?",
-                     choices=[("Hard links can't actually be deleted at all", False),
-                              ("The underlying inode is only freed once its link count reaches zero AND no process still has it open", True),
-                              ("Deleting a hard link always corrupts the filesystem", False),
-                              ("Hard links each have their own separate copy of the data", False)],
+                     choices=[("Hard links cannot be deleted once they have been created", False),
+                              ("The inode is freed only at zero links with no open handles", True),
+                              ("Deleting a hard link corrupts the filesystem's free list", False),
+                              ("Each hard link holds its own separate copy of the data", False)],
                      explanation="Multiple directory entries (hard links) can reference the same inode; the data is only reclaimed when the last reference — link or open file descriptor — goes away.",
                      difficulty=2),
                 dict(prompt="A file is `rm`'d while a process still has it open. What happens to that process's ability to keep using the file?",
-                     choices=[("The process immediately gets an error on its next read/write", False),
-                              ("The process can keep reading/writing normally — the inode and data blocks stay allocated until the last open file descriptor closes", True),
-                              ("The file is instantly and irrecoverably destroyed for all processes", False),
-                              ("The OS automatically renames the file to prevent this from happening", False)],
+                     choices=[("The process gets an error on its very next read or write", False),
+                              ("It keeps working; the data stays until the last FD closes", True),
+                              ("The file is destroyed at once for every process using it", False),
+                              ("The OS renames the file automatically to stop the delete", False)],
                      explanation="`unlink()` only removes the directory entry; a process with the file already open retains access via its file descriptor until it closes it.",
                      difficulty=3),
                 dict(prompt="What permission does the numeric mode `754` grant?",
                      choices=[("Owner: read+write+execute; Group: read+execute; Other: read-only", True),
                               ("Owner: read-only; Group: read+write+execute; Other: read+execute", False),
                               ("Owner: read+write; Group: read+write; Other: execute-only", False),
-                              ("Full access for everyone", False)],
+                              ("Owner, group and other: read+write+execute (full access)", False)],
                      explanation="7 = 4(r)+2(w)+1(x) for the owner, 5 = 4(r)+0+1(x) for the group, 4 = 4(r)+0+0 for others.",
                      difficulty=1),
                 dict(prompt="Which single sum of weights produces the octal digit 6 in a chmod permission?",
@@ -493,24 +495,24 @@ REFERENCE_CHAPTERS = [
                      explanation="Each permission type has a fixed weight — read=4, write=2, execute=1 — and the digit is just the sum of whichever are present; 4+2=6 is read+write with no execute.",
                      difficulty=1),
                 dict(prompt="What does `chmod u+x,g-w,o=r file.txt` do, compared to `chmod 644 file.txt`?",
-                     choices=[("They are exactly equivalent in every case", False),
-                              ("The symbolic form makes relative changes to whatever mode already existed; the numeric form sets an exact, absolute mode regardless of what was there before", True),
+                     choices=[("They are exactly equivalent, whatever the current mode is", False),
+                              ("Symbolic changes are relative; 644 sets an exact, absolute mode", True),
                               ("The symbolic form only works on directories, never on files", False),
-                              ("The numeric form can only remove permissions, never add them", False)],
+                              ("The numeric form can only ever remove permissions, never add them", False)],
                      explanation="Symbolic mode (`+`/`-`/`=` with `u`/`g`/`o`) adjusts relative to the current permissions; a numeric mode like `644` always sets the exact final bits, discarding the prior mode entirely.",
                      difficulty=2),
                 dict(prompt="What does the setuid bit do when set on an executable file?",
-                     choices=[("It prevents the file from ever being executed", False),
-                              ("The process runs with the privileges of the file's owner, rather than the user who invoked it", True),
-                              ("It makes the file read-only for everyone including the owner", False),
-                              ("It automatically encrypts the file's contents", False)],
+                     choices=[("It prevents the file from ever being executed by anyone", False),
+                              ("The program runs with the file owner's privileges, not the caller's", True),
+                              ("It makes the file read-only for every user, including the file owner", False),
+                              ("It encrypts the file's contents automatically on the disk", False)],
                      explanation="The classic example is /usr/bin/passwd, owned by root with setuid set, so an unprivileged user running it can still update the privileged /etc/shadow file.",
                      difficulty=2),
                 dict(prompt="Why is the sticky bit set on `/tmp` (mode 1777)?",
-                     choices=[("So that no one, including root, can ever delete files there", False),
-                              ("So that any user can create files in /tmp, but only that file's owner (or root) can delete or rename it, even though /tmp is world-writable", True),
-                              ("So that /tmp automatically empties itself every reboot", False),
-                              ("So that files in /tmp always run with root privileges", False)],
+                     choices=[("So that nobody, not even root, can delete files stored there", False),
+                              ("Anyone can create files, but only owners can delete their own", True),
+                              ("So that /tmp is emptied automatically every time it reboots", False),
+                              ("So that files placed in /tmp always run with root privileges", False)],
                      explanation="Without the sticky bit, world-writable would also mean anyone could delete or rename anyone else's files in that directory — the sticky bit specifically closes that gap.",
                      difficulty=2),
                 dict(prompt="Which of the following are true about the special (4th) chmod digit? (select all that apply)",
@@ -518,64 +520,64 @@ REFERENCE_CHAPTERS = [
                      choices=[("setuid has weight 4", True),
                               ("setgid has weight 2", True),
                               ("the sticky bit has weight 1", True),
-                              ("the special digit replaces the need for the other 3 permission digits entirely", False)],
+                              ("it replaces the other digits", False)],
                      explanation="setuid=4, setgid=2, sticky=1 — the same bit-weighted-sum pattern as the r/w/x digits, but it's an additional leading digit, not a replacement for the owner/group/other digits.",
                      difficulty=2),
                 dict(prompt="What is the difference between `chmod` and `chown`?",
-                     choices=[("They are two names for the same command", False),
-                              ("`chmod` changes what actions (read/write/execute) are permitted; `chown` changes who the owner and/or group are", True),
-                              ("`chown` only works on directories, never on files", False),
-                              ("`chmod` changes ownership; `chown` changes permission bits", False)],
+                     choices=[("They are two names for the same command on Linux", False),
+                              ("`chmod` changes the permission bits; `chown` changes the owner", True),
+                              ("`chown` only works on directories and never on regular files", False),
+                              ("`chmod` changes ownership, while `chown` changes the bits", False)],
                      explanation="`chmod` controls the permission bits themselves; `chown` controls the UID/GID that those bits are evaluated against.",
                      difficulty=1),
                 dict(prompt="With a umask of `022`, what default permissions do newly created files and directories get?",
                      choices=[("Files: 644, Directories: 755", True),
-                              ("Files: 666, Directories: 777 (umask has no effect)", False),
+                              ("Files: 666, Directories: 777", False),
                               ("Files: 022, Directories: 022", False),
                               ("Files: 755, Directories: 644", False)],
-                     explanation="umask is subtracted from the base 666 (files) / 777 (directories); 022 strips the group/other write bit, giving 644 for files and 755 for directories.",
+                     explanation="umask bits are masked off the base 666 (files) / 777 (directories), a bitwise clear rather than arithmetic subtraction; 022 clears the group/other write bits, giving 644 for files and 755 for directories.",
                      difficulty=3),
                 dict(prompt="What is a zombie process?",
-                     choices=[("A process that is consuming excessive CPU in an infinite loop", False),
-                              ("A terminated process whose exit status hasn't yet been collected by its parent via wait(), so it still occupies a process table slot", True),
-                              ("A process that has been forcibly killed with SIGKILL", False),
-                              ("A process running with no assigned PID", False)],
+                     choices=[("A process stuck using all of a CPU core in an infinite loop", False),
+                              ("An exited process whose status its parent has not collected", True),
+                              ("A process that was killed with SIGKILL and cannot be restarted", False),
+                              ("A process that is running without any PID assigned to it", False)],
                      explanation="A zombie has already finished executing — it consumes no CPU or memory beyond its process table entry — and is cleared once the parent reaps its exit status.",
                      difficulty=2),
                 dict(prompt="What does `/proc/<pid>/fd/` show on a Linux system?",
-                     choices=[("The source code of the running process", False),
-                              ("Symlinks, one per open file descriptor, showing exactly what that process currently has open", True),
-                              ("A list of every process that PID has ever spawned", False),
-                              ("The process's CPU and memory usage history", False)],
+                     choices=[("The source code of the program that the process is running", False),
+                              ("One symlink per open file descriptor the process holds", True),
+                              ("Every child process that this PID has ever spawned", False),
+                              ("A history of the CPU and memory the process has used", False)],
                      explanation="This is the live, inspectable link between a running process and the files/sockets/pipes it has open, which is how tools like `lsof` work.",
                      difficulty=2),
                 dict(prompt="After `fork()`, what do the parent and child processes share with respect to file descriptors that existed before the fork?",
-                     choices=[("Nothing — the child starts with a completely empty file descriptor table", False),
-                              ("The same open file descriptions, including the current read/write offset", True),
-                              ("Only the file descriptor numbers, but with entirely independent offsets", False),
-                              ("File descriptors are automatically closed in the child after fork()", False)],
+                     choices=[("Nothing; the child starts with an empty descriptor table", False),
+                              ("The same open file descriptions, including the offset", True),
+                              ("Only the FD numbers, each with its own independent offset", False),
+                              ("Nothing; fork() closes every file descriptor in the child", False)],
                      explanation="fork() duplicates the FD table itself, but the duplicated FDs still point at the same underlying open file descriptions as the parent, so they share offsets.",
                      difficulty=3),
                 dict(prompt="Why can a filesystem run out of usable space for new files even while `df` shows free bytes available?",
-                     choices=[("This can never actually happen", False),
-                              ("The filesystem's pre-allocated inode table can be exhausted by a huge number of tiny files, even with free data blocks remaining", True),
-                              ("Free bytes shown by `df` always includes reserved space that can never be used", False),
-                              ("Only Windows filesystems have this limitation", False)],
-                     explanation="Traditional filesystem designs pre-allocate a fixed number of inodes at creation time; running out of inodes (`df -i`) is a distinct failure mode from running out of data blocks.",
+                     choices=[("It cannot happen; free bytes always mean there is room for new files", False),
+                              ("The fixed inode table can run out when there are many tiny files", True),
+                              ("The free space `df` shows is reserved and can never be used", False),
+                              ("Only Windows filesystems have this particular limitation", False)],
+                     explanation="ext2/3/4 fix the number of inodes when the filesystem is created (XFS and Btrfs allocate them dynamically); running out of inodes (`df -i`) is a distinct failure mode from running out of data blocks.",
                      difficulty=3),
                 dict(prompt="Why might a program's `write()` call succeed, yet the data still be lost after a sudden power failure?",
-                     choices=[("write() always writes directly to physical storage with no exceptions", False),
-                              ("The write was buffered in the kernel's page cache and never flushed to durable storage with fsync() before the power loss", True),
-                              ("This can only happen with network filesystems, never local disks", False),
-                              ("write() calls are purely cosmetic and never actually persist data", False)],
+                     choices=[("write() always goes straight to physical storage, no exceptions", False),
+                              ("The data sat in the page cache and was never flushed with fsync()", True),
+                              ("This can only happen on network filesystems, never local disks", False),
+                              ("write() calls are cosmetic and never actually persist any data", False)],
                      explanation="A successful write() only guarantees the data reached kernel memory (the page cache); durability requires an explicit fsync()/fdatasync() to force it to the physical device.",
                      difficulty=2),
                 dict(prompt="What does it mean that `flock()` and `fcntl()` record locks are 'advisory'?",
-                     choices=[("They are enforced automatically by the filesystem for every process, no exceptions", False),
-                              ("The kernel does not stop an uncooperative process from ignoring the lock and accessing the file anyway — it's a cooperative protocol", True),
-                              ("They only work on network filesystems", False),
-                              ("They are deprecated and no longer functional on modern Linux", False)],
-                     explanation="Advisory locking relies on every participating process choosing to check the lock; a process that ignores the API entirely can still read/write the file, unlike (rarely used) mandatory locking.",
+                     choices=[("The filesystem enforces them automatically for every single process", False),
+                              ("The kernel lets a process that ignores the lock access the file", True),
+                              ("They only work on network filesystems such as NFS mounts", False),
+                              ("They are deprecated and no longer work on modern Linux", False)],
+                     explanation="Advisory locking relies on every participating process choosing to check the lock; a process that ignores the API can still read and write the file. Linux removed mandatory locking entirely in kernel 5.15.",
                      difficulty=3),
             ]),
     ),
@@ -626,7 +628,7 @@ class Command(BaseCommand):
         stale_book_count = Book.objects.exclude(slug__in=books).count()
         Book.objects.exclude(slug__in=books).delete()
 
-        ensure_badges_exist()
+        ensure_badges_exist(refresh=True)
 
         self.stdout.write(self.style.SUCCESS(
             f'Seeded {len(books)} collections, {len(topics)} topics, {len(chapter_ids)} chapters, '

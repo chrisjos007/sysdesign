@@ -441,6 +441,62 @@
       "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-suggesters",
       "accessed_on": "2026-09-27",
       "kind": "primary_documentation"
+    },
+    {
+      "id": "consistent-hashing",
+      "title": "Consistent Hashing and Random Trees: Distributed Caching Protocols for Relieving Hot Spots on the World Wide Web",
+      "publisher": "David Karger et al. (MIT)",
+      "url": "https://people.csail.mit.edu/karger/Papers/web.pdf",
+      "accessed_on": "2026-09-27",
+      "kind": "paper"
+    },
+    {
+      "id": "dynamo",
+      "title": "Dynamo: Amazon's Highly Available Key-value Store",
+      "publisher": "Giuseppe DeCandia et al. (Amazon)",
+      "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+      "accessed_on": "2026-09-27",
+      "kind": "paper"
+    },
+    {
+      "id": "cassandra-ring",
+      "title": "Apache Cassandra architecture: Dynamo",
+      "publisher": "Apache Cassandra",
+      "url": "https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "redis-cluster",
+      "title": "Redis cluster specification",
+      "publisher": "Redis",
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "bigtable-keys",
+      "title": "Bigtable schema design best practices",
+      "publisher": "Google Cloud",
+      "url": "https://docs.cloud.google.com/bigtable/docs/schema-design",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "hash-sharded",
+      "title": "Index Sequential Keys with Hash-sharded Indexes",
+      "publisher": "Cockroach Labs",
+      "url": "https://docs.cockroachlabs.com/docs/stable/hash-sharded-indexes",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
+    },
+    {
+      "id": "write-sharding",
+      "title": "Using write sharding to distribute workloads evenly in your DynamoDB table",
+      "publisher": "AWS",
+      "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-sharding.html",
+      "accessed_on": "2026-09-27",
+      "kind": "primary_documentation"
     }
   ]
 }

@@ -1653,6 +1653,98 @@ input::placeholder { color: var(--ink-3); opacity: 1; }
   .vn-row { grid-template-columns: auto minmax(0, 1fr) auto 2.5rem; }
 }
 
+/* Bit budget */
+
+.bits-game [hidden] { display: none !important; }
+.bits-xp { margin-top: var(--s3); }
+#bb-verdict { margin-bottom: var(--s5); scroll-margin-top: 4.5rem; }
+#bb-verdict:focus { outline: none; }
+
+.bits-board { padding: var(--s4); display: grid; gap: var(--s4); }
+.bits-board > .panel-label { margin-bottom: 0; }
+.bits-board.is-busy button { cursor: progress; }
+@media (min-width: 640px) { .bits-board { padding: var(--s5); } }
+.bits-say { padding: var(--s3) var(--s4); background: var(--card-back); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+
+.bits-split { display: grid; gap: var(--s5); }
+@media (min-width: 960px) { .bits-split { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; } }
+.bits-stack { display: grid; gap: var(--s3); align-content: start; min-width: 0; }
+
+/* One grid column per bit, so a field's width is its bit count. */
+.bits-bar { display: grid; grid-template-columns: repeat(var(--w, 64), minmax(0, 1fr)); }
+.bits-bar--cells { position: relative; height: 2.5rem; background: var(--card-back); border: 1px solid var(--ink-3); }
+.bits-bar--cells::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--w, 64) - 1px), rgba(253, 253, 251, 0.5) calc(100% / var(--w, 64) - 1px) calc(100% / var(--w, 64)));
+}
+.bits-seg { min-width: 0; background: var(--c); }
+.bits-seg + .bits-seg { box-shadow: inset 2px 0 0 var(--card); }
+.bits-seg--sign { background: repeating-linear-gradient(135deg, var(--card) 0 3px, var(--ink-3) 3px 4px); }
+.bits-seg--free { background: transparent; }
+.bits-bar--labels { margin-top: 3px; font-size: var(--fs-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bits-bar--labels span { min-width: 0; padding: 0 2px 0 3px; border-left: 1px solid var(--card-edge); overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.bits-scale { display: flex; justify-content: space-between; margin-top: 2px; font-size: var(--fs-xs); color: var(--ink-3); }
+
+.bits-fields { list-style: none; display: grid; gap: var(--s2); margin-top: var(--s3); }
+.bits-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s1) var(--s3); align-items: center; padding: var(--s2) var(--s3); background: var(--card-back); border: 1px solid var(--card-edge); border-radius: var(--radius); }
+.bits-field__name { display: flex; align-items: center; gap: 0.45rem; font-weight: 650; }
+.bits-field__name i { flex: none; width: 0.8rem; height: 0.8rem; background: var(--c); border-radius: 1px; }
+.bits-field__gives { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s3); font-size: var(--fs-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bits-need { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--ink-3); }
+.bits-need.is-met { color: var(--right); font-weight: 650; }
+.bits-need.is-short { color: var(--wrong); font-weight: 650; }
+
+.bits-spec { padding: var(--s3) var(--s4); background: var(--card); border: 1px solid var(--card-edge); border-top: 3px solid var(--head-rule); border-radius: var(--radius); }
+.bits-spec .label { color: var(--ink-3); }
+.bits-spec ul { display: grid; gap: 0.2rem; margin-top: var(--s2); padding-left: 1.1rem; list-style: square; font-size: var(--fs-sm); }
+.bits-epoch { display: grid; gap: var(--s1); justify-items: start; }
+.bits-epoch .label { color: var(--ink-3); }
+.bits-epoch .segmented button { min-height: 2.75rem; }
+.bits-epoch .segmented button:disabled { cursor: not-allowed; }
+.bits-epoch .segmented button:disabled:not([aria-pressed="true"]) { opacity: 0.55; }
+.bits-left strong { font-size: var(--fs-lg); }
+
+.bits-lead { color: var(--ink-2); }
+.bits-log {
+  list-style: none;
+  display: grid;
+  padding: var(--s3) var(--s4);
+  background: var(--enamel);
+  color: var(--enamel-text);
+  border-radius: var(--radius);
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  overflow-x: auto;
+}
+.bits-log li { display: flex; align-items: baseline; gap: var(--s3); }
+.bits-log__time { flex: none; min-width: 7.5em; color: var(--enamel-muted); }
+.bits-log li.is-alert { align-items: center; gap: var(--s2); color: var(--wrong-on-enamel); font-weight: 650; }
+.bits-log li.is-alert .bits-log__time { min-width: 0; }
+.bits-log li.is-alert .bits-log__time:empty { display: none; }
+
+.bits-question { display: grid; gap: var(--s3); padding: var(--s4); background: var(--cobalt-tint); border: 1px solid var(--cobalt); border-radius: var(--radius); }
+.bits-question__ask { font-size: var(--fs-lg); font-weight: 650; }
+.bits-options { display: grid; gap: var(--s2); }
+.bits-option { display: flex; align-items: flex-start; gap: var(--s2); padding: var(--s3) var(--s4); background: var(--card); border: 1px solid var(--card-edge); border-radius: var(--radius); line-height: 1.4; color: var(--ink-3); }
+.bits-option .icon { flex: none; margin-top: 0.15rem; }
+.bits-option.is-answer { color: var(--ink); background: var(--right-tint); border-color: var(--right); }
+.bits-option.is-answer .icon { color: var(--right); }
+.bits-option.is-miss { color: var(--ink); background: var(--wrong-tint); border-color: var(--wrong); }
+.bits-option.is-miss .icon { color: var(--wrong); }
+.bits-feedback:empty { display: none; }
+.bits-feedback .slip { align-items: flex-start; box-shadow: none; line-height: 1.45; }
+
+@media (max-width: 479px) {
+  .bits-log { padding: var(--s2) var(--s3); font-size: 0.8125rem; }
+  .bits-log li { flex-wrap: wrap; gap: 0 var(--s2); }
+  .bits-log li.is-alert { flex-wrap: nowrap; align-items: flex-start; }
+  .bits-log li.is-alert .icon { margin-top: 0.3rem; }
+}
+
 /* Markdown (coding problem statements) */
 
 .markdown-body { line-height: 1.65; }

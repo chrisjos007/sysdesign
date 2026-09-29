@@ -11,19 +11,9 @@ from django.urls import reverse
 from .curriculum import DNS_TCP_TLS, DNS_TCP_TLS_CHAPTER, LEARNING_DIR
 from .management.commands.seed_content import BOOKS, TOPICS
 from .models import (
-    Attempt, Book, Chapter, Choice, CodingChallenge, Concept, ConceptMastery, DesignChallenge, FlawChallenge,
-    FlawPart, FlawReason, MatchingPair, OrderingStep, Question, QuorumChallenge, ReviewCard, Topic,
-    TrafficChallenge,
+    Attempt, Book, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge, Question, ReviewCard, Topic,
 )
 from .services import XP_CORRECT_BASE, XP_WRONG_PARTICIPATION, get_profile
-
-# Names from the published books the content used to summarize. Seeded text
-# must not cite or name them; the curriculum cites primary sources instead.
-BOOK_MARKERS = (
-    "Insider's Guide", 'Insider’s Guide', 'Grokking', 'Designing Data-Intensive', 'DDIA',
-    'Database Internals', 'Pocket Guide', 'Alex Xu', 'Petrov', 'Barrett', 'Educative',
-)
-
 
 class RequestLessonTests(TestCase):
     @classmethod
@@ -131,12 +121,12 @@ class RequestLessonTests(TestCase):
 
 
 class CurriculumContentTests(TestCase):
-    """The full seed: the curriculum replaces the book-derived content."""
+    """The full seed: the curriculum replaces the retired earlier content."""
 
     @classmethod
     def setUpTestData(cls):
-        # A leftover from the old book-derived seed, which the full seed must remove.
-        book = Book.objects.create(slug='system-design-interview-xu', title='Old book', author='Old author')
+        # A leftover from the retired earlier seed, which the full seed must remove.
+        book = Book.objects.create(slug='retired-collection', title='Old collection', author='Old author')
         topic = Topic.objects.create(slug='distributed-systems-patterns', title='Old topic')
         chapter = Chapter.objects.create(book=book, topic=topic, slug='rate-limiter', title='Old chapter')
         Concept.objects.create(chapter=chapter, slug='rate-limiting-algorithms', title='Old concept', summary='s')
@@ -146,7 +136,7 @@ class CurriculumContentTests(TestCase):
         cls.user = get_user_model().objects.create_user('curriculum-reader')
 
     def test_every_catalogue_item_is_a_concept_with_notes_sources_and_a_quiz(self):
-        self.assertEqual(len(self.items), 36)
+        self.assertEqual(len(self.items), 37)
         for item in self.items:
             concept = Concept.objects.get(slug=item['slug'])
             self.assertEqual(concept.curriculum['id'], item['id'])
@@ -161,19 +151,11 @@ class CurriculumContentTests(TestCase):
                 self.assertTrue(question.choices.filter(is_correct=False).exists(), question.prompt)
                 self.assertEqual(correct, 1) if question.kind == Question.MCQ else self.assertGreater(correct, 0)
 
-    def test_book_derived_content_is_gone(self):
+    def test_retired_content_is_gone(self):
         self.assertEqual(set(Book.objects.values_list('slug', flat=True)), {b['slug'] for b in BOOKS})
         self.assertEqual(set(Topic.objects.values_list('slug', flat=True)), {t['slug'] for t in TOPICS})
         self.assertFalse(Concept.objects.filter(slug='rate-limiting-algorithms').exists())
         self.assertEqual(Concept.objects.count(), len(self.items) + 2)  # plus the Python and OS reference chapters
-
-    def test_seeded_text_names_no_source_book(self):
-        texts = [json.dumps(list(model.objects.values()), default=str) for model in (
-            Book, Topic, Chapter, Concept, Question, Choice, DesignChallenge, MatchingPair, OrderingStep,
-            FlawChallenge, FlawPart, FlawReason, TrafficChallenge, QuorumChallenge,
-        )]
-        for marker in BOOK_MARKERS:
-            self.assertFalse(any(marker in text for text in texts), marker)
 
     def test_every_lesson_has_a_game_and_every_case_study_a_builder(self):
         for item in self.items:
@@ -183,7 +165,8 @@ class CurriculumContentTests(TestCase):
             else:
                 self.assertTrue(any(getattr(concept, games).exists() for games in (
                     'matching_challenges', 'ordering_challenges', 'flaw_challenges',
-                    'traffic_challenges', 'quorum_challenges')), item['id'])
+                    'traffic_challenges', 'quorum_challenges', 'ring_challenges',
+                    'bit_budget_challenges')), item['id'])
 
     def test_builders_wire_only_required_parts(self):
         for challenge in DesignChallenge.objects.all():

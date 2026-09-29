@@ -4,6 +4,7 @@
 .request-lesson h2 { font-size: var(--fs-xl); }
 .request-lesson h3 { font-size: var(--fs-lg); }
 .request-lesson h4 { font-size: var(--fs-md); }
+.request-lesson #request-trace-title, .request-lesson #request-practice { scroll-margin-top: 5rem; }
 .request-lesson p { max-width: 68ch; }
 .request-lesson__intro > * + * { margin-top: var(--s3); }
 .request-lesson__objectives { padding-left: 1.2rem; color: var(--ink-2); }

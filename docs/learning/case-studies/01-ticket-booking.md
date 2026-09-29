@@ -1,6 +1,6 @@
 # Design a ticket-booking system
 
-ID: cs-01 | Stage: advanced | Suggested study: 75 minutes
+ID: cs-01 | Level: Advanced | Stage: Handle distributed failures | Suggested study: 75 minutes
 
 Prerequisites: sd-04, sd-05, sd-06, sd-08, sd-14, sd-16, sd-17, sd-18
 

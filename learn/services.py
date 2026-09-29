@@ -4,10 +4,10 @@ import random
 from django.db.models import Count
 from django.utils import timezone
 
-from . import quorum, ring, traffic
+from . import bitbudget, quorum, ring, traffic
 from .code_runner import grade_submission
 from .models import (
-    Attempt, Badge, Book, Chapter, ConceptMastery,
+    Attempt, Badge, BitBudgetAttempt, Book, Chapter, ConceptMastery,
     CodingAttempt, DesignAttempt, FlawAttempt, MatchingAttempt, OrderingAttempt,
     QuorumAttempt, ReviewCard, RingAttempt, TrafficAttempt, UserBadge, UserProfile,
 )
@@ -48,6 +48,10 @@ TRAFFIC_POINTS_PER_XP = 10
 # Ring Balancer scores up to about 260 (two balanced rings and two right
 # predictions), so it pays XP at half its score.
 RING_POINTS_PER_XP = 2
+
+# Bit Budget scores up to 400 (three specs and two clock questions), so it
+# pays XP at a quarter of its score.
+BIT_BUDGET_POINTS_PER_XP = 4
 
 PERFECT_BONUS = 25
 
@@ -461,7 +465,7 @@ def record_flaw_attempt(user, challenge, run):
 def record_traffic_attempt(user, challenge, raw_plan):
     """Replays the learner's day on the server (learn/traffic.py) from the
     design they ran at each tick, rather than trusting a score from the
-    browser. A day inside the SLO with analytics intact is a clean day and
+    browser. A day inside the SLO with prices kept fresh is a clean day and
     earns the perfect bonus. Returns None if the plan doesn't validate."""
     plan = traffic.parse_plan(challenge.params, raw_plan)
     if plan is None:
@@ -477,7 +481,7 @@ def record_traffic_attempt(user, challenge, raw_plan):
     new_level = profile.level
 
     changes = sum(1 for a, b in zip(plan, plan[1:]) if a != b)
-    detail = {'breaches': day['breaches'], 'spent': day['spent'], 'used_301': day['used_301'],
+    detail = {'breaches': day['breaches'], 'spent': day['spent'], 'browser_cached': day['browser_cached'],
               'design_changes': changes}
     TrafficAttempt.objects.create(
         user=user, challenge=challenge, score=day['score'], xp_awarded=xp_awarded,
@@ -554,6 +558,36 @@ def record_ring_attempt(user, challenge, run):
     }
 
 
+def record_bit_budget_attempt(user, challenge, run):
+    """Files a finished Bit Budget run. A clean run, with no failed check,
+    no wrong call and every clock question right, earns the perfect bonus."""
+    lines = bitbudget.summary(challenge.stages, run)
+    score = sum(line['points'] for line in lines)
+    failed = sum(line.get('failed', 0) for line in lines)
+    wrong_calls = sum(line.get('wrong_calls', 0) for line in lines)
+    wrong = sum(line['questions'] - line['right'] for line in lines if line['kind'] == 'clock')
+    is_perfect = failed == 0 and wrong_calls == 0 and wrong == 0
+    xp_awarded = max(0, score) // BIT_BUDGET_POINTS_PER_XP + (PERFECT_BONUS if is_perfect else 0)
+
+    profile = get_profile(user)
+    old_level = profile.level
+    profile.add_xp(xp_awarded)
+    profile.touch_streak()
+    new_level = profile.level
+
+    detail = {'stages': lines, 'failed': failed, 'wrong_calls': wrong_calls, 'wrong': wrong}
+    BitBudgetAttempt.objects.create(
+        user=user, challenge=challenge, score=score, xp_awarded=xp_awarded,
+        is_perfect=is_perfect, detail=detail,
+    )
+    return {
+        'score': score, 'xp_awarded': xp_awarded, 'is_perfect': is_perfect,
+        'perfect_bonus': PERFECT_BONUS if is_perfect else 0,
+        'leveled_up': new_level > old_level, 'new_level': new_level,
+        'detail': detail, 'new_badges': check_badges(user),
+    }
+
+
 BADGE_DEFS = [
     ('first_blood', 'First Blood', 'Answer your first question correctly.', '🎯'),
     ('streak_3', 'Warming Up', 'Reach a 3-day learning streak.', '🔥'),
@@ -562,25 +596,33 @@ BADGE_DEFS = [
     ('level_5', 'Rising Engineer', 'Reach level 5.', '⭐'),
     ('level_10', 'Staff Material', 'Reach level 10.', '🌟'),
     ('chapter_champion', 'Chapter Champion', 'Master every concept in a chapter.', '🏆'),
-    ('book_worm', 'Book Worm', 'Master every concept in an entire book.', '📚'),
+    ('book_worm', 'Completionist', 'Master every concept in an entire collection.', '📚'),
     ('reviewer', 'Spaced Out', 'Complete 10 spaced-repetition reviews.', '🧠'),
     ('architect', 'Architect', 'Build a perfect system design — no wrong parts, no wrong wires.', '🏗️'),
     ('matchmaker', 'Matchmaker', 'Get every match correct in a matching challenge.', '🧩'),
     ('sequencer', 'Sequencer', 'Put every step in exactly the right order.', '🔢'),
     ('coder', 'Coder', 'Pass every test case on a coding challenge.', '💻'),
     ('flaw_finder', 'Flaw Finder', 'Find every planted flaw without a wrong tap or a wrong reason.', '🔍'),
-    ('on_call', 'On Call', 'Run a whole Traffic Day inside the SLO without breaking click analytics.', '📟'),
+    ('on_call', 'On Call', 'Run a whole Traffic Day inside the SLO with prices kept fresh.', '📟'),
     ('card_counter', 'Card Counter',
      f'Bet within {quorum.CALIBRATED_WITHIN} points of the exact chance on every read in Quorum Casino.', '🎲'),
     ('ring_master', 'Ring Master',
      'Clear Ring Balancer without an unbalanced lock-in or a wrong prediction.', '⭕'),
+    ('bit_packer', 'Bit Packer',
+     'Clear Bit Budget without a failed check, a wrong call or a wrong clock answer.', '🧮'),
     ('game_master', 'Game Master', 'Score a perfect run in the builder, matching, ordering, and coding games.', '🎮'),
 ]
 
 
-def ensure_badges_exist():
+def ensure_badges_exist(refresh=False):
+    """Creates any missing badge. `refresh` also rewrites existing badges'
+    names and descriptions from BADGE_DEFS, which seeding does."""
     for slug, name, desc, icon in BADGE_DEFS:
-        Badge.objects.get_or_create(slug=slug, defaults={'name': name, 'description': desc, 'icon': icon})
+        fields = {'name': name, 'description': desc, 'icon': icon}
+        if refresh:
+            Badge.objects.update_or_create(slug=slug, defaults=fields)
+        else:
+            Badge.objects.get_or_create(slug=slug, defaults=fields)
 
 
 def award_badge(user, slug):
@@ -639,6 +681,7 @@ def check_badges(user):
     maybe('on_call', TrafficAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('card_counter', QuorumAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('ring_master', RingAttempt.objects.filter(user=user, is_perfect=True).exists())
+    maybe('bit_packer', BitBudgetAttempt.objects.filter(user=user, is_perfect=True).exists())
     maybe('architect', has_perfect_design)
     maybe('matchmaker', has_perfect_match)
     maybe('sequencer', has_perfect_order)

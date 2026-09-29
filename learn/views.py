@@ -9,11 +9,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import quorum, ring, services
+from . import bitbudget, quorum, ring, services
 from .curriculum import DNS_TCP_TLS
 from .context_processors import _chapter_href
 from .models import (
-    Attempt, Badge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
+    Attempt, Badge, BitBudgetChallenge, Chapter, CodingChallenge, Concept, ConceptMastery, DesignChallenge,
     FlawChallenge, FlawPart, MatchingChallenge, OrderingChallenge, Question, QuorumChallenge,
     ReviewCard, RingChallenge, Topic, TrafficChallenge, UserBadge,
 )
@@ -21,8 +21,8 @@ from .services import (
     all_flaws_found, answer_flaw_part, chapter_is_unlocked, due_review_cards, flaw_snapshot,
     get_profile, inspect_flaw_part, new_flaw_run, record_coding_attempt,
     record_design_attempt, record_flaw_attempt, record_matching_attempt,
-    record_ordering_attempt, record_quiz_answer, record_quorum_attempt, record_ring_attempt,
-    record_traffic_attempt,
+    record_bit_budget_attempt, record_ordering_attempt, record_quiz_answer, record_quorum_attempt,
+    record_ring_attempt, record_traffic_attempt,
 )
 import json
 
@@ -158,6 +158,7 @@ def dashboard(request):
             + continue_concept.ordering_challenges.count() + continue_concept.coding_challenges.count()
             + continue_concept.flaw_challenges.count() + continue_concept.traffic_challenges.count()
             + continue_concept.quorum_challenges.count() + continue_concept.ring_challenges.count()
+            + continue_concept.bit_budget_challenges.count()
         ) if continue_concept else 0,
     })
 
@@ -200,6 +201,11 @@ def concept_detail(request, concept_slug):
         'mastery': mastery,
         'question_count': concept.questions.count(),
         'request_lesson': DNS_TCP_TLS if concept.slug == DNS_TCP_TLS['slug'] else None,
+        'http_api_lesson': concept.slug == 'http-api-design',
+        'latency_lesson': concept.slug == 'latency-throughput',
+        'concurrency_lesson': concept.slug == 'concurrency-basics',
+        'indexes_lesson': concept.slug == 'indexes-query-plans',
+        'capacity_lesson': concept.slug == 'requirements-capacity',
         'design_challenges': concept.design_challenges.all(),
         'matching_challenges': concept.matching_challenges.all(),
         'ordering_challenges': concept.ordering_challenges.all(),
@@ -208,6 +214,7 @@ def concept_detail(request, concept_slug):
         'traffic_challenges': concept.traffic_challenges.all(),
         'quorum_challenges': concept.quorum_challenges.all(),
         'ring_challenges': concept.ring_challenges.all(),
+        'bit_budget_challenges': concept.bit_budget_challenges.all(),
     })
 
 
@@ -575,7 +582,7 @@ def traffic_challenge(request, challenge_slug):
 @require_POST
 def traffic_finish(request, challenge_slug):
     """Files a finished day. The body is {"plan": [[servers, replicas, cache,
-    redirect], ...]}, one entry per tick; the server replays it to score."""
+    browser_cache], ...]}, one entry per tick; the server replays it to score."""
     challenge = get_object_or_404(TrafficChallenge, slug=challenge_slug)
     profile = get_profile(request.user)
     if not chapter_is_unlocked(challenge.concept.chapter, profile):
@@ -732,3 +739,84 @@ def ring_move(request, challenge_slug):
         finished['new_badges'] = [b.name for b in finished['new_badges']]
     request.session[key] = run
     return JsonResponse({'result': result, 'finished': finished, 'snapshot': ring.snapshot(challenge.stages, run)})
+
+
+def _bits_run_key(challenge):
+    return f'bits_run_{challenge.id}'
+
+
+@login_required
+def bit_budget_challenge(request, challenge_slug):
+    challenge = get_object_or_404(BitBudgetChallenge.objects.select_related('concept__chapter__book'), slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        messages.error(request, "This chapter is still locked.")
+        return redirect('learn:dashboard')
+
+    # An unfinished run picks up where it left off, failed checks and wrong
+    # calls included, so reloading can't wipe a miss. A finished one starts over.
+    key = _bits_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done') or not bitbudget.run_fits(challenge.stages, run):
+        run = bitbudget.new_run()
+        request.session[key] = run
+
+    return render(request, 'learn/bit_budget_challenge.html', {
+        'challenge': challenge, 'snapshot': bitbudget.snapshot(challenge.stages, run),
+        'rules': {
+            'build': bitbudget.BUILD_POINTS, 'failed': bitbudget.FAILED_CHECK,
+            'right': bitbudget.CLOCK_RIGHT, 'wrong': bitbudget.CLOCK_WRONG,
+        },
+        'perfect_bonus': services.PERFECT_BONUS, 'points_per_xp': services.BIT_BUDGET_POINTS_PER_XP,
+    })
+
+
+@login_required
+@require_POST
+def bit_budget_move(request, challenge_slug):
+    """One move in a Bit Budget run, answered as JSON: `check` checks the
+    split in `bits` (comma-separated bits per field, timestamp first) from
+    the year `epoch`, `claim` calls the spec impossible, `answer` picks
+    option `choice` for the waiting clock question, and `next` opens the next
+    stage once this one is cleared. The run closes when the last stage clears."""
+    challenge = get_object_or_404(BitBudgetChallenge, slug=challenge_slug)
+    profile = get_profile(request.user)
+    if not chapter_is_unlocked(challenge.concept.chapter, profile):
+        return JsonResponse({'error': 'This chapter is still locked.'}, status=403)
+
+    key = _bits_run_key(challenge)
+    run = request.session.get(key)
+    if not run or run.get('done') or not bitbudget.run_fits(challenge.stages, run):
+        return JsonResponse({'error': 'This run has already finished. Reload the page to play again.'}, status=409)
+
+    def whole(raw, digits):
+        return int(raw) if raw.isdecimal() and len(raw) <= digits else None
+
+    action = request.POST.get('action')
+    if action == 'check':
+        parts = request.POST.get('bits', '').split(',')
+        split = [whole(p, 2) for p in parts] if len(parts) <= bitbudget.MAX_FIELDS else [None]
+        epoch = whole(request.POST.get('epoch', ''), 4)
+        fits = None not in split and epoch is not None
+        result = bitbudget.check(challenge.stages, run, split, epoch) if fits else None
+        error = "That design doesn't fit. Give every field whole bits within the budget, on a spec that's still open."
+    elif action == 'claim':
+        result = bitbudget.claim(challenge.stages, run)
+        error = 'There is no open spec to call.'
+    elif action == 'answer':
+        result = bitbudget.answer(challenge.stages, run, whole(request.POST.get('choice', ''), 2))
+        error = "That answer doesn't fit. Pick one of the options on a question that's waiting."
+    elif action == 'next':
+        result = bitbudget.advance(challenge.stages, run)
+        error = 'Clear this round first.'
+    else:
+        result, error = None, "That move doesn't fit this game."
+    if result is None:
+        return JsonResponse({'error': error}, status=400)
+
+    finished = None
+    if run['done']:
+        finished = record_bit_budget_attempt(request.user, challenge, run)
+        finished['new_badges'] = [b.name for b in finished['new_badges']]
+    request.session[key] = run
+    return JsonResponse({'result': result, 'finished': finished, 'snapshot': bitbudget.snapshot(challenge.stages, run)})

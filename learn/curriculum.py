@@ -100,33 +100,33 @@ DNS_TCP_TLS_CHAPTER = {
         'questions': [
             {
                 'prompt': 'Does a TCP acknowledgement prove an order was saved?',
-                'choices': [('No. It confirms transport receipt, not application processing or durable commit.', True), ('Yes. TCP acknowledges only after the database commits.', False), ('Yes, provided the connection uses TLS.', False)],
-                'explanation': 'TCP knows about bytes, not business transactions. The application can fail after receiving the request.',
+                'choices': [('No. It confirms transport receipt, not the application\'s commit.', True), ('Yes. TCP acknowledges data only after the database has committed it.', False), ('Yes, provided the connection is also protected by TLS 1.3.', False), ('No. TCP acknowledges only the TLS handshake, not any data.', False)],
+                'explanation': 'TCP knows about bytes, not business transactions. The application can fail after receiving the request, before any durable commit.',
             },
             {
                 'kind': 'multi',
                 'prompt': 'Why can users still reach the old server after a DNS update? Select all that apply.',
-                'choices': [('A cached DNS answer can still name the old address.', True), ('An established connection can still use the old destination.', True), ('TLS forces all traffic to stay at the first address forever.', False), ('Updating authoritative DNS immediately closes every client connection.', False)],
+                'choices': [('A cached DNS answer can still name the old address.', True), ('An established connection can keep using the old server.', True), ('TLS pins all traffic to the first address it ever used.', False), ('Updating DNS immediately closes every client connection.', False)],
                 'explanation': 'Authoritative DNS changes do not revoke cached records or established connections. A DNS cache and a connection are separate resources.',
             },
             {
                 'prompt': 'In the lesson model (20 ms DNS, 40 ms TCP, 40 ms TLS, 90 ms request/response), what does a second request cost on a valid established connection?',
-                'choices': [('90 ms', True), ('170 ms', False), ('190 ms', False)],
+                'choices': [('90 ms', True), ('170 ms', False), ('190 ms', False), ('130 ms', False)],
                 'explanation': 'This simplified model reuses the established transport and TLS connection, so only the 90 ms request/response interval remains.',
             },
             {
                 'prompt': 'The DNS answer is cached, but there is no reusable connection. What is the total in the same model?',
-                'choices': [('170 ms: TCP + TLS + request/response.', True), ('90 ms: a cached DNS answer also reuses TCP and TLS.', False), ('190 ms: DNS must always run again.', False)],
+                'choices': [('170 ms: TCP, TLS and the request/response.', True), ('90 ms: a cached answer also reuses TCP and TLS.', False), ('190 ms: DNS always has to run again anyway.', False), ('130 ms: TLS is skipped when DNS is cached.', False)],
                 'explanation': 'DNS caching removes 20 ms only. The new connection still needs 40 ms TCP setup and 40 ms TLS before the 90 ms request/response.',
             },
             {
                 'prompt': 'An order submission times out. Which conclusion is justified?',
-                'choices': [('The outcome is unknown; the server may have committed before the response was lost.', True), ('The order definitely failed and can be recreated without checking.', False), ('TLS guarantees the order was saved.', False)],
-                'explanation': 'A lost request and a lost response can look identical to the client. Check server-side state or use an operation identifier and a safe retry contract.',
+                'choices': [('The outcome is unknown; the server may have committed it.', True), ('The order definitely failed and can be recreated safely.', False), ('TLS guarantees the order was saved before the timeout.', False), ('The order succeeded, since timeouts only follow commits.', False)],
+                'explanation': 'The server may have committed before the response was lost. A lost request and a lost response can look identical to the client. Check server-side state or use an operation identifier and a safe retry contract.',
             },
             {
                 'prompt': 'Which statement correctly describes this lesson’s protocol stack?',
-                'choices': [('The example is HTTP/2 over TLS over TCP; HTTP/3 uses QUIC instead.', True), ('Every HTTPS request uses TCP, including HTTP/3.', False), ('DNS encrypts application traffic, so TLS is optional in this example.', False)],
+                'choices': [('This example is HTTP/2 over TLS over TCP; HTTP/3 uses QUIC.', True), ('Every HTTPS request runs over TCP, and that includes HTTP/3.', False), ('DNS encrypts the traffic, so TLS is optional in this example.', False), ('This example is HTTP/3 over TLS over TCP, as all HTTPS is.', False)],
                 'explanation': 'DNS resolves names, TCP provides transport, and TLS secures the example connection. HTTP/3 uses QUIC, so TCP does not belong under every HTTP request.',
             },
         ],
@@ -138,7 +138,9 @@ DNS_TCP_TLS_CHAPTER = {
 # Stages. Each curriculum stage is one dashboard topic, in path order, and
 # its lessons unlock at an XP level. The case studies share a topic; each
 # unlocks one level after the lessons of its own stage. Chapter difficulty is
-# the catalogue's legacy_difficulty (production and expert both map to 3).
+# the item's level: every item is beginner, intermediate or advanced, and the
+# production and expert stages are both advanced (docs/learning/
+# CONTENT_STANDARDS.md).
 # ---------------------------------------------------------------------------
 
 TOPICS = [
@@ -151,10 +153,10 @@ TOPICS = [
     {'slug': 'distributed-failures', 'title': 'Advanced: Handle Distributed Failures', 'order': 3,
      'description': 'Trace an ambiguous timeout or crash across state boundaries and show how the system '
                     'recovers without violating its business rule.'},
-    {'slug': 'operate-reliably', 'title': 'Production: Operate Reliably', 'order': 4,
+    {'slug': 'operate-reliably', 'title': 'Advanced: Operate Reliably', 'order': 4,
      'description': 'Define user-visible reliability, gather diagnostic evidence, release compatible changes, '
                     'isolate tenants, and demonstrate recovery.'},
-    {'slug': 'reason-about-guarantees', 'title': 'Expert: Reason About Guarantees', 'order': 5,
+    {'slug': 'reason-about-guarantees', 'title': 'Advanced: Reason About Guarantees', 'order': 5,
      'description': 'State the failure model and guarantee precisely, produce a counterexample to a weaker '
                     'design, and defend where coordination is necessary.'},
     {'slug': 'system-design-case-studies', 'title': 'System Design Case Studies', 'order': 6,
@@ -168,6 +170,8 @@ STAGE_TOPICS = {
 CASE_STUDY_TOPIC = 'system-design-case-studies'
 LESSON_UNLOCK_LEVELS = {'beginner': 1, 'intermediate': 2, 'advanced': 4, 'production': 6, 'expert': 8}
 CASE_STUDY_UNLOCK_LEVELS = {'advanced': 5, 'production': 7, 'expert': 9}
+LEVELS = ('beginner', 'intermediate', 'advanced')
+LEVEL_DIFFICULTY = {level: n for n, level in enumerate(LEVELS, start=1)}
 
 LESSON_NOTES = ['Intuition', 'How it works', 'Worked example', 'Trade-offs and failure modes', 'Practice']
 # Case-study sections that are not notes: objectives and sources go to
@@ -290,7 +294,7 @@ def curriculum_chapters():
             'notes': _case_study_notes(item, sections) if is_case else _lesson_notes(path, sections),
             'questions': QUESTIONS.get(item['id']),
             'curriculum': {
-                'id': item['id'], 'type': item['type'], 'stage': item['stage'],
+                'id': item['id'], 'type': item['type'], 'level': item['level'], 'stage': item['stage'],
                 'stage_title': stage_titles[item['stage']], 'minutes': item['estimated_minutes'],
                 'objectives': item['objectives'],
                 'prerequisites': [
@@ -303,7 +307,7 @@ def curriculum_chapters():
         chapter = {
             'book': ENGINEERING_NOTES['slug'], 'slug': item['slug'], 'title': item['title'],
             'topic': CASE_STUDY_TOPIC if is_case else STAGE_TOPICS[item['stage']],
-            'difficulty': item['legacy_difficulty'], 'order': item['order'],
+            'difficulty': LEVEL_DIFFICULTY[item['level']], 'order': item['order'],
             'unlock_level': (CASE_STUDY_UNLOCK_LEVELS if is_case else LESSON_UNLOCK_LEVELS)[item['stage']],
             'summary': item['summary'], 'concept': concept,
         }

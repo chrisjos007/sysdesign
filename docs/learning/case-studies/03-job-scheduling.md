@@ -1,6 +1,6 @@
 # Design a durable job scheduler
 
-ID: cs-03 | Stage: expert | Suggested study: 90 minutes
+ID: cs-03 | Level: Advanced | Stage: Reason about guarantees | Suggested study: 90 minutes
 
 Prerequisites: sd-09, sd-10, sd-14, sd-16, sd-18, sd-20, sd-26, sd-28
 

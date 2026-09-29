@@ -1,0 +1,515 @@
+{% extends "learn/base.html" %}
+{% block title %}{{ challenge.title }} — Bit Budget{% endblock %}
+{% block content %}
+<div class="bits-game">
+<div class="game-head">
+    <header class="page-head">
+        <h1>{{ challenge.title }}</h1>
+        <p class="page-head__lede">{{ challenge.prompt }}</p>
+        <p class="page-head__meta"><span>Source: {{ challenge.source|default:challenge.concept.source_note }}</span></p>
+    </header>
+    <div class="tally">
+        <span class="label">Score</span>
+        <strong class="num" id="bb-score">{{ snapshot.score }}</strong>
+    </div>
+</div>
+
+<div class="howto">
+    <p><strong>How to play:</strong> a field with <i>b</i> bits holds 2<sup><i>b</i></sup> different values, and every bit the timestamp gains doubles how long it lasts. Split the bits with the steppers, choose the epoch where the spec lets you, and check the design. When no split can meet a spec, say it can't be done. The last round asks what a clock can do to IDs like these.</p>
+    <ul class="rules">
+        <li><span class="plus num">+{{ rules.build }}</span> per spec met, or impossibility spotted</li>
+        <li><span class="minus num">&minus;{{ rules.failed }}</span> per failed check or wrong call</li>
+        <li><span class="plus num">+{{ rules.right }}</span> / <span class="minus num">&minus;{{ rules.wrong }}</span> per clock question</li>
+    </ul>
+    <p class="bits-xp">Every {{ points_per_xp }} points is 1 XP, and a clean run (no failed check, no wrong call, every clock question right) adds {{ perfect_bonus }} XP.</p>
+</div>
+
+<section class="card verdict" id="bb-verdict" tabindex="-1" hidden>
+    <div class="card__pad">
+        <div class="verdict__head">
+            <span class="verdict__mark"><svg class="icon icon--lg"><use id="bb-verdict-icon" href="#i-check"/></svg></span>
+            <span id="bb-verdict-title"></span>
+            <span class="verdict__xp num" id="bb-verdict-xp"></span>
+        </div>
+        <p class="verdict__answer" id="bb-verdict-line"></p>
+        <ul class="verdict__list" id="bb-verdict-stages"></ul>
+        <div class="verdict__extras" id="bb-verdict-extras" hidden></div>
+        <div><a href="{% url 'learn:bit_budget_challenge' challenge.slug %}" class="btn btn--quiet btn--sm"><svg class="icon icon--sm"><use href="#i-retry"/></svg> Play again</a></div>
+    </div>
+</section>
+
+<section class="card bits-board" id="bb-board" aria-labelledby="bb-title">
+    <h2 class="panel-label"><span id="bb-title">{{ snapshot.title }}</span><span class="meta num" id="bb-progress">Round {{ snapshot.stage }} of {{ snapshot.stages }}</span></h2>
+    <p class="bits-say" id="bb-say">{{ snapshot.text }}</p>
+    <div class="bits-split">
+        <div class="bits-stack">
+            <div class="bits-design" id="bb-design" hidden>
+                <div class="bits-bar bits-bar--cells" id="bb-bar" role="img"></div>
+                <div class="bits-bar bits-bar--labels" id="bb-bar-labels" aria-hidden="true"></div>
+                <div class="bits-scale num" aria-hidden="true"><span id="bb-hi"></span><span>bit 0</span></div>
+                <ul class="bits-fields" id="bb-fields" aria-label="Bits per field"></ul>
+            </div>
+            <div class="bits-scene" id="bb-scene" hidden>
+                <p class="bits-lead" id="bb-lead"></p>
+                <ol class="bits-log" id="bb-log" aria-label="What happened"></ol>
+            </div>
+        </div>
+        <div class="bits-stack">
+            <div class="bits-stack" id="bb-spec-panel" hidden>
+                <div class="bits-spec">
+                    <h3 class="label">The spec</h3>
+                    <ul id="bb-needs"></ul>
+                </div>
+                <div class="bits-epoch">
+                    <span class="label" id="bb-epoch-label">Epoch: the timestamp's time zero</span>
+                    <div class="segmented" id="bb-epochs" role="group" aria-labelledby="bb-epoch-label"></div>
+                    <p class="meta" id="bb-epoch-note"></p>
+                </div>
+                <p class="bits-left" id="bb-left"></p>
+            </div>
+            <div class="bits-question" id="bb-question" hidden>
+                <p class="meta num" id="bb-qcount"></p>
+                <p class="bits-question__ask" id="bb-ask"></p>
+                <div class="bits-options" id="bb-options"></div>
+            </div>
+            <div class="bits-feedback" id="bb-feedback" aria-live="polite"></div>
+            <p class="visually-hidden" id="bb-status" aria-live="polite"></p>
+            <div class="btn-row">
+                <button type="button" class="btn btn--primary" id="bb-check" hidden>Check design</button>
+                <button type="button" class="btn btn--quiet" id="bb-claim" hidden>It can't be done</button>
+                <button type="button" class="btn btn--primary" id="bb-next" hidden>Next round</button>
+                <button type="button" class="btn btn--primary" id="bb-qnext" hidden>Next question</button>
+                <a href="{% url 'learn:bit_budget_challenge' challenge.slug %}" class="btn btn--quiet" id="bb-again" hidden><svg class="icon icon--sm"><use href="#i-retry"/></svg> Play again</a>
+            </div>
+        </div>
+    </div>
+    {% csrf_token %}
+</section>
+</div>
+{{ snapshot|json_script:"bb-snapshot" }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var moveUrl = "{% url 'learn:bit_budget_move' challenge.slug %}";
+  var BONUS = {{ perfect_bonus }};
+  var board = document.getElementById('bb-board');
+  var csrf = board.querySelector('[name=csrfmiddlewaretoken]').value;
+  var snap = JSON.parse(document.getElementById('bb-snapshot').textContent);
+  var calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var nf = new Intl.NumberFormat('en-US');
+  var MS_DAY = 86400000, MS_YEAR = 365.2425 * MS_DAY, LAST_MS = Date.UTC(10000, 0, 1);
+  var NOW_YEAR = new Date().getUTCFullYear();
+
+  function $(id) { return document.getElementById(id); }
+  var checkBtn = $('bb-check'), claimBtn = $('bb-claim'), nextBtn = $('bb-next'), qnextBtn = $('bb-qnext');
+  var feedback = $('bb-feedback'), status = $('bb-status');
+  var busy = false;
+  // The split on screen (bits per field, timestamp first) and its epoch; the
+  // steppers for each field; and whether the clock round shows the question
+  // just answered (true) or the one waiting.
+  var design = null, steppers = [], reveal = false;
+
+  function num(v) { return v < 0 ? '−' + nf.format(-v) : nf.format(v); }
+  function signed(v) { return v > 0 ? '+' + nf.format(v) : num(v); }
+  function plural(n, word) { return n === 1 ? word : word + 's'; }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function icon(id, cls) {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'icon icon--sm' + (cls ? ' ' + cls : ''));
+    svg.setAttribute('aria-hidden', 'true');
+    var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#' + id);
+    svg.appendChild(use);
+    return svg;
+  }
+
+  /* ---------- The arithmetic, as in learn/bitbudget.py ---------- */
+
+  // 2^b exactly, for any b up to 64.
+  function values(b) { return (BigInt(1) << BigInt(b)).toLocaleString('en-US'); }
+
+  // The year a b-bit millisecond timestamp counting from 1 January `epoch`
+  // overflows, or null after 9999.
+  function runsOut(epoch, b) {
+    var ms = Date.UTC(epoch, 0, 1) + Math.pow(2, b);
+    return ms >= LAST_MS ? null : new Date(ms).getUTCFullYear();
+  }
+
+  function span(b) {
+    var ms = Math.pow(2, b), years = ms / MS_YEAR;
+    if (ms < MS_DAY) return 'under a day';
+    if (years < 1) return nf.format(Math.floor(ms / MS_DAY)) + ' days';
+    return (years < 100 ? years.toFixed(1) : nf.format(Math.round(years))) + ' years';
+  }
+
+  function gives(f, b) {
+    if (f.until != null) {
+      var year = runsOut(design.epoch, b);
+      return span(b) + (year == null ? ', lasts past 9999' : ', runs out in ' + year);
+    }
+    return values(b) + ' ' + f.unit;
+  }
+
+  function needs(f) { return f.until != null ? 'needs ' + f.until + ' or later' : 'needs ' + nf.format(f.need); }
+
+  function used() { return design.bits.reduce(function (a, b) { return a + b; }, 0); }
+
+  // Marks from the last check, while the design on screen is still that one.
+  function marks() {
+    var c = snap.checked;
+    if (!c || c.epoch !== design.epoch || c.bits.join() !== design.bits.join()) return null;
+    return c.marks;
+  }
+
+  /* ---------- Painting the build rounds ---------- */
+
+  function stepper(i, f) {
+    var box = el('div', 'stepper');
+    var less = el('button', null, '−'), out = el('output', 'num'), more = el('button', null, '+');
+    less.type = more.type = 'button';
+    less.setAttribute('aria-label', 'One fewer ' + f.name.toLowerCase() + ' bit');
+    more.setAttribute('aria-label', 'One more ' + f.name.toLowerCase() + ' bit');
+    less.addEventListener('click', function () { nudge(i, -1); });
+    more.addEventListener('click', function () { nudge(i, 1); });
+    box.append(less, out, more);
+    return { box: box, less: less, more: more, out: out };
+  }
+
+  function buildFields() {
+    var list = $('bb-fields');
+    steppers = snap.fields.map(function (f, i) {
+      var li = el('li', 'bits-field');
+      li.style.setProperty('--c', 'var(--srv-' + (i + 1) + ')');
+      var name = el('span', 'bits-field__name');
+      name.append(el('i'), document.createTextNode(f.name));
+      var s = stepper(i, f);
+      var line = el('span', 'bits-field__gives');
+      var got = el('span', 'bits-gives'), need = el('span', 'bits-need');
+      line.append(got, need);
+      li.append(name, s.box, line);
+      s.got = got; s.need = need; s.li = li;
+      return s;
+    });
+    list.replaceChildren.apply(list, steppers.map(function (s) { return s.li; }));
+
+    var needsList = $('bb-needs');
+    needsList.replaceChildren.apply(needsList, snap.fields.slice(1).map(function (f) {
+      return el('li', 'num', nf.format(f.need) + ' ' + f.unit);
+    }).concat([el('li', 'num', 'No overflow before ' + snap.fields[0].until),
+               el('li', 'num', snap.budget + ' bits to spend' + (snap.signed ? ', since the sign bit stays 0' : ''))]));
+
+    var epochs = $('bb-epochs');
+    var only = snap.epochs.length === 1;
+    epochs.replaceChildren.apply(epochs, snap.epochs.map(function (e) {
+      var b = el('button', 'num', e.label);
+      b.type = 'button';
+      b.dataset.year = e.year;
+      b.addEventListener('click', function () {
+        if (design.epoch === e.year) return;
+        design.epoch = e.year;
+        update();
+        say('Epoch ' + e.year + '. Timestamp: ' + gives(snap.fields[0], design.bits[0]) + '.');
+      });
+      return b;
+    }));
+    $('bb-epoch-note').textContent = only
+      ? 'The spec fixes the epoch.'
+      : 'The timestamp counts milliseconds from 1 January of the year you pick.';
+    $('bb-hi').textContent = 'bit ' + (snap.width - 1);
+  }
+
+  function segments() {
+    var segs = [];
+    if (snap.signed) segs.push({ cls: 'bits-seg--sign', n: 1, label: '', name: 'Sign bit, always 0' });
+    snap.fields.forEach(function (f, i) {
+      if (design.bits[i]) segs.push({ cls: '', c: i + 1, n: design.bits[i], label: design.bits[i] + ' ' + f.name.toLowerCase(), name: f.name + ', ' + design.bits[i] + ' ' + plural(design.bits[i], 'bit') });
+    });
+    var left = snap.budget - used();
+    if (left) segs.push({ cls: 'bits-seg--free', n: left, label: left + ' free', name: left + ' unassigned ' + plural(left, 'bit') });
+    return segs;
+  }
+
+  function update() {
+    var open = !snap.cleared && !snap.done, left = snap.budget - used(), m = marks();
+    var segs = segments();
+    [$('bb-bar'), $('bb-bar-labels')].forEach(function (row, r) {
+      row.style.setProperty('--w', snap.width);
+      row.replaceChildren.apply(row, segs.map(function (s) {
+        var cell = el('span', r ? null : 'bits-seg ' + s.cls, r ? s.label : null);
+        cell.style.gridColumn = 'span ' + s.n;
+        if (!r && s.c) cell.style.setProperty('--c', 'var(--srv-' + s.c + ')');
+        if (r) cell.title = s.name;
+        return cell;
+      }));
+    });
+    // A label too long for its field shows the bit count alone, or nothing;
+    // the field rows below name every field either way.
+    $('bb-bar-labels').querySelectorAll('span').forEach(function (cell, i) {
+      if (cell.scrollWidth > cell.clientWidth) cell.textContent = String(segs[i].n);
+      if (cell.scrollWidth > cell.clientWidth) cell.textContent = '';
+    });
+    $('bb-bar').setAttribute('aria-label', snap.width + '-bit ID, from the top bit: '
+      + segs.map(function (s) { return s.name; }).join('; ') + '.');
+
+    snap.fields.forEach(function (f, i) {
+      var s = steppers[i], b = design.bits[i];
+      s.out.textContent = b;
+      s.less.disabled = !open || b <= (i === 0 ? 1 : 0);
+      s.more.disabled = !open || left <= 0;
+      s.got.textContent = gives(f, b);
+      s.need.replaceChildren();
+      s.need.className = 'bits-need' + (m ? (m[i] ? ' is-met' : ' is-short') : '');
+      if (m) {
+        s.need.append(icon(m[i] ? 'i-check' : 'i-x'), el('span', 'visually-hidden', m[i] ? 'Meets it: ' : 'Short: '));
+      }
+      s.need.append(document.createTextNode(needs(f)));
+    });
+
+    $('bb-epochs').querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(+b.dataset.year === design.epoch));
+      b.disabled = !open || snap.epochs.length === 1;
+    });
+    var lead = $('bb-left');
+    lead.replaceChildren(el('strong', 'num', nf.format(left)),
+      document.createTextNode(' of ' + snap.budget + ' ' + plural(left, 'bit') + ' unassigned'));
+  }
+
+  function nudge(i, by) {
+    var b = design.bits[i] + by, left = snap.budget - used();
+    if (b < (i === 0 ? 1 : 0) || by > left) return;
+    design.bits[i] = b;
+    update();
+    var f = snap.fields[i];
+    say(f.name + ': ' + b + ' ' + plural(b, 'bit') + ', ' + gives(f, b) + '. '
+      + (left - by) + ' ' + plural(left - by, 'bit') + ' unassigned.');
+  }
+
+  function say(text) { status.textContent = text; }
+
+  /* ---------- Painting the clock round ---------- */
+
+  function scene(q, answered) {
+    $('bb-lead').textContent = q.lead;
+    var log = $('bb-log');
+    log.replaceChildren.apply(log, q.log.map(function (line) {
+      var li = el('li', line.alert ? 'is-alert' : null);
+      li.append(el('span', 'bits-log__time num', line.time || ''));
+      if (line.alert) li.append(icon('i-alert'));
+      li.append(el('span', null, line.text));
+      return li;
+    }));
+    $('bb-qcount').textContent = 'Question ' + q.n + ' of ' + q.of;
+    $('bb-ask').textContent = q.ask;
+    var opts = $('bb-options');
+    opts.replaceChildren.apply(opts, q.options.map(function (text, i) {
+      if (!answered) {
+        var b = el('button', 'reason', text);
+        b.type = 'button';
+        b.addEventListener('click', function () { answer(i); });
+        return b;
+      }
+      var right = i === q.answer, mine = i === q.choice;
+      var o = el('div', 'bits-option' + (right ? ' is-answer' : mine ? ' is-miss' : ''));
+      if (right || mine) o.append(icon(right ? 'i-check' : 'i-x'));
+      o.append(el('span', null, text));
+      if (right || mine) {
+        o.append(el('span', 'visually-hidden', right ? (mine ? ' (your answer, right)' : ' (the right answer)') : ' (your answer)'));
+      }
+      return o;
+    }));
+  }
+
+  /* ---------- Painting a snapshot ---------- */
+
+  function slip(kind, points, text) {
+    var s = el('div', 'slip slip--' + kind);
+    if (points != null) s.appendChild(el('strong', 'slip__pts num', signed(points)));
+    s.appendChild(el('span', null, text));
+    feedback.replaceChildren(s);
+  }
+
+  function paint(stageChanged) {
+    $('bb-score').textContent = num(snap.score);
+    $('bb-title').textContent = snap.title;
+    $('bb-progress').textContent = 'Round ' + snap.stage + ' of ' + snap.stages;
+    $('bb-say').textContent = snap.text;
+
+    var build = snap.kind === 'build', open = !snap.cleared && !snap.done;
+    $('bb-design').hidden = $('bb-spec-panel').hidden = !build;
+    $('bb-scene').hidden = $('bb-question').hidden = build;
+    var showFeedback = true;
+    if (build) {
+      if (stageChanged || !design) {
+        design = { bits: snap.bits.slice(), epoch: snap.epoch };
+        buildFields();
+      }
+      update();
+    } else {
+      var q = reveal && snap.answered ? snap.answered : snap.question || snap.answered;
+      scene(q, q === snap.answered);
+      showFeedback = q === snap.answered;
+    }
+    if (snap.feedback && showFeedback) {
+      slip(snap.feedback.points >= 0 ? 'right' : 'wrong', snap.feedback.points, snap.feedback.text);
+    } else {
+      feedback.replaceChildren();
+    }
+
+    checkBtn.hidden = claimBtn.hidden = !(build && open);
+    qnextBtn.hidden = build || !(reveal && snap.answered && snap.question);
+    nextBtn.hidden = !(snap.cleared && !snap.last && !snap.done);
+    $('bb-again').hidden = !snap.done;
+  }
+
+  /* ---------- Moves ---------- */
+
+  function post(data) {
+    busy = true;
+    board.classList.add('is-busy');
+    return fetch(moveUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf },
+      body: new URLSearchParams(data),
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok || !body.snapshot) throw new Error(body.error || "That move didn't save. Reload the page and try again.");
+        return body;
+      });
+    }).catch(function (err) {
+      slip('wrong', null, err instanceof TypeError ? "Couldn't reach the server. Check your connection and try again." : err.message);
+      throw err;
+    }).finally(function () {
+      busy = false;
+      board.classList.remove('is-busy');
+    });
+  }
+
+  function apply(body, focusNext) {
+    var changed = body.snapshot.stage !== snap.stage;
+    snap = body.snapshot;
+    paint(changed);
+    if (body.finished) finish(body.finished);
+    else if (focusNext) focusNext();
+  }
+
+  function firstOption() { return $('bb-options').querySelector('button'); }
+
+  checkBtn.addEventListener('click', function () {
+    if (busy) return;
+    post({ action: 'check', bits: design.bits.join(','), epoch: design.epoch }).then(function (body) {
+      apply(body, function () { (snap.cleared ? nextBtn : checkBtn).focus(); });
+    }, function () {});
+  });
+
+  claimBtn.addEventListener('click', function () {
+    if (busy) return;
+    post({ action: 'claim' }).then(function (body) {
+      apply(body, function () { (snap.cleared ? nextBtn : claimBtn).focus(); });
+    }, function () {});
+  });
+
+  nextBtn.addEventListener('click', function () {
+    if (busy) return;
+    post({ action: 'next' }).then(function (body) {
+      reveal = false;
+      apply(body, function () {
+        var target = snap.kind === 'build' ? $('bb-fields').querySelector('button:not(:disabled)') : firstOption();
+        (target || nextBtn).focus();
+      });
+    }, function () {});
+  });
+
+  function answer(i) {
+    if (busy) return;
+    post({ action: 'answer', choice: i }).then(function (body) {
+      reveal = true;
+      apply(body, function () { (snap.question ? qnextBtn : nextBtn).focus(); });
+    }, function () {});
+  }
+
+  qnextBtn.addEventListener('click', function () {
+    reveal = false;
+    paint(false);
+    (firstOption() || qnextBtn).focus();
+  });
+
+  /* ---------- The verdict ---------- */
+
+  function stageLine(s) {
+    if (s.kind === 'clock') {
+      return s.right + ' of ' + s.questions + ' ' + plural(s.questions, 'question') + ' right: ' + signed(s.points) + '.';
+    }
+    var slips = [];
+    if (s.failed) slips.push(s.failed + ' failed ' + plural(s.failed, 'check'));
+    if (s.wrong_calls) slips.push(s.wrong_calls + ' wrong ' + plural(s.wrong_calls, 'call'));
+    return (s.how === 'claim' ? "Spotted that it can't be done" : 'Met')
+      + (slips.length ? ' after ' + slips.join(' and ') : ' on the first try') + ': ' + signed(s.points) + '.';
+  }
+
+  function finish(f) {
+    var verdict = $('bb-verdict');
+    var tone = f.is_perfect ? 'right' : f.score >= 0 ? 'partial' : 'wrong';
+    verdict.className = 'card verdict verdict--' + tone;
+    $('bb-verdict-icon').setAttribute('href', f.is_perfect ? '#i-check' : f.score >= 0 ? '#i-bits' : '#i-x');
+    $('bb-verdict-title').textContent = (f.is_perfect ? 'Clean run: ' : '') + num(f.score) + ' points';
+    $('bb-verdict-xp').textContent = '+' + f.xp_awarded + ' XP';
+
+    var d = f.detail, slips = [];
+    if (d.failed) slips.push(d.failed + ' failed ' + plural(d.failed, 'check'));
+    if (d.wrong_calls) slips.push(d.wrong_calls + ' wrong ' + plural(d.wrong_calls, 'call'));
+    if (d.wrong) slips.push(d.wrong + ' wrong clock ' + plural(d.wrong, 'answer'));
+    var line = f.is_perfect
+      ? 'No failed checks, no wrong calls and every clock question right, so the run adds ' + f.perfect_bonus + ' XP.'
+      : slips.join(', ').replace(/, ([^,]*)$/, ' and $1') + '. A clean run adds ' + BONUS + ' XP.';
+    if (f.score < 0) line += ' A score below zero earns no XP.';
+    line = line.charAt(0).toUpperCase() + line.slice(1);
+    $('bb-verdict-line').textContent = line;
+
+    var list = $('bb-verdict-stages');
+    list.replaceChildren.apply(list, d.stages.map(function (s) {
+      var clean = s.kind === 'clock' ? s.right === s.questions : !s.failed && !s.wrong_calls;
+      var li = el('li');
+      li.appendChild(icon(clean ? 'i-check' : 'i-x', clean ? 'is-right' : 'is-wrong'));
+      var span = el('span');
+      span.append(el('strong', null, s.title + '. '), document.createTextNode(stageLine(s)));
+      li.appendChild(span);
+      return li;
+    }));
+
+    var extras = $('bb-verdict-extras');
+    extras.replaceChildren();
+    if (f.leveled_up) {
+      var lv = el('div', 'verdict__extra verdict__extra--level');
+      lv.append(icon('i-level'), " Level up! You're now level " + f.new_level + '.');
+      extras.appendChild(lv);
+    }
+    f.new_badges.forEach(function (name) {
+      var b = el('div', 'verdict__extra verdict__extra--badge');
+      b.append(icon('i-stamp'), ' Badge earned: ' + name);
+      extras.appendChild(b);
+    });
+    extras.hidden = !extras.children.length;
+
+    verdict.hidden = false;
+    verdict.scrollIntoView({ block: 'start', behavior: calm.matches ? 'auto' : 'smooth' });
+    verdict.focus({ preventScroll: true });
+  }
+
+  var lastWidth = 0;
+  window.addEventListener('resize', function () {
+    var w = board.clientWidth;
+    if (w !== lastWidth && snap.kind === 'build' && design) { lastWidth = w; update(); }
+  });
+  reveal = !!snap.answered;
+  paint(true);
+})();
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # Indexes and query plans: read less data
 
-ID: sd-05 | Stage 1: beginner | Suggested study: 35 minutes
+ID: sd-05 | Level: Beginner | Stage 1: Understand a request | Suggested study: 35 minutes
 
 Prerequisites: sd-03, sd-04
 

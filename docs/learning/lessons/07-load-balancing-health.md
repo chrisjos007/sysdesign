@@ -1,6 +1,6 @@
 # Load balancing, health checks, and draining
 
-ID: sd-07 | Stage 2: intermediate | Suggested study: 30 minutes
+ID: sd-07 | Level: Intermediate | Stage 2: Scale a service | Suggested study: 30 minutes
 
 Prerequisites: sd-01, sd-03, sd-06
 

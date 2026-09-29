@@ -1,6 +1,6 @@
 # Performance testing that exposes bottlenecks
 
-ID: sd-21 | Stage 4: production | Suggested study: 40 minutes
+ID: sd-21 | Level: Advanced | Stage 4: Operate reliably | Suggested study: 40 minutes
 
 Prerequisites: sd-03, sd-06, sd-09, sd-18, sd-19
 

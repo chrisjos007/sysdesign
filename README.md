@@ -1,18 +1,19 @@
 # SysDesign Quest
 
 A gamified learning app for system design interview prep, built on an
-original curriculum ([docs/learning](docs/learning/README.md)): 30 lessons
-and 6 case studies that cite standards, papers and official documentation
-rather than summarizing any textbook.
+original curriculum ([docs/learning](docs/learning/README.md)): 31 lessons
+and 6 case studies, organized into Beginner, Intermediate and Advanced
+levels, written in our own words and checked against standards, papers and
+official documentation.
 
 ## What's inside
 
-- 36 curriculum items -> 36 concept pages -> 185 quiz questions, plus two
+- 37 curriculum items -> 37 concept pages -> 191 quiz questions, plus two
   compiled reference chapters (Python internals, OS file handling). The
-  lessons run in five stages, one dashboard topic each: Beginner
-  (understand a request), Intermediate (scale a service), Advanced (handle
-  distributed failures), Production (operate reliably) and Expert (reason
-  about guarantees). Each lesson page shows its ID, study time, objectives,
+  lessons run in five stages, one dashboard topic each, across three
+  levels: Beginner (understand a request), Intermediate (scale a service),
+  and Advanced (handle distributed failures, operate reliably, reason about
+  guarantees, and the case studies). Each lesson page shows its ID, level, study time, objectives,
   prerequisite links and sources, and has at least one game. The six case
   studies (ticket booking, payments, job scheduling, search, feature flags,
   multi-region SaaS) each have an Architecture Builder built from their
@@ -26,7 +27,7 @@ rather than summarizing any textbook.
 - Chapters unlock as you level up (later chapters require a higher level)
 - Spaced repetition (SM-2 algorithm): a Daily Review queue resurfaces
   concepts right before you'd forget them
-- Badges for milestones (streaks, mastering a chapter/book, leveling up,
+- Badges for milestones (streaks, mastering a chapter or collection, leveling up,
   completing reviews, and perfect runs in each mini-game)
 - A progress map on the dashboard showing mastery per chapter
 - **Three mini-games per concept, in addition to quizzes:**
@@ -76,20 +77,22 @@ DNS-only failover switch); lessons get Matching/Ordering games.
     cases, comes back with specific clarifying questions instead of
     guessing. Requires a free `GEMINI_API_KEY` (see below).
 - **Spot the Flaw** — an architecture diagram with a few design mistakes
-  planted in it (e.g. a notification system with one shared queue and a
-  synchronous SMS call). Tap a box or arrow you think is wrong, then pick
+  planted in it (e.g. an event delivery service with one queue shared by
+  every customer and a synchronous call to a slow PDF renderer). Tap a box
+  or arrow you think is wrong, then pick
   why: the right reason scores, a wrong reason or a tap on a healthy part
   costs points, and every flaw still hidden when you finish the review
   costs more. A clean run earns the perfect bonus and the "Flaw Finder"
   badge. Each tap is checked on the server, which keeps the run in the
   session, so the page never holds the answers and a reload can't wipe a
   penalty.
-- **Traffic Day** — run a URL shortener through one simulated day of
-  traffic (an evening peak and a viral link at 19:00) and change its design
-  at any time: app servers, a cache, read replicas, and 301 vs 302
-  redirects. The score starts at 1,000 and loses 50 for every 10 minutes
-  over the SLO, 1 for every dollar spent, and 250 if 301s break click
-  analytics. The page animates the day, and the server replays the design
+- **Traffic Day** — run a shop's product pages through one simulated day
+  of a flash sale (an evening peak and a newsletter-featured product at
+  19:00) and change the design at any time: app servers, a cache, read
+  replicas, and whether browsers may cache pages for five minutes. The score
+  starts at 1,000 and loses 50 for every 10 minutes over the SLO, 1 for
+  every dollar spent, and 250 if browser caching shows shoppers stale
+  prices. The page animates the day, and the server replays the design
   the learner ran at each tick through the same load model
   (`learn/traffic.py`, with a JavaScript twin in
   `learn/static/learn/traffic_model.js`) to file the score. It pays 1 XP
@@ -116,6 +119,16 @@ DNS-only failover switch); lessons get Matching/Ordering games.
   as data, redraws the ring as the slider moves, and the server recounts
   owners to score each lock-in. It pays 1 XP per 2 points, plus the perfect
   bonus and the "Ring Master" badge for a clean run.
+- **Bit Budget** — a parcel carrier's tracking IDs pack a millisecond
+  timestamp, a region, a worker and a per-millisecond counter into one
+  integer. Over three specs the learner splits the bits with steppers and
+  picks the epoch where the spec allows it (+100 per spec met, −25 per
+  failed check), or calls a spec impossible (+100 if it is, −25 if not).
+  The third spec, a 53-bit JavaScript number, can't be met. A last round
+  asks what a clock stepped back, or two clocks that disagree, do to such
+  IDs (+50 / −25). `learn/bitbudget.py` works out whether a spec can be
+  met on the server, so the page never learns it. It pays 1 XP per 4
+  points, plus the perfect bonus and the "Bit Packer" badge for a clean run.
 - **Notes, redesigned** — each concept page shows a short one-line teaser
   plus a "📖 View Notes" button; notes are hidden until you click it (no
   wall of text up front). Once open, notes are structured as headed
@@ -180,6 +193,12 @@ and 9.
 - sd-01 (**DNS, TCP, and TLS: follow a request**) keeps its hand-adapted
   notes, questions and interactive request walkthrough in
   `learn/curriculum.py`.
+- sd-02 (**HTTP and API design: define the contract**) adds an interactive
+  contract lab at `/concept/http-api-design/`: repeat GET/PUT/DELETE/POST,
+  compare keyed retries, observe asynchronous export states and lost status
+  responses, and resolve ETag conflicts between two editors. These unscored
+  browser simulations sit alongside the existing notes and five-question quiz.
+  Their model checks run with `node --test learn/js_tests/http_contract_model.test.js`.
 - `seed_content` seeds the curriculum plus the two reference chapters and
   **removes every chapter, concept, topic and book no longer defined**,
   including learners' attempts on them. It refuses to remove a concept that
@@ -226,6 +245,13 @@ python manage.py collectstatic --noinput
   stages (questions that crash a server on the ring or under hash % N).
   `learn/ring.py` documents the shapes; the tests run `ring.validate_stages`
   over the seed and check each ring teaches what its text says.
+- A Bit Budget challenge is a list of `stages` in `BIT_BUDGET_CHALLENGES`
+  (same file): `build` stages (a width, whether the sign bit is reserved,
+  the epochs on offer, and fields: a timestamp with an `until` year, then
+  counting fields with a `need`) and `clock` stages (questions with a log
+  of what happened). `learn/bitbudget.py` documents the shapes; the tests
+  run `bitbudget.validate_stages` over the seed, brute-force every split to
+  confirm which specs can be met, and check each number the text quotes.
 
 Both commands are idempotent, so re-running updates existing content
 instead of duplicating it.
@@ -234,9 +260,16 @@ When adding a new case study, add it to the curriculum (Markdown, catalogue
 entry with an `architecture` graph, and a question bank) and give it a
 `DesignChallenge` in `seed_games.py`: every case study is expected to have a
 builder game, and every lesson at least one other game. The tests check
-both. Don't add content that summarizes a published book or names one as a
-source; `learn/test_curriculum.py` checks seeded text for the titles and
-authors the earlier content used.
+both.
+
+Every lesson, quiz question and game follows
+[docs/learning/CONTENT_STANDARDS.md](docs/learning/CONTENT_STANDARDS.md):
+each item is Beginner, Intermediate or Advanced; wording, examples and
+numbers are our own (never copied or closely paraphrased from a book,
+course or documentation page, and no study book is named anywhere); facts
+are checked against dated primary sources; and quiz choices are similar in
+length and tone so the answer isn't obvious from its shape.
+`learn/test_content_standards.py` enforces the checkable parts.
 
 ### Adding a new coding challenge
 

@@ -1,6 +1,6 @@
 # Design search and autocomplete
 
-ID: cs-04 | Stage: advanced | Suggested study: 75 minutes
+ID: cs-04 | Level: Advanced | Stage: Handle distributed failures | Suggested study: 75 minutes
 
 Prerequisites: sd-05, sd-08, sd-12, sd-15, sd-16, sd-18
 

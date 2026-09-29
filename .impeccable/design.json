@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T00:00:00Z",
+  "title": "Design System: SysDesign Quest",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#0f0f1a", "tonalRamp": ["#07070d", "#0f0f1a", "#161627", "#1a1a2e", "#26263f", "#3a3a5a", "#6b6b8e", "#c9c9dc"] },
+      "panel": { "role": "neutral", "displayName": "Panel", "canonical": "#1a1a2e", "tonalRamp": ["#0f0f1a", "#141424", "#1a1a2e", "#22223a", "#2c2c48", "#40405f", "#707092", "#cfcfe0"] },
+      "signal-violet": { "role": "primary", "displayName": "Signal Violet", "canonical": "#8b5cf6", "tonalRamp": ["#2e1065", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe"] },
+      "signal-cyan": { "role": "secondary", "displayName": "Signal Cyan", "canonical": "#06b6d4", "tonalRamp": ["#083344", "#155e75", "#0e7490", "#0891b2", "#06b6d4", "#22d3ee", "#67e8f9", "#a5f3fc"] },
+      "text-primary": { "role": "neutral", "displayName": "Text Primary", "canonical": "#f1f5f9", "tonalRamp": ["#020617", "#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9"] },
+      "text-strong": { "role": "neutral", "displayName": "Text Strong", "canonical": "#ffffff", "tonalRamp": ["#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9", "#ffffff"] },
+      "text-body": { "role": "neutral", "displayName": "Text Body", "canonical": "#cbd5e1", "tonalRamp": ["#020617", "#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9"] },
+      "text-muted": { "role": "neutral", "displayName": "Text Muted", "canonical": "#94a3b8", "tonalRamp": ["#020617", "#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9"] },
+      "text-faint": { "role": "neutral", "displayName": "Text Faint", "canonical": "#64748b", "tonalRamp": ["#020617", "#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9"] },
+      "border": { "role": "neutral", "displayName": "Border", "canonical": "#334155", "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1"] },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#1e293b", "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1"] },
+      "success": { "role": "tertiary", "displayName": "Success Green", "canonical": "#34d399", "tonalRamp": ["#022c22", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0"] },
+      "danger": { "role": "tertiary", "displayName": "Danger Red", "canonical": "#f87171", "tonalRamp": ["#450a0a", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fecaca"] },
+      "reward": { "role": "tertiary", "displayName": "Reward Amber", "canonical": "#fcd34d", "tonalRamp": ["#451a03", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fcd34d", "#fde68a"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Page titles: concept name, dashboard level." },
+      "title": { "displayName": "Title", "purpose": "Topic headings and quiz result headlines." },
+      "body": { "displayName": "Body", "purpose": "Notes sections and question prompts; relaxed leading." },
+      "body-small": { "displayName": "Body Small", "purpose": "Nav, summaries, explanations, metadata." },
+      "label": { "displayName": "Label", "purpose": "Uppercase section labels, tier names, counters." }
+    },
+    "shadows": [
+      { "name": "selected-halo", "value": "0 0 0 2px rgba(139, 92, 246, 0.33)", "purpose": "Selected Architecture Builder component only. The system is otherwise shadowless." }
+    ],
+    "motion": [
+      { "name": "tailwind-transition", "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default color and border transitions on pills and tiles." },
+      { "name": "deep-dive-caret", "value": "transform 150ms", "purpose": "Caret rotates 90deg when a deep dive opens." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen: Submit Answer, Retake Quiz.",
+      "html": "<button class=\"ds-btn-primary\">Submit Answer</button>",
+      "css": ".ds-btn-primary { background: #8b5cf6; color: #ffffff; font-weight: 600; font-size: 1rem; padding: 10px 20px; border: none; border-radius: 0.5rem; cursor: pointer; transition: opacity 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }"
+    },
+    {
+      "name": "Review Button",
+      "kind": "button",
+      "refersTo": "button-review",
+      "description": "Daily Review actions; cyan with ink text.",
+      "html": "<button class=\"ds-btn-review\">3 reviews due</button>",
+      "css": ".ds-btn-review { background: #06b6d4; color: #0f0f1a; font-weight: 600; font-size: 1rem; padding: 10px 20px; border: none; border-radius: 0.5rem; cursor: pointer; transition: opacity 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-review:hover { opacity: 0.9; } .ds-btn-review:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Pill Outline Button",
+      "kind": "button",
+      "refersTo": "button-pill-outline",
+      "description": "Secondary tools such as View Notes and Study mode.",
+      "html": "<button class=\"ds-btn-pill\">View Notes</button>",
+      "css": ".ds-btn-pill { background: transparent; color: #8b5cf6; border: 1px solid #8b5cf6; border-radius: 9999px; padding: 8px 16px; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-btn-pill:hover { background: #8b5cf6; color: #ffffff; } .ds-btn-pill:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Recessed ink field; violet border on focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Username\">",
+      "css": ".ds-input { background: #0f0f1a; border: 1px solid #334155; color: #f1f5f9; border-radius: 0.5rem; padding: 8px 12px; width: 100%; font-size: 1rem; } .ds-input::placeholder { color: #64748b; } .ds-input:focus { outline: none; border-color: #8b5cf6; }"
+    },
+    {
+      "name": "Navigation Bar",
+      "kind": "nav",
+      "refersTo": "nav",
+      "description": "Panel bar: wordmark left, links right.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-brand\" href=\"#\">SysDesign Quest</a><div class=\"ds-nav-links\"><a href=\"#\">Dashboard</a><a href=\"#\">Daily Review</a><a href=\"#\">Badges</a><span class=\"ds-nav-user\">chris</span></div></nav>",
+      "css": ".ds-nav { background: #1a1a2e; border-bottom: 1px solid #1e293b; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; color: #f1f5f9; } .ds-nav-brand { font-size: 1.25rem; font-weight: 700; color: #8b5cf6; text-decoration: none; } .ds-nav-links { display: flex; align-items: center; gap: 16px; font-size: 0.875rem; } .ds-nav-links a { color: #f1f5f9; text-decoration: none; transition: color 150ms; } .ds-nav-links a:hover { color: #8b5cf6; } .ds-nav-links a:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; } .ds-nav-user { color: #94a3b8; }"
+    },
+    {
+      "name": "Badge Chip",
+      "kind": "chip",
+      "refersTo": "badge-chip",
+      "description": "Earned badge pill on the dashboard.",
+      "html": "<span class=\"ds-chip\">Architect</span>",
+      "css": ".ds-chip { display: inline-block; background: #1a1a2e; border: 1px solid #334155; border-radius: 9999px; padding: 4px 12px; font-size: 0.875rem; color: #f1f5f9; }"
+    },
+    {
+      "name": "Play Tile",
+      "kind": "card",
+      "refersTo": "tile-link",
+      "description": "Clickable activity or chapter tile; the border lights up on hover.",
+      "html": "<a class=\"ds-tile\" href=\"#\"><div class=\"ds-tile-title\">Design a URL Shortener</div><div class=\"ds-tile-meta\">Drag-and-drop architecture builder</div></a>",
+      "css": ".ds-tile { display: block; background: #1a1a2e; border: 1px solid #334155; border-radius: 0.75rem; padding: 16px; color: #f1f5f9; text-decoration: none; transition: border-color 150ms; } .ds-tile:hover { border-color: #8b5cf6; } .ds-tile:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; } .ds-tile-title { font-weight: 600; } .ds-tile-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }"
+    },
+    {
+      "name": "Quest Progress Bar",
+      "kind": "custom",
+      "refersTo": "progress",
+      "description": "Signature mastery/XP meter: slate track, solid signal fill.",
+      "html": "<div class=\"ds-progress\"><div class=\"ds-progress-fill\" style=\"width:62%\"></div></div>",
+      "css": ".ds-progress { width: 100%; height: 12px; background: #1e293b; border-radius: 9999px; overflow: hidden; } .ds-progress-fill { height: 100%; background: #8b5cf6; border-radius: 9999px; }"
+    },
+    {
+      "name": "Feedback Slab",
+      "kind": "card",
+      "refersTo": "feedback",
+      "description": "Tinted result panel shown after answering.",
+      "html": "<div class=\"ds-feedback\"><div class=\"ds-feedback-head\">Correct! +10 XP</div><p class=\"ds-feedback-body\">Consistent hashing minimizes remapping when nodes join or leave.</p></div>",
+      "css": ".ds-feedback { background: rgba(2, 44, 34, 0.4); border: 1px solid #047857; border-radius: 0.75rem; padding: 20px; color: #f1f5f9; } .ds-feedback-head { font-weight: 700; font-size: 1.125rem; margin-bottom: 4px; } .ds-feedback-body { font-size: 0.875rem; color: #94a3b8; margin: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Shift Console",
+    "overview": "SysDesign Quest looks like a console for studying late at night. Near-black ink surfaces keep the room dark, so the screen doesn't glare during long sessions. Against that darkness, two electric signals (violet and cyan) light up only where something is happening: progress being made, an action to take, a review waiting. The interface stays quiet and the signals carry the energy. The layout is dense and practical. Content runs the full width of the viewport inside generous side gutters. Panels are flat, slightly lifted slabs separated by hairline borders rather than shadows. Hierarchy comes from weight and value more than size: bold white headings, slate body copy, and small uppercase labels that name each section. The owner has rejected three parts of the incumbent look. Future work should replace them, not extend them: emoji used as icons, the violet-to-cyan gradient on progress bars, and the lack of a chosen typeface (everything currently falls back to the system sans stack).",
+    "keyCharacteristics": [
+      "Near-black, slightly blue-violet ink canvas with one lighter panel tone for cards and navigation.",
+      "Two signal colors with fixed jobs: violet means act and progress, cyan means review and look deeper.",
+      "Flat surfaces; depth comes from tone and 1px borders, never drop shadows.",
+      "Small uppercase labels title sections instead of large headings.",
+      "Semantic feedback (green correct, red wrong, amber reward) shown as tinted, translucent slabs."
+    ],
+    "rules": [
+      { "name": "The Two Signals Rule", "body": "Violet means *act or progress*; cyan means *review or look deeper*. Never swap them. Never add a third brand hue: semantic green, red and amber are for feedback only and never decorate.", "section": "colors" },
+      { "name": "The Dark Room Rule", "body": "Surfaces stay in the ink-to-panel range. Nothing lighter than Panel is ever used as a surface fill. Light comes only from text and signals.", "section": "colors" },
+      { "name": "The Weight-Not-Size Rule", "body": "Hierarchy steps through weight and text value before size. New screens stay within the five roles above. No display sizes are added unless a deliberate typographic redesign introduces them.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "Separate surfaces with tone and borders, never drop shadows. Selection and focus appear as a violet border or ring, not as elevation.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every surface in the Ink (#0f0f1a) → Panel (#1a1a2e) range and separate layers with 1px borders (#1e293b resting, #334155 interactive).",
+      "Do use Signal Violet (#8b5cf6) for acting and progressing, and Signal Cyan (#06b6d4) for review, deep dives and code (the Two Signals Rule).",
+      "Do give cyan buttons ink text (#0f0f1a) and violet buttons white text.",
+      "Do title sections with the uppercase 0.75rem / 600 / 0.025em label rather than a larger heading.",
+      "Do show state with border color (violet hover or selection, emerald/red feedback), not with shadows.",
+      "Do raise small metadata text above Text Faint (#64748b) when it carries information a learner needs. At 0.75rem it fails WCAG AA on ink.",
+      "Do make white text on violet buttons at least 18.66px bold (≈4.1:1 contrast), or darken the fill, when the label must meet AA at small sizes."
+    ],
+    "donts": [
+      "Don't use emoji as icons for buttons, tiles or section labels (📖, 🧠, 🏗️, 🧩). The owner has rejected this; use a consistent icon set or plain labels.",
+      "Don't fill progress bars with a violet→cyan gradient. Use a single solid signal color per meter.",
+      "Don't ship new screens that rely on the default system font as a design choice. The missing typeface is a known gap to fill deliberately.",
+      "Don't add drop shadows or glows to create depth (the No-Shadow Rule).",
+      "Don't introduce a third brand hue or use green, red or amber decoratively. They are reserved for correct, wrong and reward feedback.",
+      "Don't use any surface fill lighter than Panel (the Dark Room Rule)."
+    ]
+  }
+}

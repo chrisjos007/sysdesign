@@ -1,0 +1,21 @@
+.indexes-lesson { margin-top: var(--s6); }
+.indexes-lesson [hidden] { display: none !important; }
+.indexes-lesson h2 { font-size: var(--fs-xl); }
+.indexes-lesson h3 { font-size: var(--fs-lg); }
+.indexes-lesson p { max-width: 68ch; }
+.indexes-lesson > p { margin-top: var(--s3); }
+.indexes-lab, .indexes-notes-heading { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); scroll-margin-top: 5rem; }
+.indexes-lab > * + * { margin-top: var(--s4); }
+.indexes-controls { display: grid; gap: var(--s4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.indexes-lab label { display: block; margin-bottom: var(--s2); }
+.indexes-lab select { width: 100%; min-height: 44px; padding: var(--s3); border: 1px solid var(--card-edge); background: var(--card); color: var(--ink); font: inherit; }
+.indexes-lab .btn { min-height: 44px; white-space: normal; font-size: var(--fs-sm); }
+.indexes-lesson :is(select, summary, a):focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+.indexes-result { padding: var(--s4); background: var(--card-back); font-weight: 600; font-variant-numeric: tabular-nums; }
+.indexes-lesson summary { cursor: pointer; color: var(--cobalt); min-height: 44px; padding: var(--s3) 0; }
+.indexes-lesson summary:hover { color: var(--cobalt-press); }
+.indexes-lesson ol { padding-left: var(--s5); }
+.indexes-lesson li { padding: var(--s2) 0; }
+.indexes-lesson pre { padding: var(--s4); background: var(--card-back); white-space: pre-wrap; overflow-wrap: anywhere; }
+.indexes-lesson code { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .indexes-controls { grid-template-columns: 1fr; } }

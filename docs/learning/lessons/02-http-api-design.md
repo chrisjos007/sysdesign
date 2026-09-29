@@ -1,6 +1,6 @@
 # HTTP and API design: define the contract
 
-ID: sd-02 | Stage 1: beginner | Suggested study: 25 minutes
+ID: sd-02 | Level: Beginner | Stage 1: Understand a request | Suggested study: 25 minutes
 
 Prerequisites: sd-01
 

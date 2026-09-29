@@ -1,6 +1,6 @@
 # Consistency models and execution histories
 
-ID: sd-25 | Stage 5: expert | Suggested study: 45 minutes
+ID: sd-25 | Level: Advanced | Stage 5: Reason about guarantees | Suggested study: 45 minutes
 
 Prerequisites: sd-04, sd-14, sd-15, sd-24
 
@@ -28,15 +28,15 @@ A register starts at 0. A writes 1 and receives success at t2. B begins a read a
 
 ## Trade-offs and failure modes
 
-Stronger guarantees may require coordination across replicas and may prevent progress when the required participants are unreachable. Weaker guarantees can serve more local operations but shift conflict/freshness handling to the application. Per-key linearizability does not automatically enforce a cross-key invariant such as 'at least one on-call doctor.' A quorum arithmetic slogan alone does not prove a protocol linearizable; write ordering, version selection, and failure behavior matter.
+Stronger guarantees may require coordination across replicas and may prevent progress when the required participants are unreachable. Weaker guarantees can serve more local operations but shift conflict/freshness handling to the application. Per-key linearizability does not automatically enforce a cross-key invariant such as 'every workspace keeps at least one owner.' A quorum arithmetic slogan alone does not prove a protocol linearizable; write ordering, version selection, and failure behavior matter.
 
 ## Practice
 
-Two doctors each read that both are on call, then each independently sets their own on_call flag to false. State the invariant, show a bad interleaving, and identify why per-key atomic writes do not suffice. Offer one enforceable design.
+A shared workspace must always keep at least one owner. Its two owners each open the members page, see two owners listed, and each removes their own owner role at the same moment. State the invariant, show a bad interleaving, and identify why per-key atomic writes do not suffice. Offer one enforceable design.
 
 ### Answer guidance
 
-The invariant is that at least one doctor remains on call. Both reads can precede either write, so both updates succeed and violate it. Use a transaction isolation/locking strategy that protects the shared predicate, or serialize the decision through one authoritative roster object with conditional versions. Validate that the chosen database actually rejects or coordinates the conflicting history.
+The invariant is that the workspace keeps at least one owner. Both reads can precede either write, and each write changes a different membership row, so both succeed and the workspace is left with none. Use a transaction isolation/locking strategy that protects the shared predicate, or serialize the decision through one authoritative membership record with conditional versions. Validate that the chosen database actually rejects or coordinates the conflicting history.
 
 ## Knowledge check
 

@@ -1,6 +1,6 @@
 # Stream processing, event time, and correctness
 
-ID: sd-30 | Stage 5: expert | Suggested study: 50 minutes
+ID: sd-30 | Level: Advanced | Stage 5: Reason about guarantees | Suggested study: 50 minutes
 
 Prerequisites: sd-15, sd-16, sd-20, sd-25
 

@@ -1,6 +1,6 @@
 # Authentication, authorization, and tenant isolation
 
-ID: sd-23 | Stage 4: production | Suggested study: 40 minutes
+ID: sd-23 | Level: Advanced | Stage 4: Operate reliably | Suggested study: 40 minutes
 
 Prerequisites: sd-02, sd-08, sd-09
 

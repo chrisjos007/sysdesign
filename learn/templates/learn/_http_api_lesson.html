@@ -1,0 +1,114 @@
+<section class="http-lesson" id="http-lesson" aria-labelledby="http-lab-title">
+    <h2 id="http-lab-title">Try the contract</h2>
+    <p>Explore what a response promises, what a retry changes, and when an edit must be rejected. These unscored examples run in your browser and reset on reload.</p>
+
+    <section class="http-lab" id="http-replay" aria-labelledby="http-replay-title">
+        <h3 id="http-replay-title">Send it twice. What changes?</h3>
+        <p>Start with task 9, titled “Draft plan.” Choose a request, predict its effect, then send it twice.</p>
+        <div class="http-lab__controls" role="group" aria-label="Request method" data-http-interactive hidden>
+            <button class="btn btn--quiet" type="button" data-method="get" aria-pressed="false">GET</button>
+            <button class="btn btn--quiet" type="button" data-method="put" aria-pressed="false">PUT</button>
+            <button class="btn btn--quiet" type="button" data-method="delete" aria-pressed="true">DELETE</button>
+            <button class="btn btn--quiet" type="button" data-method="post" aria-pressed="false">POST</button>
+            <button class="btn btn--quiet" type="button" data-method="keyed" aria-pressed="false">POST + key</button>
+        </div>
+        <dl class="http-lab__facts">
+            <div><dt>Safe method</dt><dd id="http-safe">No</dd></div>
+            <div><dt>Idempotent effect</dt><dd id="http-idempotent">Yes</dd></div>
+        </dl>
+        <pre class="http-lab__wire" aria-label="Request to repeat"><code id="http-replay-request">DELETE /tasks/9</code></pre>
+        <div class="btn-row" data-http-interactive hidden>
+            <button class="btn btn--primary" id="http-send" type="button">Send request</button>
+            <button class="btn btn--quiet" id="http-replay-reset" type="button">Reset example</button>
+        </div>
+        <div class="http-lab__result" role="status" aria-live="polite" aria-atomic="true">
+            <p id="http-attempts" class="meta">No requests sent.</p>
+            <pre class="http-lab__wire"><code id="http-replay-response">No response yet.</code></pre>
+            <p id="http-replay-effect">Task 9 exists: “Draft plan”.</p>
+        </div>
+        <p id="http-method-note">DELETE can return 204, then 404 when repeated. The task is absent after either call: idempotence concerns intended effects, not identical responses.</p>
+        <details>
+            <summary>What does the request key guarantee here?</summary>
+            <p>In this teaching contract, a key is scoped to the authenticated caller and endpoint and retained for 24 hours. The same key and body replay the original result; a different body with that key is rejected with 409. After retention expires, the same key may create new work. These are API choices, not guarantees supplied by POST or by the header name.</p>
+        </details>
+        <noscript><p>GET reads without requesting a change. Repeating PUT with the same representation keeps the same intended state. Unkeyed POST may create two tasks; a defined deduplication contract can make a keyed retry return the first task. Enable JavaScript to send the simulated requests.</p></noscript>
+    </section>
+
+    <section class="http-lab" id="http-export" aria-labelledby="http-export-title">
+        <h3 id="http-export-title">Accepted is not finished</h3>
+        <p>Submit a report request. Move the simulated worker forward, then read the status as the client. Notice that a worker transition is not itself a new client observation.</p>
+        <div class="btn-row" data-http-interactive hidden>
+            <button class="btn btn--primary" id="http-export-submit" type="button">Submit export</button>
+            <button class="btn btn--quiet" id="http-export-reset" type="button">Reset export</button>
+        </div>
+        <p class="http-lab__server">Server state <span class="meta">(simulated)</span>: <strong id="http-export-state">not submitted</strong></p>
+        <div class="http-lab__controls" role="group" aria-label="Simulated export worker" data-http-interactive hidden>
+            <button class="btn btn--quiet" data-export-action="start" type="button" disabled>Start worker</button>
+            <button class="btn btn--quiet" data-export-action="succeed" type="button" disabled>Worker succeeds</button>
+            <button class="btn btn--quiet" data-export-action="fail" type="button" disabled>Worker fails</button>
+        </div>
+        <div class="http-lab__controls" role="group" aria-label="Observe export status" data-http-interactive hidden>
+            <button class="btn btn--primary" data-export-action="poll" type="button" disabled>Read status</button>
+            <button class="btn btn--quiet" data-export-action="unreachable" type="button" disabled>Simulate status timeout</button>
+        </div>
+        <div class="http-lab__result" role="status" aria-live="polite" aria-atomic="true">
+            <p>Last confirmed operation state: <strong id="http-export-observed">not yet read</strong></p>
+            <pre class="http-lab__wire" aria-label="Export request"><code id="http-export-request">POST /exports
+Idempotency-Key: report-demo-1
+Content-Type: application/json
+
+{"report":"weekly-sales","format":"csv"}</code></pre>
+            <pre class="http-lab__wire" aria-label="Export response"><code id="http-export-response">No response yet. Submit the export to begin.</code></pre>
+            <p id="http-export-note">In this teaching API, 202 is returned only after durable acceptance.</p>
+        </div>
+        <details>
+            <summary>What should this API promise?</summary>
+            <p><code>201 Created</code> describes creation. <code>202 Accepted</code> does not promise successful completion. This export contract returns an operation URL after durable acceptance; status can be queued, running, succeeded, or failed. A repeat with the same request key and body returns operation 123 under the same 24-hour retention policy above.</p>
+            <p>A failed operation and an unreachable status endpoint are different outcomes. The former is a terminal result in a readable status body; the latter leaves the current state unknown. Cache behavior and permission to read an operation need their own rules.</p>
+        </details>
+    </section>
+
+    <section class="http-lab" id="http-edit" aria-labelledby="http-edit-title">
+        <h3 id="http-edit-title">Two editors. One version.</h3>
+        <p>Both editors read <code>ETag: "v7"</code>. Save editor A, then editor B. Does the second draft silently overwrite the first?</p>
+        <p class="http-lab__server">Server: <strong id="http-server-title">Draft plan</strong> · <code id="http-server-version">"v7"</code></p>
+        <div class="http-lab__editors" data-http-interactive hidden>
+            <form data-editor="a" aria-labelledby="http-editor-a-title">
+                <h4 id="http-editor-a-title">Editor A</h4>
+                <label for="http-draft-a">Draft title</label>
+                <input id="http-draft-a" type="text" value="Review plan" maxlength="80" required autocomplete="off">
+                <p class="meta">Will send <code>If-Match: <span id="http-version-a">"v7"</span></code></p>
+                <div class="btn-row"><button class="btn btn--primary" type="submit">Save A</button><button class="btn btn--quiet" type="button" data-refresh="a">Refresh A</button></div>
+            </form>
+            <form data-editor="b" aria-labelledby="http-editor-b-title">
+                <h4 id="http-editor-b-title">Editor B</h4>
+                <label for="http-draft-b">Draft title</label>
+                <input id="http-draft-b" type="text" value="Ship plan" maxlength="80" required autocomplete="off">
+                <p class="meta">Will send <code>If-Match: <span id="http-version-b">"v7"</span></code></p>
+                <div class="btn-row"><button class="btn btn--primary" type="submit">Save B</button><button class="btn btn--quiet" type="button" data-refresh="b">Refresh B</button></div>
+            </form>
+        </div>
+        <div class="http-lab__result" role="status" aria-live="polite" aria-atomic="true">
+            <pre class="http-lab__wire" aria-label="Conditional request"><code id="http-edit-request">Both editors have read task 9 at ETag "v7".</code></pre>
+            <pre class="http-lab__wire" aria-label="Conditional response"><code id="http-edit-response">No edit sent yet.</code></pre>
+            <p id="http-edit-note">If-Match makes the write conditional on the version the editor read.</p>
+        </div>
+        <button class="btn btn--quiet" id="http-edit-reset" type="button" data-http-interactive hidden>Reset both editors</button>
+        <noscript><p>A’s matching update succeeds and produces v8. B’s If-Match v7 is now stale: the server returns 412 Precondition Failed and keeps A’s title. B must refresh and resolve the edit before retrying.</p></noscript>
+    </section>
+
+    <section class="http-lab" id="http-practice" aria-labelledby="http-practice-title">
+        <h3 id="http-practice-title">Design a report-generation contract</h3>
+        <p>Sketch the request fields, acceptance response, status URL, nonterminal and terminal states, and repeat-submission rules. Explain how the client distinguishes a failed report from a temporarily unreachable status endpoint.</p>
+        <details>
+            <summary>Compare your contract with an example</summary>
+            <p>Accept a report type and format plus a stable request key scoped to the caller and endpoint. Validate the request and authorize the caller before accepting it. Return 202 with an operation ID and status URL only after durable acceptance.</p>
+            <p>Expose queued and running as nonterminal states, and succeeded (with a result URL) and failed (with a useful error) as terminal states. Document the key and operation retention periods. In this example, the same key and body reuse one operation for 24 hours; a changed body is rejected.</p>
+            <p>A status body saying failed confirms operation failure. A network timeout during the lookup does not. ETags and If-Match protect edits to versioned resources; they do not replace request-key deduplication for creation.</p>
+        </details>
+        <p class="meta">Explain why DELETE can return 204 then 404, why 202 is not a finished report, and why a stale edit receives 412. Then test your understanding in the quiz.</p>
+        <a class="btn btn--primary" href="{% url 'learn:concept_quiz' concept.slug %}">Check your understanding <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
+    </section>
+    <p class="http-lesson__scope">Original teaching examples based on <a href="https://www.rfc-editor.org/rfc/rfc9110">RFC 9110: HTTP Semantics</a>. Status choices and request-key retention are specific to these example APIs. Nothing here submits a real task, report, or edit.</p>
+    <h3 class="http-lesson__notes-heading">Study notes</h3>
+</section>

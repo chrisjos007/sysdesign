@@ -1,6 +1,6 @@
 # System design learning library
 
-A beginner-to-expert expansion for SysDesign Quest: **30 concept lessons, six design case studies, and 78 knowledge-check questions with answer explanations**. Research date: **27 September 2026**.
+The system design curriculum for SysDesign Quest: **31 concept lessons, six design case studies, and 80 knowledge-check questions with answer explanations**, organized into three levels: Beginner, Intermediate and Advanced. Research date: **27 September 2026**.
 
 Start with the [curriculum map](curriculum-map.md). Open [lesson 1](lessons/01-dns-tcp-tls.md) if you are new to system design, or use prerequisites to enter at the appropriate point. The [case studies](#case-studies) turn the mechanisms into designs you can defend.
 
@@ -8,16 +8,17 @@ Start with the [curriculum map](curriculum-map.md). Open [lesson 1](lessons/01-d
 
 | File or folder | Purpose |
 |---|---|
-| [curriculum-map.md](curriculum-map.md) | Ordered path, prerequisites, milestones, and existing-content connections |
-| [lessons/01-dns-tcp-tls.md](lessons/01-dns-tcp-tls.md) through lesson 30 | Explanations, examples, failure modes, practice, and answer guidance |
+| [curriculum-map.md](curriculum-map.md) | Ordered path, levels, prerequisites, and milestones |
+| [CONTENT_STANDARDS.md](CONTENT_STANDARDS.md) | Rules for every lesson, quiz and game: levels, original wording, accuracy, balanced quiz choices |
+| [lessons/01-dns-tcp-tls.md](lessons/01-dns-tcp-tls.md) through lesson 31 | Explanations, examples, failure modes, practice, and answer guidance |
 | [case-studies/01-ticket-booking.md](case-studies/01-ticket-booking.md) through case 6 | Requirements, estimates, APIs/data models, reference diagrams, recovery scenarios, and rubrics |
 | [catalogue.json](catalogue.json) | Metadata, prerequisite IDs, knowledge checks, rubrics, and reference architecture data |
 | [catalogue.schema.json](catalogue.schema.json) | JSON Schema for the catalogue contract |
-| [sources.json](sources.json) | 55 primary-source references with review dates |
+| [sources.json](sources.json) | 62 primary-source references with review dates |
 | [dashboard-integration.md](dashboard-integration.md) | Field meanings and mapping to the current website |
 | [glossary.md](glossary.md) | Short definitions for recurring terms |
 
-This package is the website's system design content. `python manage.py seed_content` reads it into lessons, quizzes and games, replacing the earlier book-derived chapters; see the [integration guide](dashboard-integration.md) for the mapping.
+This package is the website's system design content. `python manage.py seed_content` reads it into lessons, quizzes and games; see the [integration guide](dashboard-integration.md) for the mapping.
 
 ## How to study
 
@@ -27,7 +28,7 @@ This package is the website's system design content. `python manage.py seed_cont
 4. Answer all knowledge checks with a reason, then revisit the failure scenario.
 5. For a case study, draw your own design before reading the reference architecture and score it using the rubric.
 
-Suggested times include reading and exercises. They total **1635 minutes (about 27.3 hours)** for one pass; implementation labs and repetition are extra. These are planning estimates, not measured learner outcomes. Expert is a curriculum stage, not a certification of professional expertise.
+Suggested times include reading and exercises. They total **1670 minutes (about 27.8 hours)** for one pass; implementation labs and repetition are extra. These are planning estimates, not measured learner outcomes. Levels describe what a lesson assumes you know; they are not a certification of professional expertise.
 
 ## Case studies
 
@@ -40,8 +41,6 @@ Suggested times include reading and exercises. They total **1635 minutes (about 
 
 ## Editorial and source policy
 
-The explanations and teaching scenarios are original writing. Linked standards, official product documentation, papers, and first-party engineering material support the mechanisms; no book chapter text has been reproduced. Examples, capacity numbers, target latencies, architecture choices, and exercises are hypothetical unless explicitly stated otherwise.
+The explanations and teaching scenarios are original writing. Linked standards, official product documentation, papers, and first-party engineering material support the mechanisms; no text, examples or exercises are taken from third-party study material. Examples, capacity numbers, target latencies, architecture choices, and exercises are hypothetical unless explicitly stated otherwise. Anything added must follow the [content standards](CONTENT_STANDARDS.md): a Beginner, Intermediate or Advanced level, wording and examples of our own, facts checked against dated primary sources, and quiz choices that don't give the answer away.
 
 Each lesson links its technical references; the registry records the review date. Live documentation URLs can change, and provider-specific behavior must be rechecked before implementation. Mechanisms and limitations are distinguished from the proposed choices in each case. Source references indicate provenance, not affiliation or endorsement.
-
-The existing website's book-derived concepts are linked through their verified source-data slugs in the catalogue. They are background connections, not a claim that these new notes came from those books.

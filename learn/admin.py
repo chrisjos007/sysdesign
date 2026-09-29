@@ -7,7 +7,8 @@ from django.utils.text import slugify
 
 from . import llm
 from .models import (
-    Attempt, Badge, Book, Chapter, Choice, CodingAttempt, CodingChallenge, ComponentType,
+    Attempt, Badge, BitBudgetAttempt, BitBudgetChallenge, Book, Chapter, Choice, CodingAttempt,
+    CodingChallenge, ComponentType,
     Concept, ConceptMastery,
     DesignAttempt, DesignChallenge, DesignChallengeComponent, DesignChallengeConnection,
     FlawAttempt, FlawChallenge, FlawPart, FlawReason,
@@ -290,6 +291,20 @@ class RingChallengeAdmin(admin.ModelAdmin):
 
 @admin.register(RingAttempt)
 class RingAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
+    list_filter = ('is_perfect', 'challenge')
+    readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')
+
+
+@admin.register(BitBudgetChallenge)
+class BitBudgetChallengeAdmin(admin.ModelAdmin):
+    """`stages` is the script learn/bitbudget.py plays; its shape is
+    documented there, and seed_games.BIT_BUDGET_CHALLENGES has a worked example."""
+    list_display = ('title', 'concept')
+
+
+@admin.register(BitBudgetAttempt)
+class BitBudgetAttemptAdmin(admin.ModelAdmin):
     list_display = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'created_at')
     list_filter = ('is_perfect', 'challenge')
     readonly_fields = ('user', 'challenge', 'score', 'xp_awarded', 'is_perfect', 'detail', 'created_at')

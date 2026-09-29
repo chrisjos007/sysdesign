@@ -26,4 +26,6 @@ urlpatterns = [
     path('quorum/<slug:challenge_slug>/move/', views.quorum_move, name='quorum_move'),
     path('ring/<slug:challenge_slug>/', views.ring_challenge, name='ring_challenge'),
     path('ring/<slug:challenge_slug>/move/', views.ring_move, name='ring_move'),
+    path('bits/<slug:challenge_slug>/', views.bit_budget_challenge, name='bit_budget_challenge'),
+    path('bits/<slug:challenge_slug>/move/', views.bit_budget_move, name='bit_budget_move'),
 ]

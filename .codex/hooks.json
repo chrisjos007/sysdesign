@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash 'A:\\New folder (2)\\sysdesign_quest\\.codex\\hooks\\vexp-restore.sh'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash 'A:\\New folder (2)\\sysdesign_quest\\.codex\\hooks\\vexp-hint.sh'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

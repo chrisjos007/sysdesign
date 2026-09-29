@@ -55,7 +55,7 @@
           "id",
           "order",
           "title",
-          "legacy_difficulty"
+          "level"
         ],
         "properties": {
           "id": {
@@ -76,11 +76,12 @@
             "type": "string",
             "minLength": 1
           },
-          "legacy_difficulty": {
+          "level": {
+            "description": "Difficulty level shown to learners. Every item is exactly one of beginner, intermediate or advanced; see CONTENT_STANDARDS.md.",
             "enum": [
-              1,
-              2,
-              3
+              "beginner",
+              "intermediate",
+              "advanced"
             ]
           }
         }
@@ -292,12 +293,10 @@
         "estimated_minutes",
         "path",
         "prerequisite_ids",
-        "related_existing_concept_slugs",
         "tags",
         "objectives",
         "source_ids",
-        "suggested_topic",
-        "legacy_difficulty",
+        "level",
         "content_status",
         "activities",
         "assessment"
@@ -359,14 +358,6 @@
             "pattern": "^sd-[0-9]{2}$"
           }
         },
-        "related_existing_concept_slugs": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
-        },
         "tags": {
           "type": "array",
           "items": {
@@ -394,31 +385,12 @@
           "uniqueItems": true,
           "minItems": 1
         },
-        "suggested_topic": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "slug",
-            "status"
-          ],
-          "properties": {
-            "slug": {
-              "type": "string",
-              "minLength": 1
-            },
-            "status": {
-              "enum": [
-                "existing",
-                "proposed"
-              ]
-            }
-          }
-        },
-        "legacy_difficulty": {
+        "level": {
+          "description": "Difficulty level shown to learners. Every item is exactly one of beginner, intermediate or advanced; see CONTENT_STANDARDS.md.",
           "enum": [
-            1,
-            2,
-            3
+            "beginner",
+            "intermediate",
+            "advanced"
           ]
         },
         "content_status": {
@@ -536,4 +508,3 @@
     }
   }
 }
-

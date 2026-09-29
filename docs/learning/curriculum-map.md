@@ -1,6 +1,6 @@
 # Curriculum map
 
-Use this as a guided sequence, or follow only the prerequisites for a selected lesson. IDs are stable catalogue identifiers; the rows link directly to the documents. Stage names describe learning progression, not application unlock levels.
+Use this as a guided sequence, or follow only the prerequisites for a selected lesson. IDs are stable catalogue identifiers; the rows link directly to the documents. The path has five stages, and every stage belongs to one of three levels: stage 1 is Beginner, stage 2 is Intermediate, and stages 3 to 5 and the case studies are Advanced ([content standards](CONTENT_STANDARDS.md)). Levels describe learning progression, not application unlock levels.
 
 ## 1. Beginner — Understand a request
 
@@ -29,6 +29,7 @@ Design a service with bounded resource use, clear cache freshness, durable backg
 | sd-10 | [Queues and background jobs](lessons/10-queues-background-jobs.md) | [sd-02](lessons/02-http-api-design.md), [sd-03](lessons/03-latency-throughput.md), [sd-04](lessons/04-concurrency-basics.md) | 35 |
 | sd-11 | [Object storage, delivery, and CDNs](lessons/11-object-storage-cdn.md) | [sd-01](lessons/01-dns-tcp-tls.md), [sd-02](lessons/02-http-api-design.md), [sd-08](lessons/08-caching-invalidation.md) | 30 |
 | sd-12 | [Pagination and data access patterns](lessons/12-pagination-access-patterns.md) | [sd-02](lessons/02-http-api-design.md), [sd-05](lessons/05-indexes-query-plans.md), [sd-06](lessons/06-requirements-capacity.md) | 35 |
+| sd-31 | [Partitioning, hot keys, and consistent hashing](lessons/31-partitioning-consistent-hashing.md) | [sd-05](lessons/05-indexes-query-plans.md), [sd-06](lessons/06-requirements-capacity.md), [sd-08](lessons/08-caching-invalidation.md) | 35 |
 
 Milestone: Design a service with bounded resource use, clear cache freshness, durable background work, and predictable collection traversal.
 
@@ -47,7 +48,7 @@ Trace an ambiguous timeout or crash across state boundaries and show how the sys
 
 Milestone: Trace an ambiguous timeout or crash across state boundaries and show how the system recovers without violating its business rule.
 
-## 4. Production — Operate reliably
+## 4. Advanced — Operate reliably
 
 Define user-visible reliability, gather diagnostic evidence, release compatible changes, isolate tenants, and demonstrate recovery.
 
@@ -62,7 +63,7 @@ Define user-visible reliability, gather diagnostic evidence, release compatible 
 
 Milestone: Define user-visible reliability, gather diagnostic evidence, release compatible changes, isolate tenants, and demonstrate recovery.
 
-## 5. Expert — Reason about guarantees
+## 5. Advanced — Reason about guarantees
 
 State the failure model and guarantee precisely, produce a counterexample to a weaker design, and defend where coordination is necessary.
 
@@ -92,7 +93,7 @@ Cases can be attempted as soon as their prerequisites are understood; their disp
 
 ## How the website uses this curriculum
 
-This curriculum is the website's system design content. It replaced the earlier book-derived chapters. `python manage.py seed_content` turns every lesson and case study into one chapter and concept, with the concept slug taken from the catalogue. Each stage is a dashboard topic, and its lessons unlock at an XP level: beginner 1, intermediate 2, advanced 4, production 6, expert 8. The case studies share a Case Studies topic and unlock one level after the lessons of their own stage (5, 7 or 9). These levels gate access in the app; they are separate from the knowledge prerequisites above, which the lesson page lists as links.
+This curriculum is the website's system design content. `python manage.py seed_content` turns every lesson and case study into one chapter and concept, with the concept slug taken from the catalogue. Each stage is a dashboard topic, and its lessons unlock at an XP level: stage 1 at level 1, stage 2 at 2, stage 3 at 4, stage 4 at 6 and stage 5 at 8. The case studies share a Case Studies topic and unlock one level after the lessons of their own stage (5, 7 or 9). These levels gate access in the app; they are separate from the knowledge prerequisites above, which the lesson page lists as links.
 
 Two compiled reference chapters (Python internals, OS file handling) sit alongside the curriculum as optional background. See the [integration guide](dashboard-integration.md) for how notes, questions and games map onto the app.
 

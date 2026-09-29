@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from learn.models import (
-    ComponentType, Concept, DesignChallenge, DesignChallengeComponent,
+    BitBudgetChallenge, ComponentType, Concept, DesignChallenge, DesignChallengeComponent,
     DesignChallengeConnection, FlawChallenge, FlawPart, FlawReason,
     MatchingChallenge, MatchingPair, OrderingChallenge, OrderingStep, QuorumChallenge, RingChallenge, TrafficChallenge,
 )
@@ -279,6 +279,16 @@ MATCHING_CHALLENGES = [
         ],
     ),
     (
+        'match-partitioning', 'Partitioning Vocabulary', 'partitioning-consistent-hashing',
+        [
+            ('Range partitioning', 'Gives each partition a contiguous span of sorted keys, so range scans touch few partitions.'),
+            ('Hash partitioning', 'Places each key by a hash of its value, spreading sequential keys but losing sort order.'),
+            ('Consistent hashing', 'Puts keys and nodes on one ring, so a membership change moves only the keys on the affected arcs.'),
+            ('Virtual nodes', 'Many ring positions per physical node, which even out load and scatter a failed node’s keys.'),
+            ('Hot key', 'A single key whose traffic overloads the one partition that owns it, however the cluster is rebalanced.'),
+        ],
+    ),
+    (
         'match-retry-controls', 'Retry Controls', 'timeouts-retries-jitter',
         [
             ('Total deadline', 'The whole time the caller will wait, across every attempt.'),
@@ -450,7 +460,7 @@ MATCHING_CHALLENGES = [
             ('setuid', 'Special bit (weight 4) making an executable run with its owner’s privileges, not the invoking user’s.'),
             ('setgid', 'Special bit (weight 2); on a directory, new files inside inherit that directory’s group.'),
             ('Sticky bit', 'Special bit (weight 1) restricting deletion inside a world-writable directory to each file’s own owner.'),
-            ('umask', 'The value subtracted from the base 666/777 permissions to set defaults for newly created files/directories.'),
+            ('umask', 'Bits masked off the base 666/777 permissions to set defaults for newly created files/directories.'),
         ],
     ),
     (
@@ -628,72 +638,69 @@ ORDERING_CHALLENGES = [
 # it's fine, which the learner reads after tapping it.
 FLAW_CHALLENGES = [
     dict(
-        slug='flaw-notification-system', title='Review a Flawed Notification System',
+        slug='flaw-event-delivery', title='Review a Flawed Event Delivery Service',
         concept='queues-background-jobs', width=1000, height=430,
         prompt=(
-            'This notification system has four planted design mistakes. '
-            'Tap each part you think is wrong, then say why.'
+            'This service turns order and billing events into signed webhooks for customers and emailed '
+            'receipts. It has four planted design mistakes. Tap each part you think is wrong, then say why.'
         ),
         boxes=[
-            dict(key='order', label='Order Service', box=(16, 60, 150, 52),
-                 ok='Callers only publish a "notify this user" event and carry on. That boundary is right.'),
-            dict(key='billing', label='Billing Service', box=(16, 150, 150, 52),
-                 ok='Another caller publishing events. Nothing wrong here.'),
-            dict(key='userdb', label='User & Device DB', box=(16, 262, 150, 52),
-                 ok='The server needs device tokens, phone numbers and email addresses to reach each channel.'),
-            dict(key='optout', label='Opt-out Settings', box=(16, 338, 150, 52),
-                 ok="Checking each user's notification preferences before sending is part of the design."),
-            dict(key='ns', label='Notification Server', sub='1 instance', box=(220, 96, 170, 68), flaw=[
-                "One instance is a single point of failure and can't scale out. Run several behind a load balancer.",
-                'It should render the email HTML itself instead of leaving that to the workers.',
-                'It should read user data through the message queue instead of the database.',
+            dict(key='order', label='Orders API', box=(16, 60, 150, 52),
+                 ok='Producers only record an "order paid" event and carry on. That boundary is right.'),
+            dict(key='billing', label='Billing API', box=(16, 150, 150, 52),
+                 ok='Another producer recording events. Nothing wrong here.'),
+            dict(key='userdb', label='Endpoint Registry', box=(16, 262, 150, 52),
+                 ok="The dispatcher needs each customer's webhook URL, event filter and signing secret."),
+            dict(key='optout', label='Paused Endpoints', box=(16, 338, 150, 52),
+                 ok='Skipping endpoints a customer has paused is part of the design.'),
+            dict(key='ns', label='Event Dispatcher', sub='1 instance', box=(220, 96, 170, 68), flaw=[
+                "One instance is a single point of failure and can't scale out. Run several stateless copies.",
+                'It should sign every payload with one secret shared by all customers, to save lookups.',
+                'It should read webhook URLs from the delivery queue instead of from the registry.',
             ]),
-            dict(key='queue', label='Message Queue', sub='shared by all channels', box=(440, 96, 170, 68), flaw=[
-                'With one queue for every channel, a slow SMS provider backs up push and email too. '
-                'Use one queue per channel.',
-                'Queues add delay. The server should call each provider directly.',
-                'A message broker can only hold one type of message per queue.',
+            dict(key='queue', label='Delivery Queue', sub='shared by all customers', box=(440, 96, 170, 68), flaw=[
+                "One customer's slow endpoint ties up the workers and delays everyone. Cap each customer's share.",
+                'Queues only add delay. The dispatcher should call every customer endpoint directly instead.',
+                'A broker can hold only one kind of event per queue, so orders and receipts will collide.',
             ]),
-            dict(key='push', label='Push Workers', box=(660, 40, 150, 52),
-                 ok='A worker pool per channel drains its own queue at a steady rate. That is the design.'),
-            dict(key='email', label='Email Workers', sub='drop a send on error', box=(660, 130, 150, 68), flaw=[
-                'Provider failures are routine. Retry with exponential backoff and record each attempt '
-                'in a notification log.',
-                'Workers should retry instantly in a tight loop until the send succeeds.',
-                'Email should be sent by the Notification Server, not by a worker.',
+            dict(key='push', label='Webhook Workers', box=(660, 40, 150, 52),
+                 ok='A bounded pool drains the queue at a steady rate and signs each request. That is the design.'),
+            dict(key='email', label='Receipt Workers', sub='drop a send on error', box=(660, 130, 150, 68), flaw=[
+                'Provider errors are routine. Retry with backoff and jitter, log each attempt, then dead-letter.',
+                'Workers should retry instantly, in a tight loop, until the email provider finally accepts.',
+                'Receipts should be sent by the dispatcher itself, not by a separate pool of workers.',
             ]),
-            dict(key='apns', label='APNs / FCM', box=(850, 40, 134, 52),
-                 ok='Apple and Google own delivery to devices. Handing push to them is correct.'),
-            dict(key='sendgrid', label='SendGrid', box=(850, 138, 134, 52),
-                 ok='A third-party email provider owns delivery. Correct.'),
-            dict(key='twilio', label='Twilio SMS', box=(850, 356, 134, 52),
-                 ok='Using an SMS provider is correct. Look at how it is being called.'),
+            dict(key='apns', label='Customer URLs', box=(850, 40, 134, 52),
+                 ok="Each customer's HTTPS endpoint receives and processes the event. Delivering there is the point."),
+            dict(key='sendgrid', label='Email Provider', box=(850, 138, 134, 52),
+                 ok='A third-party email service owns final delivery of the receipts. Correct.'),
+            dict(key='twilio', label='PDF Renderer', box=(850, 356, 134, 52),
+                 ok='Rendering invoice PDFs with an external service is fine. Look at how it is being called.'),
         ],
         arrows=[
-            dict(key='e-order', label='Order Service to Notification Server', d='M166 86 L220 118',
-                 ok='Events flow from callers to the notification server. Fine.'),
-            dict(key='e-billing', label='Billing Service to Notification Server', d='M166 176 L220 142',
-                 ok='Events flow from callers to the notification server. Fine.'),
-            dict(key='e-userdb', label='Notification Server to User & Device DB', d='M250 164 L166 288',
-                 ok='Looking up contact details and device tokens is needed.'),
-            dict(key='e-optout', label='Notification Server to Opt-out Settings', d='M284 164 L166 364',
-                 ok='Checking preferences before sending is needed.'),
-            dict(key='e-queue', label='Notification Server to Message Queue', d='M390 130 L440 130',
-                 ok='Publishing to a queue decouples the server from delivery. Fine.'),
-            dict(key='e-push', label='Message Queue to Push Workers', d='M610 116 L660 70',
+            dict(key='e-order', label='Orders API to Event Dispatcher', d='M166 86 L220 118',
+                 ok='Events flow from producers to the dispatcher. Fine.'),
+            dict(key='e-billing', label='Billing API to Event Dispatcher', d='M166 176 L220 142',
+                 ok='Events flow from producers to the dispatcher. Fine.'),
+            dict(key='e-userdb', label='Event Dispatcher to Endpoint Registry', d='M250 164 L166 288',
+                 ok="Looking up each customer's URL and signing secret is needed."),
+            dict(key='e-optout', label='Event Dispatcher to Paused Endpoints', d='M284 164 L166 364',
+                 ok='Checking for paused endpoints before enqueueing is needed.'),
+            dict(key='e-queue', label='Event Dispatcher to Delivery Queue', d='M390 130 L440 130',
+                 ok='Enqueueing separates accepting an event from delivering it. Fine.'),
+            dict(key='e-push', label='Delivery Queue to Webhook Workers', d='M610 116 L660 70',
                  ok='Workers pull from a queue. Fine.'),
-            dict(key='e-email', label='Message Queue to Email Workers', d='M610 144 L660 160',
+            dict(key='e-email', label='Delivery Queue to Receipt Workers', d='M610 144 L660 160',
                  ok='Workers pull from a queue. Fine.'),
-            dict(key='e-apns', label='Push Workers to APNs / FCM', d='M810 66 L850 66',
+            dict(key='e-apns', label='Webhook Workers to Customer URLs', d='M810 66 L850 66',
+                 ok='Workers POST the signed event to the customer. Fine.'),
+            dict(key='e-sendgrid', label='Receipt Workers to Email Provider', d='M810 164 L850 164',
                  ok='Workers call the provider. Fine.'),
-            dict(key='e-sendgrid', label='Email Workers to SendGrid', d='M810 164 L850 164',
-                 ok='Workers call the provider. Fine.'),
-            dict(key='e-sms', label='Notification Server calls Twilio SMS directly', d='M330 164 V382 H850',
-                 caption='sync HTTP call per SMS', at=(590, 372), flaw=[
-                     'If Twilio is slow or down, the server blocks with it, and a burst of events hits Twilio '
-                     'all at once. Put SMS behind its own queue.',
-                     'SMS has to be sent over a WebSocket.',
-                     'Twilio should sit behind a CDN.',
+            dict(key='e-sms', label='Event Dispatcher calls PDF Renderer directly', d='M330 164 V382 H850',
+                 caption='sync HTTP call per event', at=(590, 372), flaw=[
+                     'If the renderer slows or fails, the dispatcher stalls and every event waits. Queue it.',
+                     "PDF rendering must happen in the customer's browser, never on one of our servers.",
+                     'The renderer should sit behind a CDN so that every invoice is cached forever.',
                  ]),
         ],
     ),
@@ -706,35 +713,40 @@ FLAW_CHALLENGES = [
 # ops-log lines keyed by 10-minute tick (tick 114 is 19:00).
 TRAFFIC_CHALLENGES = [
     dict(
-        slug='traffic-url-shortener', title='Run a URL Shortener Through a Viral Day',
+        slug='traffic-flash-sale', title='Run a Shop Through a Flash Sale',
         concept='caching-invalidation',
         prompt=(
-            'Run a URL shortener through one day of traffic: 12,000 reads and 1,000 writes per second '
-            'on average, and a viral link at 19:00. Change the design at any time, even mid-run. Any '
-            'design that stays inside the SLO passes.'
+            'Run a shop\'s product pages through one day of traffic: 12,000 page views and 1,000 cart and '
+            'stock writes per second on average, and a featured product at 19:00. Change the design at any '
+            'time, even mid-run. Any design that stays inside the SLO passes.'
         ),
         params={
             'source': 'sd-08 Caching, invalidation, and stampedes · sd-06 Requirements and capacity · '
-                      'RFC 9110 (301 and 302 redirects)',
+                      'RFC 9111 (HTTP caching and max-age)',
             'reads_per_sec': 12000, 'writes_per_sec': 1000,
             'app_capacity': 5000, 'db_capacity': 6000,
             'hourly_cost': {'app': 1.5, 'cache': 0.8, 'db': 2.0},
             'slo': {'p99_ms': 200, 'error_rate': 0.01},
             'spike': {'at_hour': 19, 'hours': 1.5, 'reads_per_sec': 24000},
-            'score': {'start': 1000, 'per_breach': 50, 'analytics': 250},
+            'score': {'start': 1000, 'per_breach': 50, 'stale_pages': 250},
             'limits': {'servers': [1, 14], 'replicas': [0, 4]},
-            'start': {'servers': 4, 'replicas': 1, 'cache': False, 'redirect': 302},
-            'briefing': 'Marketing warns you: a celebrity will post one of your links around 19:00.',
+            'start': {'servers': 4, 'replicas': 1, 'cache': False, 'browser_cache': False},
+            'briefing': 'Merchandising warns you: a popular newsletter will feature one of your products around 19:00.',
             'events': {
-                '42': 'Morning traffic is picking up.',
+                '42': 'Morning shoppers are arriving.',
                 '102': 'The evening peak starts. It tops out around 20:00.',
-                '114': 'A celebrity posts one of your short links. Reads of that one URL jump by 24,000 a second.',
-                '123': 'The viral wave fades.',
+                '114': 'The newsletter goes out. Views of that one product page jump by 24,000 a second.',
+                '123': 'The newsletter rush fades.',
                 '138': 'Traffic winds down for the night.',
             },
         },
     ),
 ]
+
+# Games that were replaced by a differently themed one. seed_games deletes
+# them (and their attempts) so the old version stops appearing.
+RETIRED_FLAW_SLUGS = ['flaw-notification-system']
+RETIRED_TRAFFIC_SLUGS = ['traffic-url-shortener']
 
 
 # Quorum Casino: replicas hold the key x while the learner steps through a
@@ -802,10 +814,10 @@ QUORUM_CHALLENGES = [
                     dict(t='read'),
                 ],
                 outro=(
-                    'W = N makes writes fragile: one crashed replica turns every write into a failure. '
-                    'Worse, a failed write is not rolled back on the replicas that applied it, so reads '
-                    'can return a value the client was told never saved. Quorum sizes alone do not '
-                    'define what a read may return (sd-25).'
+                    'W = N makes writes fragile: with one replica down, no write can succeed. And a write '
+                    'reported as failed may still sit on the replicas that stored it, since nothing undid '
+                    'it there, so a later read can return a value the client was told was never saved. '
+                    'Quorum sizes alone do not define what a read may return (sd-25).'
                 ),
             ),
         ],
@@ -848,7 +860,7 @@ RING_CHALLENGES = [
                     dict(
                         ask='On the ring, when S3 crashes, roughly what share of all keys will move to a different server?',
                         scheme='ring', crash='S3',
-                        options=['About a quarter, only the keys S3 owned', 'About three quarters', 'All of them'],
+                        options=['About a quarter, only the keys S3 owned', 'About three quarters of all the keys', 'All of them, since the ring re-hashes'],
                         answer=0,
                         after=(
                             'S3 is down. Only its keys moved, each to the next position clockwise, so '
@@ -884,8 +896,146 @@ RING_CHALLENGES = [
 ]
 
 
+# Bit Budget: split an ID's bits between a millisecond timestamp and the
+# fields that keep IDs from different workers apart. learn/bitbudget.py
+# plays the stages and documents their shape; it also works out whether a
+# spec can be met, so no stage says. Specs 1 and 2 have exactly one split
+# that works: Spec 1 only from the 2026 epoch, Spec 2 only with 42
+# timestamp bits. Spec 3 misses by two bits. The scenario and numbers are
+# this game's own. The tests run bitbudget.validate_stages over these and
+# check every number the text quotes.
+def _parcel_fields(until, starts, region, worker, counter):
+    ts, r, w, c = starts
+    return [
+        dict(key='ts', name='Timestamp', until=until, start=ts),
+        dict(key='region', name='Region', need=region, unit='regions', start=r),
+        dict(key='worker', name='Worker', need=worker, unit='workers per region', start=w),
+        dict(key='counter', name='Counter', need=counter, unit='IDs per ms per worker', start=c),
+    ]
+
+
+_UNIX_OR_LAUNCH = [[1970, 'Unix, 1970'], [2026, 'Launch, 2026']]
+BIT_BUDGET_CHALLENGES = [
+    dict(
+        slug='bit-budget-parcel-ids', title='Pack a Time-Ordered ID',
+        concept='clocks-leases-fencing',
+        source=('sd-28 Clocks, leases, and fencing tokens · RFC 9562 (2024) §6.1–6.2, timestamps and '
+                'monotonic UUIDs · Snowflake ID generator (Twitter, 2010) · ECMAScript Number.MAX_SAFE_INTEGER'),
+        prompt=(
+            'A parcel carrier gives every tracking event an ID that sorts by time. Split the bits between '
+            'a timestamp, a region, the worker that issued the ID and a per-millisecond counter to meet '
+            'each spec, or show it can’t be met. Then see what a clock can do to IDs like these.'
+        ),
+        stages=[
+            dict(
+                t='build', title='Spec 1: Tracking events', width=64, signed=True,
+                text=(
+                    'Workers in each region issue IDs on their own, without asking each other. IDs are '
+                    'signed 64-bit integers whose top bit stays 0, so there are 63 bits to spend.'
+                ),
+                epochs=_UNIX_OR_LAUNCH, epoch=1970,
+                fields=_parcel_fields(2090, (40, 4, 8, 11), region=6, worker=250, counter=1500),
+                done=(
+                    'Counting from launch spends the same 41 timestamp bits on years still to come: '
+                    'from 1970, they ran out in 2039.'
+                ),
+            ),
+            dict(
+                t='build', title='Spec 2: A merger', width=64, signed=True,
+                text=(
+                    'The carrier takes over a courier whose IDs count milliseconds from 1 January 2015. '
+                    'New IDs have to sort among theirs, so the timestamp keeps the courier’s epoch.'
+                ),
+                epochs=[[2015, 'Courier’s, 2015']], epoch=2015,
+                fields=_parcel_fields(2090, (39, 4, 11, 9), region=3, worker=1000, counter=300),
+                done=(
+                    'From 2015, 41 timestamp bits run out in 2084, so the timestamp took 42 and the '
+                    'other fields had to share the 21 bits left.'
+                ),
+            ),
+            dict(
+                t='build', title='Spec 3: A tracking page in JavaScript', width=53, signed=False,
+                text=(
+                    'A new tracking page reads IDs from JSON into JavaScript numbers, which hold whole '
+                    'numbers exactly only up to 2^53 − 1. That leaves 53 bits, with no sign bit to set aside.'
+                ),
+                epochs=_UNIX_OR_LAUNCH, epoch=2026,
+                fields=_parcel_fields(2066, (38, 2, 6, 7), region=2, worker=40, counter=100),
+                why=(
+                    'A coarser clock tick wouldn’t rescue it: the timestamp and counter together must tell '
+                    'apart every ID one worker can issue before 2066, 100 per millisecond for about 1.26 '
+                    'trillion milliseconds, and that alone takes 47 bits. The usual way out is to send the '
+                    'ID to the browser as a string.'
+                ),
+            ),
+            dict(
+                t='clock', title='Round 4: Clock trouble',
+                text='An ID that carries a timestamp is only as good as the clock that stamped it.',
+                questions=[
+                    dict(
+                        lead='Worker 14 is busy: it has issued IDs every millisecond for the past hour.',
+                        log=[
+                            dict(time='14:02:05.206', text='issued 3 IDs, stamp 05.206'),
+                            dict(time='14:02:05.207', text='issued 11 IDs, stamp 05.207'),
+                            dict(time='14:02:05.208', text='issued 6 IDs, stamp 05.208, the last stamp used'),
+                            dict(time='', text='Time sync finds this clock 300 ms fast and steps it back', alert=True),
+                            dict(time='14:02:04.910', text='a request for an ID arrives'),
+                        ],
+                        ask='What should worker 14 do with this request?',
+                        options=[
+                            'Issue it stamped 04.910, with the counter starting at 0',
+                            'Issue it stamped 04.910, with a random counter value',
+                            'Hold it until the clock passes 05.208, then issue the ID',
+                            'Stamp it with the monotonic clock’s reading instead',
+                        ],
+                        answer=2,
+                        after=(
+                            'Hold the request until the clock passes 05.208. Over the last 300 ms, worker 14 '
+                            'issued IDs stamped 04.910 to 05.208, each millisecond’s counter starting at 0, so '
+                            'stamping 04.910 again can repeat an ID that already exists, and a random counter '
+                            'only makes a repeat less likely. A generator should remember the last stamp it '
+                            'used and never go below it: for a short step it waits, and for a long one it '
+                            'returns an error and raises an alert. The monotonic clock never steps back, but '
+                            'it counts from an arbitrary point such as boot, so its readings aren’t times '
+                            'since the epoch.'
+                        ),
+                    ),
+                    dict(
+                        lead=(
+                            'Worker 9’s clock runs 6 ms fast and worker 3’s is exact. Times on the left are '
+                            'true times. Both workers use the Spec 1 layout, timestamp in the top bits.'
+                        ),
+                        log=[
+                            dict(time='16:40:00.100', text='worker 9 records the handover, stamp 00.106'),
+                            dict(time='16:40:00.102', text='worker 3 records the delivery, stamp 00.102'),
+                        ],
+                        ask='The parcel’s history lists its events in ID order. Which comes first?',
+                        options=[
+                            'The handover, because it happened 2 ms earlier',
+                            'The delivery, although it happened 2 ms later',
+                            'Whichever event got the smaller counter value',
+                            'Whichever worker has the smaller worker number',
+                        ],
+                        answer=1,
+                        after=(
+                            'The delivery comes first. The timestamp fills the top bits, so the two IDs '
+                            'compare on their stamps, 00.102 against 00.106, and the worker and counter bits '
+                            'never come into it. Each worker stamps with its own clock, so IDs from different '
+                            'workers sort only as well as their clocks agree. Where the order of events '
+                            'matters, record it in the data, for example with a version number on the parcel '
+                            'or a logical clock (sd-28).'
+                        ),
+                    ),
+                ],
+            ),
+        ],
+    ),
+]
+
+
 class Command(BaseCommand):
-    help = 'Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, traffic-day, quorum-casino, and ring-balancer mini-games.'
+    help = ('Seed drag-and-drop architecture builder, matching, ordering, spot-the-flaw, traffic-day, '
+            'quorum-casino, ring-balancer, and bit-budget mini-games.')
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -994,6 +1144,17 @@ class Command(BaseCommand):
                 ),
             )
 
+        for spec in BIT_BUDGET_CHALLENGES:
+            BitBudgetChallenge.objects.update_or_create(
+                slug=spec['slug'], defaults=dict(
+                    concept=Concept.objects.get(slug=spec['concept']), title=spec['title'],
+                    prompt=spec['prompt'], source=spec['source'], stages=spec['stages'],
+                ),
+            )
+
+        FlawChallenge.objects.filter(slug__in=RETIRED_FLAW_SLUGS).delete()
+        TrafficChallenge.objects.filter(slug__in=RETIRED_TRAFFIC_SLUGS).delete()
+
         # Component types no longer listed and no longer in any challenge's
         # pool (their challenges went with their concepts in seed_content).
         ComponentType.objects.exclude(slug__in=types).filter(designchallengecomponent__isnull=True).delete()
@@ -1002,5 +1163,6 @@ class Command(BaseCommand):
             f'Seeded {len(types)} component types, {design_count} design challenges, '
             f'{matching_count} matching challenges, {ordering_count} ordering challenges, '
             f'{flaw_count} spot-the-flaw challenges, {len(TRAFFIC_CHALLENGES)} traffic-day challenges, '
-            f'{len(QUORUM_CHALLENGES)} quorum-casino challenges, {len(RING_CHALLENGES)} ring-balancer challenges.'
+            f'{len(QUORUM_CHALLENGES)} quorum-casino challenges, {len(RING_CHALLENGES)} ring-balancer challenges, '
+            f'{len(BIT_BUDGET_CHALLENGES)} bit-budget challenges.'
         ))

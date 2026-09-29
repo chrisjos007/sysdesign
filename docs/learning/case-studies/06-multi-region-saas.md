@@ -1,6 +1,6 @@
 # Design a multi-region SaaS platform
 
-ID: cs-06 | Stage: expert | Suggested study: 100 minutes
+ID: cs-06 | Level: Advanced | Stage: Reason about guarantees | Suggested study: 100 minutes
 
 Prerequisites: sd-19, sd-20, sd-21, sd-23, sd-24, sd-25, sd-26, sd-28, sd-29
 

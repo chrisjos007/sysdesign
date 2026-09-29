@@ -1,0 +1,21 @@
+.concurrency-lesson { margin-top: var(--s6); }
+.concurrency-lesson [hidden] { display: none !important; }
+.concurrency-lesson h2 { font-size: var(--fs-xl); }
+.concurrency-lesson h3 { font-size: var(--fs-lg); }
+.concurrency-lesson p { max-width: 68ch; }
+.concurrency-lesson > p { margin-top: var(--s3); }
+.concurrency-lab, .concurrency-notes-heading { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); scroll-margin-top: 5rem; }
+.concurrency-lab > * + *, .concurrency-workers > div > * + * { margin-top: var(--s4); }
+.concurrency-workers { display: grid; gap: var(--s5); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.concurrency-lab label { display: block; margin-bottom: var(--s2); }
+.concurrency-lab select { width: 100%; max-width: 100%; min-height: 44px; padding: var(--s3); border: 1px solid var(--card-edge); background: var(--card); color: var(--ink); font: inherit; }
+.concurrency-lab .btn { min-height: 44px; white-space: normal; font-size: var(--fs-sm); }
+.concurrency-lab button:disabled { opacity: .6; cursor: default; }
+.concurrency-lesson :is(button, select, summary):focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+.concurrency-balance { padding: var(--s4); background: var(--card-back); font-weight: 600; font-variant-numeric: tabular-nums; }
+.concurrency-lesson summary { cursor: pointer; color: var(--cobalt); min-height: 44px; padding: var(--s3) 0; }
+.concurrency-lesson summary:hover { color: var(--cobalt-press); }
+#concurrency-history { padding-left: var(--s5); max-height: 18rem; overflow-y: auto; scrollbar-color: var(--ink-3) var(--card); }
+#concurrency-history li { padding: var(--s2) 0; }
+.concurrency-lesson code { overflow-wrap: anywhere; }
+@media (max-width: 480px) { .concurrency-workers { grid-template-columns: 1fr; } }

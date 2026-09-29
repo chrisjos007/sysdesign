@@ -1,6 +1,6 @@
 # Idempotency and deduplication
 
-ID: sd-14 | Stage 3: advanced | Suggested study: 40 minutes
+ID: sd-14 | Level: Advanced | Stage 3: Handle distributed failures | Suggested study: 40 minutes
 
 Prerequisites: sd-02, sd-04, sd-13
 

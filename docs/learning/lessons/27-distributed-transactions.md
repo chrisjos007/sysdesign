@@ -1,6 +1,6 @@
 # Distributed transactions and atomic commitment
 
-ID: sd-27 | Stage 5: expert | Suggested study: 50 minutes
+ID: sd-27 | Level: Advanced | Stage 5: Reason about guarantees | Suggested study: 50 minutes
 
 Prerequisites: sd-17, sd-25, sd-26
 

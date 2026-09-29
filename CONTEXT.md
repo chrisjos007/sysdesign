@@ -3,6 +3,100 @@
 Last updated: 2026-07-29, by Claude (Cowork session).
 PROJECT PATH: A:\New folder (2)\sysdesign_quest
 
+## 2026-09-29 session: added Bit Budget (10th play-to-learn activity)
+
+Ported the first of the three remaining prototypes (P2-05) from
+`docs/games/prototypes/bit-budget.html`. It was reworked under IP-18, so only
+the mechanics and scoring are the prototype's.
+
+- **Re-derived content.** The prototype's second spec started on the common
+  textbook 41/5/5/12 layout. The port has its own scenario (a parcel
+  carrier's tracking IDs: timestamp, region, worker, counter), its own
+  needs, epochs (Unix 1970 or launch 2026, and a fixed 2015 for a merger),
+  and a second clock question. Spec 1 works only from 2026 (41/3/8/11),
+  Spec 2 only as 42/2/10/9, and Spec 3 (a 53-bit JavaScript number) misses
+  by two bits. The clock round covers a clock stepped back 300 ms (hold
+  until it passes the last stamp) and two workers whose clocks disagree by
+  6 ms (ID order inverts). Facts checked on 2026-09-29: RFC 9562 §6.1–6.2,
+  the Linux `clock_gettime(2)` man page (man-pages 6.19), ntpd's 128 ms step
+  threshold, Snowflake's IdWorker (rejects IDs while the clock is behind),
+  and MDN's `Number.MAX_SAFE_INTEGER`.
+- **Placement.** On `clocks-leases-fencing` (sd-28), so it's Advanced and
+  unlocks at level 8. No lesson teaches ID layouts yet; ideas queue item 4
+  in the content ledger is its natural home. Logged as D-13 and under
+  "Needs your decision" in the ledger.
+- **Server-authoritative runs**, like Ring Balancer: `learn/bitbudget.py`
+  holds the arithmetic and the rules, and the run (`bits_run_<id>`) holds
+  only moves (checks with their split and epoch, calls, answers). The page
+  gets every spec's numbers to show what a split gives as the steppers move,
+  but never whether a spec can be met, nor a waiting question's answer. The
+  timestamp's overflow year is exact on both sides (`Date.UTC` and
+  `datetime`; a browser check matched all 64 bit counts for each epoch).
+- **Models** (migration `0014_bitbudgetchallenge`): `BitBudgetChallenge.stages`
+  JSON plus `source`; `BitBudgetAttempt` like the other attempts, with a line
+  per round in `detail`.
+- **Scoring:** +100 per spec met or impossibility spotted, −25 per failed
+  check or wrong call, +50 / −25 per clock question; best 400. XP is a
+  quarter of the score (`BIT_BUDGET_POINTS_PER_XP`), plus `PERFECT_BONUS`
+  and the new `bit_packer` badge ("Bit Packer") for a clean run. Not part of
+  `game_master`.
+- **Tests:** 19 new (125 in `learn`), including a brute force over every
+  split that confirms which specs can be met and that Specs 1 and 2 have one
+  answer each. The browser check ran on a scratch copy of `db.sqlite3` at
+  640 px and 375 px wide; the real file was not touched. **The local db and
+  Neon both need `migrate` and `seed_games`** for the game to appear.
+
+## 2026-09-29 session: content standards, originality pass, levels, IP audit
+
+- **Standards.** `docs/learning/CONTENT_STANDARDS.md` is the rulebook for
+  every lesson, quiz and game: three levels, original wording and examples,
+  dated primary sources, balanced quiz choices. `learn/test_content_standards.py`
+  enforces the checkable parts: no study-book names in seeded or repository
+  text (checked against hashed fingerprints, so the test names nothing), the
+  quiz choice-length rules, yes/no balance, and levels.
+- **Quizzes.** All 225 questions rebalanced. Before, the right answer was the
+  longest choice in 167 of 200 single-answer questions; now 60, and every
+  question keeps its longest choice within 1.4× its shortest. Prompts are
+  unchanged except sd-25's write-skew question, so learners' attempts survive a
+  reseed; that one question's attempts are dropped.
+- **Levels.** Catalogue items and stages carry `level` (beginner,
+  intermediate, advanced), which replaces `legacy_difficulty`. The unused
+  `related_existing_concept_slugs` and `suggested_topic` fields are gone.
+  Stages 3–5 and the case studies are Advanced. Topic titles now read
+  "Advanced: Operate Reliably" and "Advanced: Reason About Guarantees", and the
+  lesson page shows the level.
+- **Re-themed games.** Spot the Flaw is `flaw-event-delivery` (webhooks and
+  receipts). Traffic Day is `traffic-flash-sale`: the 301/302 redirect knob
+  became a browser-cache knob (`browser_cache` bool in the plan;
+  `stale_pages` penalty; detail key `browser_cached`). The scoring math is
+  unchanged. `seed_games` deletes the retired slugs (`RETIRED_*_SLUGS`).
+  sd-25's practice uses a workspace-owner invariant.
+- **Accuracy fixes** in the Python/OS reference notes: 3.14 defaults, the
+  free-threaded build, hash randomization and iteration order, the umask
+  arithmetic, ext4 inodes, and mandatory locking.
+- **Other.** Migration `0013_help_text_updates` (help text only). The Book
+  Worm badge is now shown as "Completionist", and `seed_content` refreshes
+  badge text. `docs/product/IP_AUDIT.md` lists the remaining IP and
+  marketability items: reseed production, git history, the superseded
+  prototypes, licences.
+- 106 Python and 30 JS tests pass. A reseeded scratch copy of the database
+  was checked in the browser. **The local `db.sqlite3` and Neon still need
+  `migrate`, `seed_content` and `seed_games`.**
+
+## 2026-09-27 content-scout: added sd-31 (partitioning and consistent hashing)
+
+Built on the `content-scout` branch; `docs/learning/content-ledger.md` logs
+the run. The curriculum is now **31 lessons and 6 case studies (37 items),
+80 knowledge-check questions, 62 sources, 1670 minutes**; the quiz banks hold
+191 questions (225 with the reference chapters), and there are 28 matching
+games. sd-31 "Partitioning, hot keys, and consistent hashing" (intermediate,
+order 37, slug `partitioning-consistent-hashing`) closes the partitioning gap
+noted below. Its catalogue item sits after sd-12 in the file, because
+`test_stages_unlock_in_order` reads items in file order. Its game is
+`match-partitioning`. The Ring Balancer still hangs off `caching-invalidation`;
+moving it is listed under "Needs your decision" in the ledger. Neither the
+local database nor Neon has been re-seeded.
+
 ## 2026-09-27 session: added Ring Balancer (9th play-to-learn activity)
 
 Ported idea 16 from `docs/games/prototypes/ring-balancer.html`: three
@@ -55,12 +149,10 @@ S5). Its scoring is the prototype's.
   not touched by this session. **The local db and Neon both need
   `seed_games`** for the challenge to appear (and Neon needs `migrate`).
 
-## 2026-09-27 session: replaced the book-derived content with the curriculum
+## 2026-09-27 session: replaced the earlier content with the curriculum
 
-The notes and quizzes used to be chapter-by-chapter summaries of five
-published books (Xu's *System Design Interview*, *Grokking*, *Database
-Internals*, DDIA, *Linux Pocket Guide*), two of them from direct competitors.
-They are gone. The system design content is now the original curriculum in
+The notes and quizzes used to be chapter-by-chapter summaries of
+third-party study books. They are gone. The system design content is now the original curriculum in
 `docs/learning` (30 lessons, 6 case studies, 55 primary sources).
 
 - **Loader.** `learn/curriculum.py` `curriculum_chapters()` reads the
@@ -83,14 +175,14 @@ They are gone. The system design content is now the original curriculum in
   (additive). Questions are now updated in place keyed by prompt, so a reseed
   no longer wipes quiz attempts. `seed_content` refuses to delete concepts
   holding admin-made coding challenges unless `--delete-coding-challenges`.
-- **Games.** All book-derived builder/matching/ordering games were replaced:
+- **Games.** All earlier builder/matching/ordering games were replaced:
   6 builders from the case-study graphs (hand-picked distractors, not the
   full catalog), 23 matching and 10 ordering games covering every lesson.
   Python/OS games unchanged. Spot the Flaw moved to `queues-background-jobs`,
   Traffic Day to `caching-invalidation`, Quorum Casino to
-  `consistency-histories`; their book-chapter citations were replaced. Traffic
-  Day now runs 12,000 reads / 1,000 writes / a 24,000 spike (was Xu's
-  11,600 / 1,160 / 23,200); balance is unchanged (steady best 573, tick-by-tick
+  `consistency-histories`; their old citations were replaced. Traffic
+  Day now runs 12,000 reads / 1,000 writes / a 24,000 spike (the earlier
+  figures were changed); balance is unchanged (steady best 573, tick-by-tick
   806 vs 808).
 - **Gaps.** The curriculum has no lesson on partitioning/consistent hashing,
   replication basics, or storage engines. The Ring Balancer game, built in a
@@ -98,10 +190,10 @@ They are gone. The system design content is now the original curriculum in
   lesson it belongs under is still the user's call.
 - **Tests.** `learn/test_curriculum.py` checks every item's notes, sources and
   quiz, every lesson has a game, every builder wires only required parts, and
-  that no seeded text names the old books. 58 tests passed.
+  that no seeded text names the old sources. 58 tests passed.
 - Local `db.sqlite3` was migrated and reseeded (backup in this session's
   scratchpad). **Neon has not been touched**: it needs `migrate`,
-  `seed_content`, `seed_games` after deploy, which deletes the old book
+  `seed_content`, `seed_games` after deploy, which deletes the old
   concepts and learners' attempts on them.
 
 ## 2026-09-27 session: added Quorum Casino (8th play-to-learn activity)
@@ -420,11 +512,9 @@ section. Concretely:
 
 ## What this project is
 
-A gamified Django app for system design interview prep. Content is drawn from
-5 books (already loaded in the project's knowledge base): *System Design
-Interview* (Alex Xu), *Grokking the System Design Interview*, *Database
-Internals*, *Designing Data-Intensive Applications*, and the *Linux Pocket
-Guide*. Users read notes, take a quiz (now a bounded session with a clear
+A gamified Django app for system design interview prep. At this point the
+content was drawn from third-party study books (since retired and replaced
+by the original curriculum in `docs/learning`). Users read notes, take a quiz (now a bounded session with a clear
 end, not an infinite loop), and play mini-games per concept, earning
 XP/levels/streaks/badges. See `README.md` for the full feature list and
 local run instructions (`migrate` → `seed_content` → `seed_games` →
@@ -437,17 +527,16 @@ stub**. Verified via Django RequestFactory/test-client smoke checks (every
 concept page, every quiz — including a full start-to-finish playthrough —
 every design/matching/ordering challenge).
 
-- 5 books → **19 chapters → 19 concepts → 147 quiz questions** (up from 91
+- 5 source collections → **19 chapters → 19 concepts → 147 quiz questions** (up from 91
   — see "What was done this session"), in
   `learn/management/commands/seed_content.py`. Content is split into two
   kinds of item:
-  - **13 concrete "design a system" items** (Design a URL Shortener,
-    Designing Twitter, Design a Key-Value Store, etc.) plus **1 more**
-    (Leader-Based Replication) that's system-shaped but from DDIA — 14
+  - **13 concrete "design a system" items** (all since retired) plus
+    **1 more** (Leader-Based Replication) that's system-shaped — 14
     total, **every one of which is guaranteed an architecture-builder
     game**, and each now has **6-7 quiz questions** (was 2-3).
   - **5 merged "domain" items**, each combining several smaller,
-    non-system-specific chapters (some cross-book) into one bigger
+    non-system-specific chapters into one bigger
     chapter/concept with a combined summary + quiz bank (9-14 questions
     each, unchanged this session), keeping their original
     matching/ordering games attached to the merged concept:
@@ -491,7 +580,7 @@ every design/matching/ordering challenge).
   is now just a one-line teaser shown above the "📖 View Notes" button;
   the button toggles `#notes-panel` (hidden by default). All 19 concepts'
   notes were rewritten this session — 2-6 headed sections each, explicitly
-  citing the source book/chapter, with the densest sub-topics (split
+  citing the source chapter, with the densest sub-topics (split
   brain, write skew, SIGTERM vs. SIGKILL, the Raft leader-failure
   scenario, the consensus/total-order-broadcast equivalence, etc.) pulled
   into a `<details>`-based "🔍 Click to know more" deep dive so the main
@@ -527,7 +616,7 @@ every design/matching/ordering challenge).
 
 ### This session (notes redesign)
 
-5. **Notes hidden behind a toggle, rewritten with headed sections + book
+5. **Notes hidden behind a toggle, rewritten with headed sections +
    citations + deep dives, for all 19 concepts.** Added
    `Concept.notes_sections` (JSONField, migration `0004`), rewrote
    `concept_detail.html`'s Notes block (View Notes button → hidden panel →

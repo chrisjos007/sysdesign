@@ -1,6 +1,6 @@
 # Safe releases and database migrations
 
-ID: sd-22 | Stage 4: production | Suggested study: 40 minutes
+ID: sd-22 | Level: Advanced | Stage 4: Operate reliably | Suggested study: 40 minutes
 
 Prerequisites: sd-05, sd-07, sd-16, sd-19, sd-20
 

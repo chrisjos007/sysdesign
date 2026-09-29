@@ -1,6 +1,6 @@
 # Object storage, delivery, and CDNs
 
-ID: sd-11 | Stage 2: intermediate | Suggested study: 30 minutes
+ID: sd-11 | Level: Intermediate | Stage 2: Scale a service | Suggested study: 30 minutes
 
 Prerequisites: sd-01, sd-02, sd-08
 
