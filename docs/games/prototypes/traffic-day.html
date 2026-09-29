@@ -368,7 +368,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-traffic" data-game="traffic" data-stock="1">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 1: Scale From Zero to Millions · Chapter 8: Design a URL Shortener</p>
+        <p class="label src">Idea based on sd-08 Caching and sd-06 Capacity · superseded by the live Traffic Day</p>
         <h2>Traffic Day</h2>
         <p class="lede">Run a URL shortener through one day of traffic: 11,600 reads and 1,160 writes per second on average, and a viral link at 19:00. Change the design at any time, even mid-run. Any design that stays inside the SLO passes.</p>
       </div>
@@ -664,7 +664,7 @@ function initTraffic() {
     const lessons = [];
     if (noCacheTicks > 40) lessons.push("Without a cache, every redirect is a database read. A URL shortener serves about 10 reads per write, so the database gives out first.");
     if (spikeBreaches) lessons.push('The viral link needed about 10 app servers for 90 minutes. A cache soaks up that one hot URL, but every request still passes through an app server.');
-    if (used301) lessons.push("301s cut server load because browsers stop asking, but marketing lost click analytics (−250). That's why Chapter 8 prefers 302 when analytics matter.");
+    if (used301) lessons.push("301s cut server load because browsers stop asking, but marketing lost click analytics (−250). Use 302 when clicks must be counted.");
     if (serverSpend > 250) lessons.push('You paid for peak capacity for most of the day. Scaling in overnight is where the budget goes furthest.');
     if (!breaches) lessons.push('No SLO breaches all day.');
     slip($('#tr-result'), breaches ? 'wrong' : 'right', score,

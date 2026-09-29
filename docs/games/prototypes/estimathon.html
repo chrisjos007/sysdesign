@@ -368,7 +368,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-estim" data-game="estim" data-stock="1">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 2: Back-of-the-Envelope Estimation</p>
+        <p class="label src">Idea based on sd-06 Requirements and capacity</p>
         <h2>Estimathon</h2>
         <p class="lede">Give a range, not a single number. You only score if the true answer lands inside it, and narrower ranges score more.</p>
       </div>
@@ -510,27 +510,27 @@ const onShow = {};
    ===================================================================== */
 function initEstim() {
   const Q = [
-    { q: 'Average tweets posted per second', unit: 'rate', min: 0, max: 8, ans: 300e6 * 0.5 * 2 / 86400,
-      assume: ['300 million monthly active users', '50% of them use the service every day', 'Each daily user posts 2 tweets a day'],
-      why: '300M × 50% = 150M daily users. × 2 = 300M tweets a day. ÷ 86,400 seconds ≈ 3,500 tweets a second.' },
-    { q: 'New media storage per day', unit: 'bytes', min: 9, max: 18, ans: 30e12,
-      assume: ['300 million tweets a day (from the last question)', '10% of tweets carry media', 'Average media file is 1 MB'],
-      why: '300M × 10% = 30M media files a day. × 1 MB = 30 TB a day.' },
-    { q: 'Media storage needed for 5 years', unit: 'bytes', min: 12, max: 20, ans: 30e12 * 365 * 5,
-      assume: ['30 TB of new media a day', 'Nothing is deleted'],
-      why: '30 TB × 365 × 5 ≈ 55 PB.' },
-    { q: 'URL shortener: storage for 10 years of links', unit: 'bytes', min: 9, max: 18, ans: 100e6 * 365 * 10 * 100,
-      assume: ['100 million new short URLs a day', 'Each record averages 100 bytes', 'Keep every link for 10 years'],
-      why: '100M × 365 × 10 = 365 billion records. × 100 bytes = 36.5 TB.' },
+    { q: 'Average quiz answers submitted per second', unit: 'rate', min: 0, max: 8, ans: 2e6 * 0.1 * 30 / 86400,
+      assume: ['2 million registered learners', '10% of them study on a given day', 'Each learner who studies answers 30 questions'],
+      why: '2M × 10% = 200,000 learners a day. × 30 = 6 million answers a day. ÷ 86,400 seconds ≈ 69 answers a second.' },
+    { q: 'New audio storage per day', unit: 'bytes', min: 9, max: 18, ans: 6e6 * 0.05 * 200e3,
+      assume: ['6 million answers a day (from the last question)', '5% of answers are spoken and saved as audio', 'Average recording is 200 KB'],
+      why: '6M × 5% = 300,000 recordings a day. × 200 KB = 60 GB a day.' },
+    { q: 'Audio storage needed for 3 years', unit: 'bytes', min: 9, max: 18, ans: 60e9 * 365 * 3,
+      assume: ['60 GB of new audio a day', 'Nothing is deleted'],
+      why: '60 GB × 365 × 3 ≈ 66 TB, before replicas and backups.' },
+    { q: 'Progress records kept for 5 years', unit: 'bytes', min: 9, max: 18, ans: 200e3 * 40 * 120 * 365 * 5,
+      assume: ['200,000 learners study each day', 'Each writes 40 progress events a day', 'Each event row averages 120 bytes', 'Keep every row for 5 years'],
+      why: '200,000 × 40 = 8 million rows a day. × 120 bytes ≈ 0.96 GB a day. × 365 × 5 ≈ 1.75 TB.' },
     { q: 'One network round trip inside a datacenter', unit: 'time', min: -9, max: 0, ans: 500e-6,
-      assume: ['From the latency numbers table in the chapter notes'],
-      why: 'About 500 µs. That is 5,000 times slower than a RAM reference (about 100 ns).' },
+      assume: ['An order-of-magnitude hardware figure; measure your own network'],
+      why: 'Hundreds of microseconds; take about 500 µs. That is thousands of times slower than a main-memory reference (about 100 ns).' },
     { q: 'One random read from an SSD', unit: 'time', min: -9, max: 0, ans: 100e-6,
-      assume: ['From the latency numbers table in the chapter notes'],
-      why: 'About 100 µs: 1,000 times slower than memory, but 100 times faster than a spinning-disk seek (about 10 ms).' },
-    { q: 'One network round trip between the US and Europe', unit: 'time', min: -9, max: 0, ans: 150e-3,
-      assume: ['From the latency numbers table in the chapter notes'],
-      why: 'About 150 ms, set by the speed of light in fiber. No amount of hardware makes this faster, which is why CDNs exist.' },
+      assume: ['An order-of-magnitude hardware figure; fast NVMe drives do better'],
+      why: 'Tens to a hundred microseconds; take about 100 µs. Around a thousand times slower than memory, and about a hundred times faster than a spinning-disk seek (about 10 ms).' },
+    { q: 'One network round trip between California and western Europe', unit: 'time', min: -9, max: 0, ans: 150e-3,
+      assume: ['Light in optical fiber covers about 200 km per millisecond'],
+      why: 'About 150 ms. The distance and the cable routes set it, so no hardware upgrade removes it, which is why CDNs exist.' },
   ];
   let qi, score, locked;
   function fmtv(v, unit) {

@@ -368,7 +368,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-deck" data-game="deck" data-stock="5">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">Boss fight · draws on Chapters 1, 4, 5 and 10</p>
+        <p class="label src">Boss fight · draws on sd-08, sd-10, sd-13, sd-18 and sd-31</p>
         <h2>Pattern Deck</h2>
         <p class="lede">Your cards are design patterns. Cards whose concept is due in Daily Review are rusty and hit at half strength. Answer a review question to sharpen one; miss it and the card is gone for the fight.</p>
       </div>
@@ -528,17 +528,17 @@ function initDeck() {
   };
   const SCHEDULE = { ring: -3, queue: 0, cache: -1, backoff: 2, replica: 5, limiter: 1, scale: 9 };
   const CARDS = {
-    ring: { name: 'Consistent Hashing', cost: 2, kind: 'Power', src: 'Ch. 5',
+    ring: { name: 'Consistent Hashing', cost: 2, kind: 'Power', src: 'sd-31',
       text: sh => 'Stays in play. A lost cache node only misses its own slice of keys: "Cache node lost" deals ' + (sh ? 75 : 40) + '% less. Deal ' + (sh ? 4 : 2) + '.' },
-    backoff: { name: 'Exponential Backoff', cost: 1, kind: 'Power', src: 'Ch. 10',
+    backoff: { name: 'Exponential Backoff', cost: 1, kind: 'Power', src: 'sd-13',
       text: sh => 'Stays in play. Retries spread out: each retry hit deals ' + (sh ? 50 : 25) + '% less.' },
-    queue: { name: 'Message Queue', cost: 1, kind: 'Skill', src: 'Ch. 10',
+    queue: { name: 'Message Queue', cost: 1, kind: 'Skill', src: 'sd-10',
       text: sh => 'Absorb this turn\'s attack and drain it evenly over ' + (sh ? 3 : 2) + ' turns.' },
-    replica: { name: 'Read Replica', cost: 1, kind: 'Skill', src: 'Ch. 1', text: sh => 'Block ' + (sh ? 10 : 5) + '.' },
-    cache: { name: 'Cache', cost: 1, kind: 'Attack', src: 'Ch. 1',
+    replica: { name: 'Read Replica', cost: 1, kind: 'Skill', src: 'Scaling', text: sh => 'Block ' + (sh ? 10 : 5) + '.' },
+    cache: { name: 'Cache', cost: 1, kind: 'Attack', src: 'sd-08',
       text: sh => 'Deal ' + (sh ? 9 : 5) + '. If a hot key is coming, also block ' + (sh ? 15 : 8) + ': one key fits in memory.' },
-    limiter: { name: 'Rate Limiter', cost: 1, kind: 'Attack', src: 'Ch. 4', text: sh => 'Block ' + (sh ? 6 : 3) + '. Deal ' + (sh ? 4 : 2) + '.' },
-    scale: { name: 'Bigger DB Server', cost: 2, kind: 'Skill', src: 'Ch. 1',
+    limiter: { name: 'Rate Limiter', cost: 1, kind: 'Attack', src: 'sd-18', text: sh => 'Block ' + (sh ? 6 : 3) + '. Deal ' + (sh ? 4 : 2) + '.' },
+    scale: { name: 'Bigger DB Server', cost: 2, kind: 'Skill', src: 'Scaling',
       text: () => 'Restore ' + [12, 6, 0][Math.min(st.scaled, 2)] + ' health. Costs $300. Vertical scaling has a ceiling.' },
   };
   const DECK = ['ring', 'backoff', 'queue', 'replica', 'replica', 'cache', 'cache', 'limiter', 'limiter', 'scale'];

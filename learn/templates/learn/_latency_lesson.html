@@ -1,0 +1,81 @@
+<section class="latency-lesson" id="latency-lesson" aria-labelledby="latency-title">
+    <h2 id="latency-title">Watch the waiting work</h2>
+    <p>Throughput counts completions per second. Latency is one request’s elapsed time: network travel, queue waiting, service time, and response transfer. Service time covers only the work at a resource.</p>
+    <p class="meta">Unscored browser exercises. Reloading resets the examples; the quiz still drives XP and review.</p>
+
+    <section class="latency-lab" id="latency-queue" aria-labelledby="latency-queue-title">
+        <h3 id="latency-queue-title">Build a backlog. Then clear it.</h3>
+        <p>120 jobs arrive each second, but the workers can complete only 100. Predict the backlog after five minutes. Then reduce arrivals to 80 jobs/s and predict how long it takes to drain.</p>
+        <div class="latency-controls" data-latency-interactive hidden>
+            <label for="latency-arrivals">Arrivals: <output id="latency-arrivals-value" for="latency-arrivals">120</output> jobs/s
+                <input id="latency-arrivals" type="range" min="0" max="200" step="10" value="120">
+            </label>
+            <label for="latency-capacity">Completion capacity: <output id="latency-capacity-value" for="latency-capacity">100</output> jobs/s
+                <input id="latency-capacity" type="range" min="0" max="200" step="10" value="100">
+            </label>
+        </div>
+        <div class="btn-row" data-latency-interactive hidden>
+            <button class="btn btn--primary" type="button" id="latency-minute">Advance 1 minute</button>
+            <button class="btn btn--quiet" type="button" id="latency-five">Advance 5 minutes</button>
+            <button class="btn btn--quiet" type="button" id="latency-reset">Reset queue</button>
+        </div>
+        <p class="meta">Rate changes apply to the next interval. They do not change the existing backlog.</p>
+        <div role="status" aria-live="polite" aria-atomic="true">
+            <p id="latency-queue-summary">0 minutes elapsed. 0 jobs waiting. No interval completed yet.</p>
+            <p id="latency-totals">Total arrivals: 0 jobs. Total completions: 0 jobs.</p>
+            <p id="latency-drain">The queue is empty. At these rates, it will grow by 20 jobs/s.</p>
+        </div>
+        <details>
+            <summary>Check the five-minute prediction</summary>
+            <p>(120 − 100) × 300 = 6,000 jobs waiting. With arrivals reduced to 80/s, only 20 jobs/s of capacity is available to clear that backlog: 6,000 ÷ 20 = 300 seconds, another five minutes. At 100 arrivals/s, the existing backlog never shrinks.</p>
+        </details>
+        <p class="meta">A fluid estimate: smooth arrivals, equal-cost jobs, fixed capacity per interval, unlimited waiting space, no failures, retries, or drops. It estimates waiting work, not individual latency percentiles. More queue space cannot fix sustained overload.</p>
+        <noscript><p>Enable JavaScript to change rates and advance time. The worked prediction above remains available.</p></noscript>
+    </section>
+
+    <section class="latency-lab" id="latency-little" aria-labelledby="latency-little-title">
+        <h3 id="latency-little-title">Same throughput. More work in flight.</h3>
+        <p>For a stable system, Little’s Law is L = λ × W. Use average completed throughput and mean response time measured across the same boundary, including waiting and service.</p>
+        <div class="latency-controls" data-latency-interactive hidden>
+            <label for="latency-throughput">Completed throughput: <output id="latency-throughput-value" for="latency-throughput">200</output> requests/s
+                <input id="latency-throughput" type="range" min="50" max="400" step="50" value="200">
+            </label>
+            <label for="latency-mean">Mean response time: <output id="latency-mean-value" for="latency-mean">150</output> ms
+                <input id="latency-mean" type="range" min="50" max="1000" step="50" value="150">
+            </label>
+        </div>
+        <p class="latency-equation" id="latency-concurrency" role="status" aria-live="polite">200 requests/s × 0.15 s = 30 requests in flight on average.</p>
+        <p>Try 600 ms at 200 requests/s: average in-flight work rises from 30 to 120 requests. Those requests can occupy memory and sockets while waiting, even when CPU usage is low.</p>
+        <p class="meta">This is a separate steady-state example, not a measurement of the growing queue above. Little’s Law does not predict p99, prove stability, or determine how many servers you need.</p>
+    </section>
+
+    <section class="latency-lab" id="latency-tail" aria-labelledby="latency-tail-title">
+        <h3 id="latency-tail-title">A fast average can hide a slow experience</h3>
+        <p>Take 1,000 completed requests. Most take 20 ms; a small group takes 2,000 ms. What will the mean and p99 tell you?</p>
+        <div class="btn-row" role="group" aria-label="Slow requests in the sample" data-latency-interactive hidden>
+            <button class="btn btn--quiet" type="button" data-slow="10" aria-pressed="true">10 slow requests</button>
+            <button class="btn btn--quiet" type="button" data-slow="20" aria-pressed="false">20 slow requests</button>
+        </div>
+        <div class="latency-distribution" aria-hidden="true"><span id="latency-fast-bar"></span><span id="latency-slow-bar"></span></div>
+        <p id="latency-distribution-label">990 requests at 20 ms · 10 requests at 2,000 ms</p>
+        <div role="status" aria-live="polite" aria-atomic="true">
+            <dl class="latency-stats">
+                <div><dt>Mean</dt><dd id="latency-tail-mean">39.8 ms</dd></div>
+                <div><dt>p50</dt><dd id="latency-p50">20 ms</dd></div>
+                <div><dt>p99</dt><dd id="latency-p99">20 ms</dd></div>
+                <div><dt>p99.9</dt><dd id="latency-p999">2,000 ms</dd></div>
+            </dl>
+            <p id="latency-tail-note">p99 selects sorted request 990: still a fast request. The ten slow requests remain real.</p>
+        </div>
+        <p class="meta">Nearest-rank convention: sort 1,000 samples and select rank ceil(percentile × 1,000). Other conventions can differ. These samples contain no errors or drops; in production, report offered traffic, completions, errors, and latency together.</p>
+    </section>
+
+    <section class="latency-lab" aria-labelledby="latency-practice-title">
+        <h3 id="latency-practice-title">Explain the bottleneck</h3>
+        <p>A service completes 50 requests/s with a mean response time of 200 ms. Calculate average in-flight work. Then explain why low CPU does not rule out a queueing problem.</p>
+        <details><summary>Compare your reasoning</summary><p>50 × 0.2 = 10 requests on average, provided the system is stable and the measurement boundaries match. Requests can wait for locks, connections, or downstream responses without using much CPU. Measure where time is spent before adding workers.</p></details>
+        <a class="btn btn--primary" href="{% url 'learn:concept_quiz' concept.slug %}">Check your understanding <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
+    </section>
+    <p class="meta">Original teaching scenarios based on the lesson’s Little’s Law and Google SRE references, listed under Sources.</p>
+    <h3 class="latency-notes-heading">Study notes</h3>
+</section>

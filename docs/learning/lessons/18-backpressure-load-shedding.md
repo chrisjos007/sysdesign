@@ -1,6 +1,6 @@
 # Backpressure, load shedding, and graceful degradation
 
-ID: sd-18 | Stage 3: advanced | Suggested study: 35 minutes
+ID: sd-18 | Level: Advanced | Stage 3: Handle distributed failures | Suggested study: 35 minutes
 
 Prerequisites: sd-03, sd-07, sd-09, sd-10, sd-13
 

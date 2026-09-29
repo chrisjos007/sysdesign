@@ -1,6 +1,6 @@
 # Transactional outbox and change data capture
 
-ID: sd-16 | Stage 3: advanced | Suggested study: 40 minutes
+ID: sd-16 | Level: Advanced | Stage 3: Handle distributed failures | Suggested study: 40 minutes
 
 Prerequisites: sd-05, sd-10, sd-14, sd-15
 

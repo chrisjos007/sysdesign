@@ -2,7 +2,7 @@
   "$schema": "./catalogue.schema.json",
   "schema_version": "1.0",
   "title": "SysDesign Quest: system design learning expansion",
-  "content_version": "2026-09-27.2",
+  "content_version": "2026-09-29.1",
   "research_date": "2026-09-27",
   "status": "documented_for_future_integration",
   "path_base": "docs/learning",
@@ -12,31 +12,31 @@
       "id": "beginner",
       "order": 1,
       "title": "Understand a request",
-      "legacy_difficulty": 1
+      "level": "beginner"
     },
     {
       "id": "intermediate",
       "order": 2,
       "title": "Scale a service",
-      "legacy_difficulty": 2
+      "level": "intermediate"
     },
     {
       "id": "advanced",
       "order": 3,
       "title": "Handle distributed failures",
-      "legacy_difficulty": 3
+      "level": "advanced"
     },
     {
       "id": "production",
       "order": 4,
       "title": "Operate reliably",
-      "legacy_difficulty": 3
+      "level": "advanced"
     },
     {
       "id": "expert",
       "order": 5,
       "title": "Reason about guarantees",
-      "legacy_difficulty": 3
+      "level": "advanced"
     }
   ],
   "summary": {
@@ -59,7 +59,6 @@
       "estimated_minutes": 25,
       "path": "lessons/01-dns-tcp-tls.md",
       "prerequisite_ids": [],
-      "related_existing_concept_slugs": [],
       "tags": [
         "networking",
         "request-lifecycle"
@@ -75,11 +74,7 @@
         "tls",
         "http3"
       ],
-      "suggested_topic": {
-        "slug": "system-design-fundamentals",
-        "status": "existing"
-      },
-      "legacy_difficulty": 1,
+      "level": "beginner",
       "content_status": "documented",
       "activities": [
         "study",
@@ -118,7 +113,6 @@
       "prerequisite_ids": [
         "sd-01"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "http",
         "api",
@@ -132,11 +126,7 @@
       "source_ids": [
         "http"
       ],
-      "suggested_topic": {
-        "slug": "system-design-fundamentals",
-        "status": "existing"
-      },
-      "legacy_difficulty": 1,
+      "level": "beginner",
       "content_status": "documented",
       "activities": [
         "study",
@@ -175,7 +165,6 @@
       "prerequisite_ids": [
         "sd-01"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "performance",
         "queueing",
@@ -190,11 +179,7 @@
         "little-law",
         "slo"
       ],
-      "suggested_topic": {
-        "slug": "system-design-fundamentals",
-        "status": "existing"
-      },
-      "legacy_difficulty": 1,
+      "level": "beginner",
       "content_status": "documented",
       "activities": [
         "study",
@@ -233,7 +218,6 @@
       "prerequisite_ids": [
         "sd-03"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "concurrency",
         "async",
@@ -248,11 +232,7 @@
         "asyncio",
         "pg-isolation"
       ],
-      "suggested_topic": {
-        "slug": "python-internals",
-        "status": "existing"
-      },
-      "legacy_difficulty": 1,
+      "level": "beginner",
       "content_status": "documented",
       "activities": [
         "study",
@@ -292,7 +272,6 @@
         "sd-03",
         "sd-04"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "database",
         "indexes",
@@ -307,11 +286,7 @@
         "pg-plan",
         "pg-index"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 1,
+      "level": "beginner",
       "content_status": "documented",
       "activities": [
         "study",
@@ -352,7 +327,6 @@
         "sd-03",
         "sd-05"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "requirements",
         "capacity",
@@ -367,11 +341,7 @@
         "slo",
         "k6"
       ],
-      "suggested_topic": {
-        "slug": "system-design-fundamentals",
-        "status": "existing"
-      },
-      "legacy_difficulty": 1,
+      "level": "beginner",
       "content_status": "documented",
       "activities": [
         "study",
@@ -412,7 +382,6 @@
         "sd-03",
         "sd-06"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "load-balancing",
         "availability",
@@ -426,11 +395,7 @@
       "source_ids": [
         "probes"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -471,7 +436,6 @@
         "sd-03",
         "sd-05"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "caching",
         "freshness",
@@ -486,11 +450,7 @@
         "cache",
         "http-cache"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -531,7 +491,6 @@
         "sd-04",
         "sd-07"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "database",
         "pooling",
@@ -545,11 +504,7 @@
       "source_ids": [
         "pool"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -590,7 +545,6 @@
         "sd-03",
         "sd-04"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "queues",
         "workers",
@@ -604,11 +558,7 @@
       "source_ids": [
         "rabbit"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -649,7 +599,6 @@
         "sd-02",
         "sd-08"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "object-storage",
         "cdn",
@@ -664,11 +613,7 @@
         "s3",
         "http-cache"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -709,7 +654,6 @@
         "sd-05",
         "sd-06"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "pagination",
         "data-modeling",
@@ -724,11 +668,7 @@
         "pagination",
         "search-page"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -769,7 +709,6 @@
         "sd-06",
         "sd-08"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "partitioning",
         "sharding",
@@ -789,11 +728,7 @@
         "hash-sharded",
         "write-sharding"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 2,
+      "level": "intermediate",
       "content_status": "documented",
       "activities": [
         "study",
@@ -834,7 +769,6 @@
         "sd-03",
         "sd-10"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "retries",
         "deadlines",
@@ -849,11 +783,7 @@
         "retry",
         "jitter"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -894,7 +824,6 @@
         "sd-04",
         "sd-13"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "idempotency",
         "deduplication",
@@ -909,11 +838,7 @@
         "idempotency",
         "stripe-idem"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -953,7 +878,6 @@
         "sd-10",
         "sd-14"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "messaging",
         "ordering",
@@ -968,11 +892,7 @@
         "kafka",
         "rabbit"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1014,7 +934,6 @@
         "sd-14",
         "sd-15"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "outbox",
         "cdc",
@@ -1028,11 +947,7 @@
       "source_ids": [
         "outbox"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1073,7 +988,6 @@
         "sd-15",
         "sd-16"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "sagas",
         "workflows",
@@ -1087,11 +1001,7 @@
       "source_ids": [
         "saga"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1134,7 +1044,6 @@
         "sd-10",
         "sd-13"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "overload",
         "backpressure",
@@ -1149,11 +1058,7 @@
         "overload",
         "retry"
       ],
-      "suggested_topic": {
-        "slug": "distributed-systems-patterns",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1194,7 +1099,6 @@
         "sd-06",
         "sd-18"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "slo",
         "reliability",
@@ -1208,11 +1112,7 @@
       "source_ids": [
         "slo-workbook"
       ],
-      "suggested_topic": {
-        "slug": "production-engineering",
-        "status": "proposed"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1225,8 +1125,8 @@
           {
             "id": "sd-19-q1",
             "prompt": "For a 99.5% target and 200,000 eligible events, how many bad events are allowed?",
-            "answer": "1,000: 200,000 × 0.005.",
-            "explanation": "1,000: 200,000 × 0.005."
+            "answer": "1,000: 200,000 \u00d7 0.005.",
+            "explanation": "1,000: 200,000 \u00d7 0.005."
           },
           {
             "id": "sd-19-q2",
@@ -1253,7 +1153,6 @@
         "sd-10",
         "sd-19"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "observability",
         "tracing",
@@ -1268,11 +1167,7 @@
         "otel",
         "trace-context"
       ],
-      "suggested_topic": {
-        "slug": "production-engineering",
-        "status": "proposed"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1315,7 +1210,6 @@
         "sd-18",
         "sd-19"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "load-testing",
         "performance",
@@ -1329,11 +1223,7 @@
       "source_ids": [
         "k6"
       ],
-      "suggested_topic": {
-        "slug": "production-engineering",
-        "status": "proposed"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1376,7 +1266,6 @@
         "sd-19",
         "sd-20"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "deployments",
         "migrations",
@@ -1391,11 +1280,7 @@
         "canary",
         "pg-alter"
       ],
-      "suggested_topic": {
-        "slug": "production-engineering",
-        "status": "proposed"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1436,7 +1321,6 @@
         "sd-08",
         "sd-09"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "security",
         "authorization",
@@ -1452,11 +1336,7 @@
         "owasp",
         "rls"
       ],
-      "suggested_topic": {
-        "slug": "production-engineering",
-        "status": "proposed"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1498,7 +1378,6 @@
         "sd-16",
         "sd-19"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "backups",
         "disaster-recovery",
@@ -1512,11 +1391,7 @@
       "source_ids": [
         "backup"
       ],
-      "suggested_topic": {
-        "slug": "production-engineering",
-        "status": "proposed"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1558,7 +1433,6 @@
         "sd-15",
         "sd-24"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "consistency",
         "linearizability",
@@ -1574,11 +1448,7 @@
         "serializable",
         "pg-isolation"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1619,7 +1489,6 @@
         "sd-15",
         "sd-25"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "consensus",
         "raft",
@@ -1634,11 +1503,7 @@
         "raft",
         "etcd-membership"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1679,7 +1544,6 @@
         "sd-25",
         "sd-26"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "transactions",
         "two-phase-commit",
@@ -1693,11 +1557,7 @@
       "source_ids": [
         "two-phase"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1739,7 +1599,6 @@
         "sd-25",
         "sd-26"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "clocks",
         "leases",
@@ -1754,11 +1613,7 @@
         "logical-clocks",
         "fencing"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1801,7 +1656,6 @@
         "sd-26",
         "sd-28"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "multi-region",
         "crdt",
@@ -1817,11 +1671,7 @@
         "crdt-paper",
         "global"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1863,7 +1713,6 @@
         "sd-20",
         "sd-25"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "stream-processing",
         "event-time",
@@ -1878,11 +1727,7 @@
         "event-time",
         "stream-state"
       ],
-      "suggested_topic": {
-        "slug": "databases-distributed-storage",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -1928,7 +1773,6 @@
         "sd-17",
         "sd-18"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "inventory",
         "contention",
@@ -1945,11 +1789,7 @@
         "outbox",
         "saga"
       ],
-      "suggested_topic": {
-        "slug": "system-design-case-studies",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -2119,7 +1959,6 @@
         "sd-23",
         "sd-24"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "payments",
         "ledger",
@@ -2136,11 +1975,7 @@
         "idempotency",
         "outbox"
       ],
-      "suggested_topic": {
-        "slug": "system-design-case-studies",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -2320,7 +2155,6 @@
         "sd-26",
         "sd-28"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "scheduling",
         "leases",
@@ -2337,11 +2171,7 @@
         "fencing",
         "rabbit"
       ],
-      "suggested_topic": {
-        "slug": "system-design-case-studies",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -2514,7 +2344,6 @@
         "sd-16",
         "sd-18"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "search",
         "indexing",
@@ -2531,11 +2360,7 @@
         "search-page",
         "outbox"
       ],
-      "suggested_topic": {
-        "slug": "system-design-case-studies",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -2704,7 +2529,6 @@
         "sd-22",
         "sd-23"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "configuration",
         "feature-flags",
@@ -2720,11 +2544,7 @@
         "canary",
         "owasp"
       ],
-      "suggested_topic": {
-        "slug": "system-design-case-studies",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -2886,7 +2706,6 @@
         "sd-28",
         "sd-29"
       ],
-      "related_existing_concept_slugs": [],
       "tags": [
         "multi-region",
         "tenancy",
@@ -2904,11 +2723,7 @@
         "backup",
         "rls"
       ],
-      "suggested_topic": {
-        "slug": "system-design-case-studies",
-        "status": "existing"
-      },
-      "legacy_difficulty": 3,
+      "level": "advanced",
       "content_status": "documented",
       "activities": [
         "study",
@@ -3082,4 +2897,3 @@
     }
   ]
 }
-

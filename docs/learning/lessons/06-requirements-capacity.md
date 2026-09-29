@@ -1,6 +1,6 @@
 # Requirements and capacity: turn assumptions into numbers
 
-ID: sd-06 | Stage 1: beginner | Suggested study: 35 minutes
+ID: sd-06 | Level: Beginner | Stage 1: Understand a request | Suggested study: 35 minutes
 
 Prerequisites: sd-02, sd-03, sd-05
 

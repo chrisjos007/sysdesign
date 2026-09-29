@@ -1,6 +1,6 @@
 # Caching, invalidation, and stampedes
 
-ID: sd-08 | Stage 2: intermediate | Suggested study: 35 minutes
+ID: sd-08 | Level: Intermediate | Stage 2: Scale a service | Suggested study: 35 minutes
 
 Prerequisites: sd-02, sd-03, sd-05
 

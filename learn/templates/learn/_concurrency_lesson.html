@@ -1,0 +1,51 @@
+<section class="concurrency-lesson" id="concurrency-lesson" aria-labelledby="concurrency-title">
+    <h2 id="concurrency-title">Two workers. One shared balance.</h2>
+    <p>Both workers add 1 to a balance of 10. Predict the result before choosing who runs next. Can two completed increments leave only 11?</p>
+    <p class="meta">Unscored browser exercise. Reloading resets the example; the quiz still drives XP and review.</p>
+
+    <section class="concurrency-lab" id="concurrency-race" aria-labelledby="concurrency-race-title">
+        <h3 id="concurrency-race-title">Choose the interleaving</h3>
+        <p>Each worker reads, calculates, then writes. Try A, B, A, B, A, B. Then reset and finish A before starting B.</p>
+        <div data-concurrency-interactive hidden>
+            <label for="concurrency-mode">Protect the shared state</label>
+            <select id="concurrency-mode">
+                <option value="unsafe">No synchronization</option>
+                <option value="shared-lock">One lock shared by both workers</option>
+                <option value="separate-locks">Separate locks on two servers</option>
+                <option value="atomic">Atomic database increment</option>
+            </select>
+            <p class="meta">Changing protection starts a fresh run.</p>
+        </div>
+        <p id="concurrency-mode-note">The read and write are separate operations. Each worker can overwrite the other’s result.</p>
+        <div class="concurrency-workers" data-concurrency-interactive hidden>
+            <div><h4>Worker A</h4><p id="concurrency-worker-0">Local copy: not read</p><button type="button" class="btn btn--primary" data-worker="0">A: Read balance</button></div>
+            <div><h4>Worker B</h4><p id="concurrency-worker-1">Local copy: not read</p><button type="button" class="btn btn--primary" data-worker="1">B: Read balance</button></div>
+        </div>
+        <div role="status" aria-live="polite" aria-atomic="true">
+            <p class="concurrency-balance" id="concurrency-balance">Stored balance: 10 · Expected after both increments: 12</p>
+            <p id="concurrency-result">Neither worker has finished.</p>
+        </div>
+        <details open><summary>Execution history</summary><ol id="concurrency-history"><li>No steps yet. Choose either worker.</li></ol></details>
+        <button type="button" class="btn btn--quiet" id="concurrency-reset" data-concurrency-interactive hidden>Reset both workers</button>
+        <details><summary>Why can the result be 11?</summary><p>A reads 10. B reads 10. A calculates 11. B calculates 11. A writes 11. B writes 11. The last write loses one increment. Running all three steps of A first, then B, gives 12, but one successful schedule does not prove the code is safe.</p></details>
+        <noscript><p>Enable JavaScript to schedule the workers. The six-step explanation above works without it.</p></noscript>
+        <p class="meta">This model schedules one operation per click. A shared lock covers the entire read–calculate–write sequence. Separate server locks do not coordinate. Atomic increments represent successful database operations; waits, failures, and transaction retries are omitted.</p>
+    </section>
+
+    <section class="concurrency-lab" aria-labelledby="concurrency-progress-title">
+        <h3 id="concurrency-progress-title">Overlapping progress is not simultaneous execution</h3>
+        <p>You produced a race while executing only one step at a time. Concurrency needs overlapping task lifetimes, not simultaneous CPU instructions. Parallelism means work actually executes at the same time.</p>
+        <p>An event loop can run another task when a task yields while waiting for I/O. A blocking call on the loop prevents that progress; async syntax does not make CPU work parallel.</p>
+        <details><summary>Would a lock on one web server fix this?</summary><p>Only if every worker touching this state uses that same lock. With a second server and a separate lock, both can still read 10. Choose “Separate locks on two servers” and repeat the alternating schedule. A database operation such as <code>UPDATE accounts SET balance = balance + 1 WHERE id = …</code> applies the increment at the shared storage boundary.</p></details>
+    </section>
+
+    <section class="concurrency-lab" aria-labelledby="concurrency-practice-title">
+        <h3 id="concurrency-practice-title">Protect the last seat</h3>
+        <p>Two workers see one seat remaining. Both write zero and issue a ticket. The final counter is nonnegative, yet two tickets exist. What must be protected together?</p>
+        <details><summary>Compare your reasoning</summary><p>Use a conditional database update that decrements only while seats remain. Check that exactly one row changed and create the reservation in the same transaction. A failed reservation must roll back the decrement. This protects the database changes together; it does not make external payment or email effects atomic.</p></details>
+        <p>Even safe shared state does not make unlimited concurrency safe. If a downstream service allows 20 requests in flight, use a bounded worker pool and bounded waiting space instead of starting a task for every input. Define what happens when the limit is reached.</p>
+        <a class="btn btn--primary" href="{% url 'learn:concept_quiz' concept.slug %}">Check your understanding <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
+    </section>
+    <p class="meta">Original teaching example grounded in the Python asyncio and PostgreSQL references listed under Sources.</p>
+    <h3 class="concurrency-notes-heading">Study notes</h3>
+</section>

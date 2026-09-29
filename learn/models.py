@@ -49,8 +49,8 @@ class Chapter(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='chapters')
     topic = models.ForeignKey(
         Topic, on_delete=models.CASCADE, related_name='chapters', null=True, blank=True,
-        help_text='Cross-book section this chapter belongs to (drives dashboard grouping). '
-                   '`book` is kept only for provenance/attribution and the book_worm badge.',
+        help_text='Section this chapter belongs to across collections (drives dashboard grouping). '
+                   '`book` names the content collection and drives the collection-completion badge.',
     )
     slug = models.SlugField()
     title = models.CharField(max_length=255)
@@ -318,7 +318,7 @@ class DesignChallenge(models.Model):
     concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='design_challenges')
     slug = models.SlugField(unique=True)
     title = models.CharField(max_length=255)
-    prompt = models.TextField(help_text='The scenario shown to the player, e.g. "Design a URL shortener".')
+    prompt = models.TextField(help_text='The scenario shown to the player, e.g. "Build the ticket-booking flow".')
     difficulty = models.PositiveSmallIntegerField(default=1)
 
     def __str__(self):
@@ -629,7 +629,7 @@ class QuorumChallenge(models.Model):
     slug = models.SlugField(unique=True)
     title = models.CharField(max_length=255)
     prompt = models.TextField(help_text='Scenario shown above the table.')
-    source = models.CharField(max_length=255, blank=True, help_text='Chapters this is drawn from.')
+    source = models.CharField(max_length=255, blank=True, help_text='Curriculum lessons and primary sources this draws on.')
     tables = models.JSONField(
         default=list,
         help_text='A list of tables, each with name, N, W, R, outro and steps. See learn/quorum.py.',
@@ -661,7 +661,7 @@ class RingChallenge(models.Model):
     slug = models.SlugField(unique=True)
     title = models.CharField(max_length=255)
     prompt = models.TextField(help_text='Scenario shown above the ring.')
-    source = models.CharField(max_length=255, blank=True, help_text='Chapters this is drawn from.')
+    source = models.CharField(max_length=255, blank=True, help_text='Curriculum lessons and primary sources this draws on.')
     stages = models.JSONField(
         default=list,
         help_text='A list of balance and predict stages. See learn/ring.py.',
@@ -674,6 +674,38 @@ class RingChallenge(models.Model):
 class RingAttempt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ring_attempts')
     challenge = models.ForeignKey(RingChallenge, on_delete=models.CASCADE, related_name='attempts')
+    score = models.IntegerField(default=0)
+    xp_awarded = models.IntegerField(default=0)
+    is_perfect = models.BooleanField(default=False)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class BitBudgetChallenge(models.Model):
+    """Bit Budget: split a time-ordered ID's bits between a timestamp and the
+    fields that keep IDs apart, spot the spec that can't be met, then answer
+    what a clock can do to such IDs. `stages` is the script;
+    learn/bitbudget.py plays it and documents its shape."""
+    concept = models.ForeignKey(Concept, on_delete=models.CASCADE, related_name='bit_budget_challenges')
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255)
+    prompt = models.TextField(help_text='Scenario shown above the specs.')
+    source = models.CharField(max_length=255, blank=True, help_text='Curriculum lessons and primary sources this draws on.')
+    stages = models.JSONField(
+        default=list,
+        help_text='A list of build and clock stages. See learn/bitbudget.py.',
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class BitBudgetAttempt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bit_budget_attempts')
+    challenge = models.ForeignKey(BitBudgetChallenge, on_delete=models.CASCADE, related_name='attempts')
     score = models.IntegerField(default=0)
     xp_awarded = models.IntegerField(default=0)
     is_perfect = models.BooleanField(default=False)

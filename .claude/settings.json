@@ -1,0 +1,52 @@
+{
+  "includeCoAuthoredBy": false,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Bash(git worktree list:*)",
+      "Bash(git worktree add .claude/worktrees/content-scout:*)",
+      "Bash(git -C .claude/worktrees/content-scout status:*)",
+      "Bash(git -C .claude/worktrees/content-scout diff:*)",
+      "Bash(git -C .claude/worktrees/content-scout log:*)",
+      "Bash(git -C .claude/worktrees/content-scout show:*)",
+      "Bash(git -C .claude/worktrees/content-scout add:*)",
+      "Bash(git -C .claude/worktrees/content-scout commit:*)",
+      "Bash(git -C .claude/worktrees/content-scout merge:*)",
+      "Bash(git -C .claude/worktrees/content-scout stash:*)",
+      "Bash(cd .claude/worktrees/content-scout)",
+      "Bash(export DATABASE_URL=sqlite://:memory:)",
+      "Bash(../../../venv/Scripts/python.exe manage.py collectstatic:*)",
+      "Bash(../../../venv/Scripts/python.exe manage.py test:*)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/vexp-hint.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/vexp-restore.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

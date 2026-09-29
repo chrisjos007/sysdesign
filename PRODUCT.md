@@ -25,7 +25,7 @@ Success means the learner can recall a concept under interview pressure and reas
 
 ## Positioning
 
-- **Original lessons grounded in primary sources.** The system design content is an original curriculum (`docs/learning`): 31 lessons in five stages and 6 case studies, citing 62 standards, papers and official documentation pages (IETF RFCs, PostgreSQL, Kubernetes, Google SRE, Raft and others). Every lesson page lists its sources. Two compiled reference chapters cover Python internals and OS file handling. No content summarizes a published textbook.
+- **Original lessons grounded in primary sources.** The system design content is an original curriculum (`docs/learning`): 31 lessons in five stages and 6 case studies, organized into Beginner, Intermediate and Advanced levels, citing 62 standards, papers and official documentation pages (IETF RFCs, PostgreSQL, Kubernetes, Google SRE, Raft and others). Every lesson page lists its sources. Two compiled reference chapters cover Python internals and OS file handling. The wording, examples and exercises are our own.
 - **Guessing wrong always costs.** Every game uses negative scoring: wrong matches, misplaced steps, extra components, wrong wires and failing tests all lose points. Spamming options doesn't pay, so learners have to reason.
 - **Designs are built, not just recalled.** In the Architecture Builder the learner places components and wires them together. Coding challenges grade real stdin/stdout programs against hidden test cases.
 - **Spaced repetition underneath the game layer.** SM-2 scheduling drives the Daily Review. XP, levels and badges sit on top of real retention mechanics.
@@ -36,7 +36,7 @@ Success means the learner can recall a concept under interview pressure and reas
 - **Phone:** mostly quick daily reviews and quizzes, but every activity must also work fully on a phone (see Capabilities and Constraints).
 - **Content hierarchy:** Book (the source collection) → Topic → Chapter → Concept. Each concept holds a notes teaser, notes sections (some with a "Click to know more" deep dive), a quiz bank, and any number of challenges in the "Play to learn" grid.
 - **Two kinds of concept:**
-  - Lessons (sd-01 to sd-31), one topic per stage: Beginner, Intermediate, Advanced, Production, Expert. Each shows its objectives, prerequisites and sources, and has at least one game.
+  - Lessons (sd-01 to sd-31), one topic per stage. The five stages fall into three levels: Beginner (understand a request), Intermediate (scale a service) and Advanced (handle distributed failures, operate reliably, reason about guarantees). Each lesson shows its level, objectives, prerequisites and sources, and has at least one game.
   - Case studies (cs-01 to cs-06: ticket booking, payments, job scheduling, search, feature flags, multi-region SaaS). Each always has an Architecture Builder game built from its reference architecture.
 - **Admin workflow:** content is seeded from `docs/learning` (read by `learn/curriculum.py`, questions in `learn/curriculum_questions.py`) and from Python data (`seed_content.py`, `seed_games.py`). Coding challenges are generated in Django admin from a plain-language scenario via Gemini, which asks clarifying questions when the scenario is too vague to write test cases.
 
@@ -56,7 +56,12 @@ Success means the learner can recall a concept under interview pressure and reas
 - **Terminology in use:** Book, Topic, Chapter, Concept, Notes, Deep dive, Study mode, Quiz, Daily Review, Play to learn, Architecture Builder, Matching, Ordering, Coding Challenge, Spot the Flaw, Traffic Day, XP, Level, Streak, Badge.
 - **Public launch requires a hardened sandbox (confirmed).** Today's coding sandbox is best-effort only (import allowlist, rlimits, timeout; no container isolation). Public launch waits until submissions run in a truly isolated environment, such as a container or a hosted runner. Until then, the app is not opened to the public.
 - **Every activity works on a phone (confirmed).** That includes Architecture Builder, Matching, Ordering and the code editor. Drag-and-drop and wiring need touch-capable interactions, not desktop-only mouse behavior.
-- **No book-derived content.** Notes, questions and games are original teaching material that cites primary sources. Don't add content that summarizes a published book, and don't name one as a source; the tests check seeded text for the titles and authors the earlier content used.
+- **Content standards (confirmed).** Everything learners read or answer follows [docs/learning/CONTENT_STANDARDS.md](docs/learning/CONTENT_STANDARDS.md):
+  - Every item is Beginner, Intermediate or Advanced, and new content declares its level.
+  - Wording, examples, numbers and structure are our own. Nothing is copied or closely paraphrased from a book, course, blog or documentation page used for research, and no study book or course is named anywhere in the product or repository.
+  - Facts are checked against dated primary sources, and version-specific facts say which version.
+  - Quiz and game choices are similar in length, tone and polarity, so the right answer can't be spotted by its shape.
+  - `learn/test_content_standards.py` enforces the checkable parts.
 
 ## Brand Commitments
 

@@ -1,0 +1,47 @@
+<section class="capacity-lesson" id="capacity-lesson" aria-labelledby="capacity-title">
+    <h2 id="capacity-title">Turn a million users into a workload</h2>
+    <p>A registered-user count cannot size a service. Start with what active learners do, then change one assumption and follow its effect.</p>
+    <p class="meta">Unscored browser exercise. Reloading resets your choices; the quiz drives XP and review.</p>
+
+    <section class="capacity-lab" aria-labelledby="capacity-contract-title">
+        <h3 id="capacity-contract-title">Separate three kinds of requirement</h3>
+        <p>Before calculating, decide which statement describes behavior, which must always hold, and which needs a measurement window.</p>
+        <ul><li>A learner opens 20 lessons per day.</li><li>A private lesson is never returned to an unauthorized learner.</li><li>Over a rolling 30 days, 99% of successful lesson reads finish within 300 ms at the API boundary.</li></ul>
+        <details><summary>Compare your reasoning</summary><p>The first is a workload assumption to validate. The second is an invariant: faster responses cannot excuse breaking it. The third is a latency objective with a population, boundary, and window. Track failed requests separately so excluding them from this latency measure cannot hide outages.</p></details>
+    </section>
+
+    <section class="capacity-lab" id="capacity-demand" aria-labelledby="capacity-demand-title">
+        <h3 id="capacity-demand-title">Follow the units</h3>
+        <p>Assume 100,000 daily active learners, 20 reads and five events per learner per day. Each response carries 10 KB; each event uses 500 bytes. All units are decimal: 1 KB = 1,000 bytes and 1 GB = 1,000,000,000 bytes.</p>
+        <div class="capacity-controls" data-capacity-interactive hidden>
+            <div><label for="capacity-users">Daily active learners</label><select id="capacity-users"><option value="100000">100,000 learners</option><option value="10000">10,000 learners</option><option value="1000000">1,000,000 learners</option></select></div>
+            <div><label for="capacity-peak">Peak relative to daily average</label><select id="capacity-peak"><option value="20">20× average</option><option value="40">40× average</option><option value="1">1× average</option></select></div>
+            <div><label for="capacity-retention">Event retention</label><select id="capacity-retention"><option value="30">30 days</option><option value="365">365 days</option></select></div>
+        </div>
+        <div class="capacity-result" role="status" aria-live="polite" aria-atomic="true">
+            <p id="capacity-reads">2,000,000 reads/day ÷ 86,400 s/day = 23.15 reads/s average.</p>
+            <p id="capacity-peak-result">23.15 × 20 ≈ 462.96 reads/s at peak.</p>
+            <p id="capacity-payload">20 GB/day of response payload; 37.04 Mbit/s at peak.</p>
+            <p id="capacity-storage">250 MB/day × 30 days = 7.5 GB of raw events.</p>
+        </div>
+        <details><summary>Why do these numbers change differently?</summary><p>Daily reads = active learners × 20. Peak rate = daily reads ÷ 86,400 × peak factor. Payload bytes = reads × 10,000; multiply peak bytes/s by eight for bits/s. Event bytes/day = active learners × 5 × 500. Retention multiplies storage, not daily writes. Increasing the peak factor redistributes the same daily traffic into a sharper burst.</p></details>
+        <p class="meta">Payload excludes headers and compression. Raw storage excludes indexes, replicas, backups, and deletion lag. Budget those separately. A cache may spare origin reads while users still receive the response bytes.</p>
+    </section>
+
+    <section class="capacity-lab" aria-labelledby="capacity-fleet-title">
+        <h3 id="capacity-fleet-title">What must you measure before choosing servers?</h3>
+        <p>Assume even load across identical servers. A throughput measurement must meet your latency and error objectives under a representative request mix. The sample rates below are invented observations for this exercise.</p>
+        <div class="capacity-controls" data-capacity-interactive hidden>
+            <div><label for="capacity-throughput">Sustainable reads per server</label><select id="capacity-throughput"><option value="unknown">Not measured yet</option><option value="200">200 reads/s — sample measurement</option><option value="500">500 reads/s — sample measurement</option></select></div>
+            <div><label for="capacity-failure">Failure capacity to reserve</label><select id="capacity-failure"><option value="1">One server unavailable</option><option value="0">All servers available</option></select></div>
+        </div>
+        <p class="capacity-result" id="capacity-fleet" role="status" aria-live="polite">Server count is unknown. Measure sustainable throughput at the required latency and error targets first.</p>
+        <p>A shared database limit can invalidate this calculation. Check downstream demand, load imbalance, failover time, and extra operating margin. Test arrivals that continue even when responses slow, so the test does not accidentally reduce the offered load.</p>
+        <details><summary>Try the curriculum challenge</summary><p>Keep 100,000 active learners; predict the result with 40× peak and 365-day retention before selecting them. Expect about 926 reads/s and 91.25 GB of raw events. With the invented 200 reads/s observation, five servers must remain available; provisioning six leaves five after one fails. This alone does not prove the latency objective is met.</p></details>
+        <button class="btn btn--quiet" id="capacity-reset" type="button" data-capacity-interactive hidden>Reset assumptions</button>
+        <a class="btn btn--primary" href="{% url 'learn:concept_quiz' concept.slug %}">Check your understanding <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
+    </section>
+    <noscript><p>Enable JavaScript to change assumptions. The worked example and challenge answers remain available above.</p></noscript>
+    <p class="meta">Original teaching scenario. Further reading: <a href="https://sre.google/sre-book/service-level-objectives/">Service Level Objectives</a> and <a href="https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/open-vs-closed/">Open and Closed Models</a>.</p>
+    <h3 class="capacity-notes-heading">Study notes</h3>
+</section>

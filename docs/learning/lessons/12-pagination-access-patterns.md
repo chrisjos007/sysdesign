@@ -1,6 +1,6 @@
 # Pagination and data access patterns
 
-ID: sd-12 | Stage 2: intermediate | Suggested study: 35 minutes
+ID: sd-12 | Level: Intermediate | Stage 2: Scale a service | Suggested study: 35 minutes
 
 Prerequisites: sd-02, sd-05, sd-06
 

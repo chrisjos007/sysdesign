@@ -1,6 +1,6 @@
 # DNS, TCP, and TLS: follow a request
 
-ID: sd-01 | Stage 1: beginner | Suggested study: 25 minutes
+ID: sd-01 | Level: Beginner | Stage 1: Understand a request | Suggested study: 25 minutes
 
 Prerequisites: None; start here.
 

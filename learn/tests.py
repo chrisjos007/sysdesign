@@ -1,17 +1,17 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 import json
 from unittest import mock
 
-from . import quorum, ring, traffic
+from . import bitbudget, quorum, ring, traffic
 from .management.commands.seed_games import (
-    FLAW_CHALLENGES, QUORUM_CHALLENGES, RING_CHALLENGES, TRAFFIC_CHALLENGES,
+    BIT_BUDGET_CHALLENGES, FLAW_CHALLENGES, QUORUM_CHALLENGES, RING_CHALLENGES, TRAFFIC_CHALLENGES,
 )
 from .models import (
-    Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason, QuorumAttempt,
-    QuorumChallenge, RingAttempt, RingChallenge, Topic, TrafficAttempt, TrafficChallenge, UserBadge,
+    BitBudgetAttempt, BitBudgetChallenge, Book, Chapter, Concept, FlawAttempt, FlawChallenge, FlawPart, FlawReason,
+    QuorumAttempt, QuorumChallenge, RingAttempt, RingChallenge, Topic, TrafficAttempt, TrafficChallenge, UserBadge,
 )
 
 
@@ -182,7 +182,7 @@ class FlawSeedDataTests(TestCase):
 
 
 class TrafficDayTests(TestCase):
-    """Runs the seeded URL-shortener day through the finish endpoint."""
+    """Runs the seeded flash-sale day through the finish endpoint."""
 
     def setUp(self):
         book = Book.objects.create(slug='b', title='Book')
@@ -201,8 +201,8 @@ class TrafficDayTests(TestCase):
         return self.client.post(self.finish_url, json.dumps({'plan': plan}), content_type='application/json')
 
     @staticmethod
-    def steady(servers, replicas, cache, redirect=302):
-        return [[servers, replicas, cache, redirect]] * traffic.TICKS
+    def steady(servers, replicas, cache, browser_cache=False):
+        return [[servers, replicas, cache, browser_cache]] * traffic.TICKS
 
     def test_page_renders_the_simulator(self):
         html = self.client.get(self.page_url).content.decode()
@@ -213,12 +213,12 @@ class TrafficDayTests(TestCase):
 
     def test_starting_design_melts_down(self):
         body = self.finish(self.steady(4, 1, False)).json()
-        self.assertEqual(body['detail'], {'breaches': 106, 'spent': 240, 'used_301': False, 'design_changes': 0})
+        self.assertEqual(body['detail'], {'breaches': 106, 'spent': 240, 'browser_cached': False, 'design_changes': 0})
         self.assertEqual(body['score'], 1000 - 106 * 50 - 240)
         self.assertEqual(body['xp_awarded'], 0)
         self.assertFalse(body['is_perfect'])
         self.assertTrue(any('Without a cache' in lesson for lesson in body['lessons']))
-        self.assertTrue(any('viral link' in lesson for lesson in body['lessons']))
+        self.assertTrue(any('featured product' in lesson for lesson in body['lessons']))
 
     def test_clean_day_scales_xp_and_earns_badge(self):
         body = self.finish(self.steady(10, 0, True)).json()
@@ -230,22 +230,23 @@ class TrafficDayTests(TestCase):
         attempt = TrafficAttempt.objects.get(user=self.user)
         self.assertEqual((attempt.score, attempt.xp_awarded, attempt.is_perfect), (573, 82, True))
 
-    def test_a_single_301_tick_costs_the_analytics_penalty(self):
+    def test_a_single_browser_cached_tick_costs_the_stale_page_penalty(self):
         plan = self.steady(10, 0, True)
-        plan[5] = [10, 0, True, 301]
+        plan[5] = [10, 0, True, True]
         body = self.finish(plan).json()
-        self.assertTrue(body['detail']['used_301'])
+        self.assertTrue(body['detail']['browser_cached'])
+        self.assertTrue(any('stale prices' in lesson for lesson in body['lessons']))
         self.assertEqual(body['detail']['design_changes'], 2)
         self.assertFalse(body['is_perfect'])
         self.assertLess(body['score'], 573 - 250 + 5)
 
     def test_scaling_through_the_day_beats_a_steady_design(self):
         # Cheapest design that holds the SLO at each tick, the way a learner would scale in and out.
-        options = [dict(servers=s, replicas=0, cache=True, redirect=302) for s in range(1, 15)]
+        options = [dict(servers=s, replicas=0, cache=True, browser_cache=False) for s in range(1, 15)]
         plan = []
         for i in range(traffic.TICKS):
             cfg = next(o for o in options if not traffic.simulate_tick(self.challenge.params, i, o)['breach'])
-            plan.append([cfg['servers'], 0, True, 302])
+            plan.append([cfg['servers'], 0, True, False])
         body = self.finish(plan).json()
         self.assertEqual(body['detail']['breaches'], 0)
         self.assertGreater(body['score'], 573)
@@ -254,11 +255,11 @@ class TrafficDayTests(TestCase):
         good = self.steady(4, 1, False)
         bad_plans = [
             good[:-1],                                       # a tick short
-            [[15, 1, False, 302]] + good[1:],                # over the server limit
-            [[4, 5, False, 302]] + good[1:],                 # over the replica limit
-            [[True, 1, False, 302]] + good[1:],              # bool where a count belongs
-            [[4, 1, 0, 302]] + good[1:],                     # int where the cache flag belongs
-            [[4, 1, False, 303]] + good[1:],                 # not a redirect we model
+            [[15, 1, False, False]] + good[1:],              # over the server limit
+            [[4, 5, False, False]] + good[1:],               # over the replica limit
+            [[True, 1, False, False]] + good[1:],            # bool where a count belongs
+            [[4, 1, 0, False]] + good[1:],                   # int where the cache flag belongs
+            [[4, 1, False, 1]] + good[1:],                   # int where the browser-cache flag belongs
             [[4, 1, False]] + good[1:],                      # short entry
             'everything',
         ]
@@ -286,7 +287,7 @@ class TrafficDayTests(TestCase):
             start = p['start']
             self.assertTrue(p['limits']['servers'][0] <= start['servers'] <= p['limits']['servers'][1])
             self.assertTrue(p['limits']['replicas'][0] <= start['replicas'] <= p['limits']['replicas'][1])
-            self.assertIn(start['redirect'], (301, 302))
+            self.assertIs(type(start['browser_cache']), bool)
             for tick in p['events']:
                 self.assertTrue(0 <= int(tick) < traffic.TICKS, tick)
             self.assertTrue(0 <= p['spike']['at_hour'] and p['spike']['at_hour'] + p['spike']['hours'] <= 24)
@@ -690,3 +691,309 @@ class RingSeedDataTests(TestCase):
         problems = ring.validate_stages(stages)
         self.assertEqual(len(problems), 8, problems)
         self.assertEqual(ring.validate_stages([]), ['There must be at least one stage.'])
+
+
+class BitBudgetTests(TestCase):
+    """Plays the seeded four-round Bit Budget through the move endpoint."""
+
+    # The only splits that meet Specs 1 and 2 (BitBudgetSeedDataTests checks
+    # they're the only ones): Spec 1 from the 2026 epoch, Spec 2 from 2015.
+    SPEC1 = ('41,3,8,11', 2026)
+    SPEC2 = ('42,2,10,9', 2015)
+
+    def setUp(self):
+        book = Book.objects.create(slug='b', title='Book')
+        topic = Topic.objects.create(slug='t', title='Topic')
+        self.chapter = Chapter.objects.create(book=book, topic=topic, slug='c', title='Chapter', unlock_level=1)
+        concept = Concept.objects.create(chapter=self.chapter, slug='k', title='Concept', summary='s')
+        spec = BIT_BUDGET_CHALLENGES[0]
+        self.challenge = BitBudgetChallenge.objects.create(
+            concept=concept, slug='bits', title=spec['title'], prompt=spec['prompt'],
+            source=spec['source'], stages=spec['stages'])
+        self.user = get_user_model().objects.create_user('player', password='pw-for-tests-only')
+        self.client.force_login(self.user)
+        self.page_url = reverse('learn:bit_budget_challenge', args=['bits'])
+        self.move_url = reverse('learn:bit_budget_move', args=['bits'])
+        self.snap = self.client.get(self.page_url).context['snapshot']  # starts the run
+
+    def move(self, **data):
+        return self.client.post(self.move_url, data)
+
+    def act(self, **data):
+        body = self.move(**data).json()
+        self.snap = body['snapshot']
+        return body
+
+    def check(self, bits, epoch):
+        return self.act(action='check', bits=bits, epoch=epoch)
+
+    def to_clock(self):
+        self.check(*self.SPEC1)
+        self.act(action='next')
+        self.check(*self.SPEC2)
+        self.act(action='next')
+        self.act(action='claim')
+        self.act(action='next')
+
+    def test_page_shows_the_spec_but_not_whether_it_can_be_met(self):
+        response = self.client.get(self.page_url)
+        html = response.content.decode()
+        self.assertIn('Spec 1: Tracking events', html)
+        self.assertIn('per failed check or wrong call', html)
+        for later in ('A merger', 'Clock trouble', 'Hold it until', 'Counting from launch', 'coarser clock tick',
+                      '"why"', '"answer"', '"start"'):
+            self.assertNotIn(later, html)
+        snap = response.context['snapshot']
+        self.assertFalse({'why', 'possible'} & set(snap))
+        self.assertEqual((snap['width'], snap['budget'], snap['bits'], snap['epoch']), (64, 63, [40, 4, 8, 11], 1970))
+        self.assertEqual(snap['fields'][0], {'key': 'ts', 'name': 'Timestamp', 'until': 2090})
+        self.assertEqual([e['year'] for e in snap['epochs']], [1970, 2026])
+
+    def test_failed_check_costs_and_names_the_shortfall(self):
+        body = self.check('40,4,8,11', 1970)
+        self.assertEqual(body['result'], {'verdict': 'short', 'points': -25})
+        self.assertEqual(self.snap['feedback']['text'], 'Not yet: the timestamp runs out in 2004, before 2090.')
+        self.assertEqual(self.snap['checked'], {'bits': [40, 4, 8, 11], 'epoch': 1970, 'marks': [False, True, True, True]})
+        self.check('42,2,8,10', 1970)
+        self.assertEqual(self.snap['feedback']['text'],
+                         'Not yet: region gives 4 regions, short of 6; '
+                         'counter gives 1,024 IDs per ms per worker, short of 1,500.')
+        self.assertEqual((self.snap['score'], self.snap['cleared'], self.snap['bits']), (-50, False, [42, 2, 8, 10]))
+        self.assertEqual(self.move(action='next').status_code, 400)
+
+    def test_spec_one_needs_the_launch_epoch(self):
+        self.check('41,3,8,11', 1970)
+        self.assertEqual(self.snap['feedback']['text'], 'Not yet: the timestamp runs out in 2039, before 2090.')
+        body = self.check(*self.SPEC1)
+        self.assertEqual(body['result'], {'verdict': 'met', 'points': 100})
+        self.assertTrue(self.snap['feedback']['text'].startswith('Spec met: +100. Counting from launch'))
+        self.assertEqual((self.snap['score'], self.snap['cleared']), (75, True))
+        self.assertEqual(self.move(action='claim').status_code, 400)
+        self.act(action='next')
+        self.assertEqual((self.snap['stage'], self.snap['bits'], self.snap['epoch'], self.snap['checked']),
+                         (2, [39, 4, 11, 9], 2015, None))
+
+    def test_wrong_call_costs_and_hints(self):
+        body = self.act(action='claim')
+        self.assertEqual(body['result'], {'verdict': 'wrong', 'points': -25})
+        self.assertEqual(self.snap['feedback']['text'], 'It can be done. Keep adjusting the fields, and look at the epoch.')
+        self.check(*self.SPEC1)
+        self.act(action='next')
+        self.act(action='claim')
+        self.assertEqual(self.snap['feedback']['text'], 'It can be done. Keep adjusting the fields.')
+
+    def test_a_fixed_epoch_is_enforced(self):
+        self.check(*self.SPEC1)
+        self.act(action='next')
+        self.assertEqual(self.move(action='check', bits='41,2,10,9', epoch=2026).status_code, 400)
+        self.check('41,2,10,9', 2015)
+        self.assertEqual(self.snap['feedback']['text'], 'Not yet: the timestamp runs out in 2084, before 2090.')
+        self.assertEqual(self.check(*self.SPEC2)['result'], {'verdict': 'met', 'points': 100})
+
+    def test_spotting_the_impossible_spec(self):
+        self.check(*self.SPEC1)
+        self.act(action='next')
+        self.check(*self.SPEC2)
+        self.act(action='next')
+        self.assertEqual((self.snap['width'], self.snap['signed'], self.snap['budget']), (53, False, 53))
+        self.check('41,1,6,5', 2026)
+        self.assertEqual(self.snap['feedback']['text'],
+                         'Not yet: counter gives 32 IDs per ms per worker, short of 100.')
+        body = self.act(action='claim')
+        self.assertEqual(body['result'], {'verdict': 'right', 'points': 100})
+        self.assertIn("Right, it can't be done: +100. Region, worker and counter need at least 1 + 6 + 7 = 14 bits. "
+                      'The timestamp needs 41 bits to reach 2066 even from 2026, and 40 bits run out in 2060. '
+                      "That's 55 bits against a budget of 53.", self.snap['feedback']['text'])
+
+    def test_clock_questions_hide_the_answer_until_answered(self):
+        self.to_clock()
+        self.assertEqual((self.snap['stage'], self.snap['kind'], self.snap['answered']), (4, 'clock', None))
+        question = self.snap['question']
+        self.assertEqual((question['n'], question['of']), (1, 2))
+        self.assertNotIn('answer', question)
+        self.assertNotIn('after', question)
+
+        self.assertEqual(self.act(action='answer', choice=0)['result'], {'verdict': 'wrong', 'points': -25})
+        self.assertTrue(self.snap['feedback']['text'].startswith(
+            'Not quite. Hold the request until the clock passes 05.208.'))
+        self.assertEqual((self.snap['answered']['choice'], self.snap['answered']['answer']), (0, 2))
+        self.assertEqual((self.snap['question']['n'], self.snap['cleared']), (2, False))
+        self.assertNotIn('answer', self.snap['question'])
+
+        self.assertEqual(self.act(action='answer', choice=1)['result'], {'verdict': 'right', 'points': 50})
+        self.assertTrue(self.snap['feedback']['text'].startswith('Right. The delivery comes first.'))
+        self.assertEqual((self.snap['question'], self.snap['cleared'], self.snap['done']), (None, True, True))
+        self.assertEqual(self.snap['score'], 300 - 25 + 50)
+
+    def test_clean_run_earns_bonus_and_badge(self):
+        self.to_clock()
+        self.act(action='answer', choice=2)
+        finished = self.act(action='answer', choice=1)['finished']
+        self.assertEqual(finished['score'], 400)
+        self.assertTrue(finished['is_perfect'])
+        self.assertEqual(finished['xp_awarded'], 400 // 4 + 25)
+        self.assertIn('Bit Packer', finished['new_badges'])
+        lines = finished['detail']['stages']
+        self.assertEqual([line['points'] for line in lines], [100, 100, 100, 100])
+        self.assertEqual([line.get('how') for line in lines], ['check', 'check', 'claim', None])
+        self.assertEqual((lines[0]['bits'], lines[0]['epoch']), ([41, 3, 8, 11], 2026))
+        attempt = BitBudgetAttempt.objects.get(user=self.user)
+        self.assertEqual((attempt.score, attempt.xp_awarded, attempt.is_perfect), (400, 125, True))
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.xp, 125)
+
+    def test_negative_score_earns_no_xp(self):
+        for _ in range(12):
+            self.check('40,4,8,11', 1970)
+        self.act(action='claim')
+        self.check(*self.SPEC1)
+        self.act(action='next')
+        self.check(*self.SPEC2)
+        self.act(action='next')
+        self.check('41,1,6,5', 2026)
+        self.act(action='claim')
+        self.act(action='next')
+        self.act(action='answer', choice=0)
+        finished = self.act(action='answer', choice=0)['finished']
+        self.assertEqual(finished['score'], -300 - 25 + 100 + 100 - 25 + 100 - 50)
+        self.assertEqual(finished['xp_awarded'], 0)
+        detail = finished['detail']
+        self.assertEqual((detail['failed'], detail['wrong_calls'], detail['wrong']), (13, 1, 2))
+        self.assertFalse(finished['is_perfect'])
+        self.assertFalse(UserBadge.objects.filter(user=self.user, badge__slug='bit_packer').exists())
+
+    def test_moves_that_do_not_fit_are_rejected(self):
+        for bits in ('41,3,8,12', '41,3,8', '41,3,8,11,0', '0,3,8,11', '-1,3,8,11', '41,3,x,11', '',
+                     '41;3;8;11', '041,3,8,11', '41, 3,8,11', '1.5,3,8,11'):
+            self.assertEqual(self.move(action='check', bits=bits, epoch=2026).status_code, 400, bits)
+        for epoch in ('2000', 'x', '', '20266'):
+            self.assertEqual(self.move(action='check', bits='41,3,8,11', epoch=epoch).status_code, 400, epoch)
+        self.assertEqual(self.move(action='answer', choice=0).status_code, 400)  # no question yet
+        self.assertEqual(self.move(action='next').status_code, 400)
+        self.assertEqual(self.move(action='explode').status_code, 400)
+        self.assertEqual(self.client.get(self.move_url).status_code, 405)
+        self.to_clock()
+        for choice in ('4', '-1', 'a', ''):
+            self.assertEqual(self.move(action='answer', choice=choice).status_code, 400, choice)
+        self.assertEqual(self.move(action='claim').status_code, 400)
+        self.assertEqual(self.move(action='check', bits='41,3,8,11', epoch=2026).status_code, 400)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot']['score'], 300)
+
+    def test_reloading_keeps_a_miss(self):
+        self.check('40,4,8,11', 1970)
+        page = self.client.get(self.page_url).context['snapshot']
+        self.assertEqual(page, self.snap)
+        self.assertEqual((page['score'], page['bits']), (-25, [40, 4, 8, 11]))
+
+    def test_finished_run_refuses_moves_until_reloaded(self):
+        self.to_clock()
+        self.act(action='answer', choice=2)
+        self.act(action='answer', choice=1)
+        self.assertEqual(self.move(action='next').status_code, 409)
+        fresh = self.client.get(self.page_url).context['snapshot']
+        self.assertEqual((fresh['stage'], fresh['score'], fresh['done'], fresh['bits']), (1, 0, False, [40, 4, 8, 11]))
+
+    def test_run_from_older_stages_starts_over(self):
+        session = self.client.session
+        session[f'bits_run_{self.challenge.id}'] = {'stage': 9, 'moves': [], 'done': False}
+        session.save()
+        self.assertEqual(self.move(action='next').status_code, 409)
+        self.assertEqual(self.client.get(self.page_url).context['snapshot']['stage'], 1)
+
+    def test_locked_chapter_blocks_play(self):
+        self.chapter.unlock_level = 99
+        self.chapter.save()
+        self.assertRedirects(self.client.get(self.page_url), reverse('learn:dashboard'))
+        self.assertEqual(self.move(action='next').status_code, 403)
+
+    def test_concept_page_lists_the_challenge(self):
+        html = self.client.get(reverse('learn:concept_detail', args=['k'])).content.decode()
+        self.assertIn(self.page_url, html)
+        self.assertIn('Bit Budget', html)
+
+
+class BitBudgetSeedDataTests(SimpleTestCase):
+    def setUp(self):
+        self.spec1, self.spec2, self.spec3, self.clock = BIT_BUDGET_CHALLENGES[0]['stages']
+
+    def working_splits(self, stage):
+        """Every (split, epoch) that meets the stage, by brute force."""
+        n, budget = len(stage['fields']), bitbudget.budget(stage)
+        found = []
+
+        def walk(prefix, left):
+            if len(prefix) == n:
+                for epoch in bitbudget.epochs(stage):
+                    if all(bitbudget.passes(f, b, epoch) for f, b in zip(stage['fields'], prefix)):
+                        found.append((prefix, epoch))
+                return
+            for b in range(0 if prefix else 1, left + 1):
+                walk(prefix + [b], left - b)
+        walk([], budget)
+        return found
+
+    def test_seeded_stages_play(self):
+        for spec in BIT_BUDGET_CHALLENGES:
+            self.assertEqual(bitbudget.validate_stages(spec['stages']), [], spec['slug'])
+
+    def test_specs_teach_what_they_say(self):
+        # Spec 1: one split works, and only from launch. From 1970, its 41
+        # timestamp bits ran out in 2039.
+        self.assertEqual(self.working_splits(self.spec1), [([41, 3, 8, 11], 2026)])
+        self.assertEqual(bitbudget.runs_out(1970, 41), 2039)
+        self.assertIn('same 41 timestamp bits', self.spec1['done'])
+        self.assertIn('ran out in 2039', self.spec1['done'])
+        # Spec 2: one split works. From 2015, 41 bits run out in 2084, so the
+        # timestamp takes 42 and leaves 21.
+        self.assertEqual(self.working_splits(self.spec2), [([42, 2, 10, 9], 2015)])
+        self.assertEqual(bitbudget.runs_out(2015, 41), 2084)
+        self.assertIn('41 timestamp bits run out in 2084', self.spec2['done'])
+        self.assertIn('the 21 bits left', self.spec2['done'])
+        # Spec 3 misses by two bits, and a coarser tick can't help: whatever
+        # the tick, timestamp and counter must count 100 IDs a millisecond
+        # for about 1.26 trillion milliseconds, which takes 47 bits.
+        self.assertFalse(bitbudget.possible(self.spec3))
+        self.assertEqual(self.working_splits(self.spec3), [])
+        self.assertEqual(bitbudget.cheapest(self.spec3), (55, 2026))
+        span = bitbudget.span_ms(2026, 2066)
+        self.assertEqual(round(span / 1e12, 2), 1.26)
+        together = (100 * span - 1).bit_length()
+        self.assertEqual(together, 47)
+        self.assertGreater(together + bitbudget.min_bits(2) + bitbudget.min_bits(40), 53)
+        self.assertIn('1.26 trillion milliseconds', self.spec3['why'])
+        self.assertIn('takes 47 bits', self.spec3['why'])
+        # Every round opens on a split that doesn't work yet.
+        for stage in (self.spec1, self.spec2, self.spec3):
+            start = [f['start'] for f in stage['fields']]
+            self.assertFalse(all(bitbudget.passes(f, b, stage['epoch']) for f, b in zip(stage['fields'], start)))
+
+    def test_clock_answers_match_their_narration(self):
+        backstep, order = self.clock['questions']
+        self.assertTrue(backstep['options'][backstep['answer']].startswith('Hold it until the clock passes 05.208'))
+        self.assertTrue(backstep['after'].startswith('Hold the request until the clock passes 05.208.'))
+        # Worker 9 stamps the earlier event 6 ms fast, so it sorts after the later one.
+        handover, delivery = (line['text'][-6:] for line in order['log'])
+        self.assertEqual((handover, delivery), ('00.106', '00.102'))
+        self.assertTrue(order['options'][order['answer']].startswith('The delivery'))
+        self.assertTrue(order['after'].startswith('The delivery comes first.'))
+
+    def test_validation_catches_broken_stages(self):
+        ts = dict(key='ts', name='Timestamp', until=2090, start=41)
+        count = dict(key='n', name='N', need=4, unit='n', start=2)
+        one = [[1970, 'x']]
+        stages = [
+            dict(t='build', title='A', text='t', width=65, signed=True, epochs=one, epoch=1970, fields=[ts, count], done='d'),
+            dict(t='build', title='B', text='t', width=64, signed=True, epochs=one, epoch=2026, fields=[ts, count], done='d'),
+            dict(t='build', title='C', text='t', width=64, signed=True, epochs=one, epoch=1970,
+                 fields=[dict(ts, until=1960), count], done='d'),
+            dict(t='build', title='D', text='t', width=64, signed=True, epochs=one, epoch=1970,
+                 fields=[ts, dict(count, start=40)], done='d'),
+            dict(t='build', title='E', text='t', width=8, signed=False, epochs=one, epoch=1970,
+                 fields=[dict(ts, start=6), count], done='d'),
+            dict(t='clock', title='F', text='t', questions=[dict(lead='l', log=[], ask='a', after='b', options=['x'], answer=0)]),
+            dict(t='shuffle', title='G', text='t'),
+        ]
+        problems = bitbudget.validate_stages(stages)
+        self.assertEqual(len(problems), 7, problems)
+        self.assertIn("stage 5: this spec can't be met, so it needs `why`.", problems)
+        self.assertEqual(bitbudget.validate_stages([]), ['There must be at least one stage.'])

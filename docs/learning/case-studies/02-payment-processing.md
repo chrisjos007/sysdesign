@@ -1,6 +1,6 @@
 # Design a payment-processing workflow
 
-ID: cs-02 | Stage: production | Suggested study: 90 minutes
+ID: cs-02 | Level: Advanced | Stage: Operate reliably | Suggested study: 90 minutes
 
 Prerequisites: sd-14, sd-15, sd-16, sd-17, sd-19, sd-20, sd-23, sd-24
 

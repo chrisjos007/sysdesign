@@ -3,7 +3,7 @@
 This package is the website's system design content. The Markdown, catalogue and source registry stay the source of truth; the app reads them at seed time.
 
 Implementation status: all 31 lessons and 6 case studies are in the app, and they
-replaced the earlier book-derived chapters. `learn/curriculum.py` reads this
+replaced the retired earlier chapters. `learn/curriculum.py` reads this
 package and returns one chapter and concept per item; `python manage.py seed_content`
 writes them and removes content that is no longer defined, and
 `python manage.py seed_curriculum` adds or updates them without removing anything.
@@ -15,7 +15,7 @@ What the app takes from each item:
   way; the reference architecture is listed from the catalogue graph, and the
   rubric table becomes plain lines. Links keep their text; the lesson lists its
   sources separately.
-- **Metadata.** ID, stage, study time, objectives, prerequisites and sources go
+- **Metadata.** ID, level, stage, study time, objectives, prerequisites and sources go
   into `Concept.curriculum` and appear on the lesson page.
 - **Questions.** The short-answer checks are rewritten by hand as MCQ and
   multi-select questions with plausible wrong answers, five or six per item, in
@@ -26,8 +26,20 @@ What the app takes from each item:
   Every lesson has at least one matching, ordering or other game.
 - **Interactive walkthroughs.** sd-01 compares connection setup costs. sd-02
   explores method semantics and retries, asynchronous acceptance versus
-  completion, and conditional edits with ETag/If-Match. Both are unscored
-  browser exercises; they do not send actual API requests or award mastery.
+  completion, and conditional edits with ETag/If-Match. sd-03 explores queue
+  growth and drain time, steady-state Little’s Law, and nearest-rank latency
+  percentiles. sd-04 lets learners schedule two balance increments and compare
+  lost updates, a shared lock, separate server locks, and atomic increments.
+  sd-05 compares sequential, tenant-index, and composite-index access paths,
+  estimated versus actual row counts with loops, and N+1 versus joined or
+  batched owner fetching. Its row counts are a teaching model, not a database
+  benchmark or planner prediction.
+  sd-06 connects active-user assumptions to average and peak reads, payload
+  bandwidth, raw event retention, and conditional server counts with one failed
+  server. It leaves sizing unknown until a sample throughput is selected and
+  distinguishes workload assumptions, invariants, and measured objectives.
+  All six are unscored browser exercises; they do not send
+  actual API requests or award mastery.
   Existing quiz attempts continue to drive XP and review scheduling.
 
 The app does not store curriculum-wide completion records or enforce knowledge
@@ -47,11 +59,9 @@ Load [catalogue.json](catalogue.json) and resolve its document paths relative to
 | `estimated_minutes` | Suggested reading and practice time, not measured completion data |
 | `path` | Relative Markdown body path |
 | `prerequisite_ids` | Required knowledge edges inside this package |
-| `related_existing_concept_slugs` | Verified existing seed-data concepts for optional cross-links |
 | `tags`, `objectives` | Filtering and explicit learning outcomes |
 | `source_ids` | References into the source registry |
-| `suggested_topic` | Suggested current or proposed topic grouping |
-| `legacy_difficulty` | Suggested mapping to today's three numeric tiers |
+| `level` | Beginner, intermediate or advanced; required on every item and stage ([content standards](CONTENT_STANDARDS.md)) |
 | `assessment` | Short-answer prompts, explanatory answers, and case rubrics |
 | `architecture` | Case reference components, labelled logical edges, and builder brief |
 | `activities` | Content activities described here; not proof of implemented website features |
@@ -78,10 +88,10 @@ These are implementation suggestions. Prerequisites express knowledge dependenci
 | Stage | One Topic per stage, plus a Case Studies topic (`curriculum.TOPICS`) |
 | Item | One Chapter holding one Concept; both use the catalogue `slug` |
 | `stage` | Chapter unlock level: lessons 1, 2, 4, 6, 8 by stage; case studies 5, 7, 9 |
-| `legacy_difficulty` | Chapter difficulty (1, 2 or 3; production and expert both map to 3) |
+| `level` | Chapter difficulty: beginner 1, intermediate 2, advanced 3 (stages 3 to 5 are all advanced) |
 | `id`, `objectives`, `prerequisite_ids`, `source_ids` | `Concept.curriculum` |
 
-Educational prerequisites are distinct from the XP unlock level: the lesson page links them but does not block on them. Keep the per-lesson links to standards, papers and official documentation, and do not assign a named textbook as the source for notes it did not supply. The tests in `learn/test_curriculum.py` fail if seeded text names one of the books the earlier content summarized.
+Educational prerequisites are distinct from the XP unlock level: the lesson page links them but does not block on them. Keep the per-lesson links to standards, papers and official documentation. Never name a study book or course as a source. `learn/test_content_standards.py` fails if seeded or repository text names one of the study books the earliest content drew on, if quiz choices are unbalanced, or if an item has no level; see [CONTENT_STANDARDS.md](CONTENT_STANDARDS.md).
 
 ## Assessment and architecture conversion
 
@@ -93,7 +103,7 @@ Each case's reference graph is an Architecture Builder challenge in `seed_games.
 
 1. Edit the Markdown, catalogue or source registry; keep IDs stable.
 2. Update the matching question bank and any game that quotes the changed text.
-3. Run `python manage.py test learn`, which checks every item has notes, sources and a valid quiz, and every lesson a game.
+3. When adding browser assets, run `python manage.py collectstatic --noinput` first so the test environment's static-file manifest includes them. Run `python manage.py test learn`, which checks every item has notes, sources and a valid quiz, and every lesson a game. For interactive lesson models, also run `node --test learn/js_tests/*.test.js`.
 4. Re-run `seed_content` and `seed_games`. Try them on a copy of the database first: `seed_content` removes chapters and concepts that are no longer defined, with their learners' attempts, and refuses to remove admin-made coding challenges unless given `--delete-coding-challenges`.
 
 For Markdown rendering, keep code, tables, and Mermaid support consistent with the future renderer. Treat source content as untrusted input and apply the application's normal HTML sanitization policy. If a renderer does not support Mermaid, the catalogue's component/connection arrays preserve the same architecture information.

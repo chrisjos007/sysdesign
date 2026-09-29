@@ -1,6 +1,6 @@
 # Clocks, leases, and fencing tokens
 
-ID: sd-28 | Stage 5: expert | Suggested study: 50 minutes
+ID: sd-28 | Level: Advanced | Stage 5: Reason about guarantees | Suggested study: 50 minutes
 
 Prerequisites: sd-13, sd-14, sd-25, sd-26
 

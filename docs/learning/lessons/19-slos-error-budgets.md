@@ -1,6 +1,6 @@
 # Service objectives and error budgets
 
-ID: sd-19 | Stage 4: production | Suggested study: 35 minutes
+ID: sd-19 | Level: Advanced | Stage 4: Operate reliably | Suggested study: 35 minutes
 
 Prerequisites: sd-03, sd-06, sd-18
 

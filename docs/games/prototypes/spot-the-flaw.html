@@ -368,7 +368,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-spot" data-game="spot" data-stock="4">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 10: Design a Notification System</p>
+        <p class="label src">Idea based on sd-10 Queues and background jobs · superseded by the live Spot the Flaw</p>
         <h2>Spot the Flaw</h2>
         <p class="lede">This notification system has four planted design mistakes. Tap each part you think is wrong, then say why.</p>
       </div>
@@ -674,7 +674,7 @@ function initSpot() {
     $('#spot-msg').textContent = 'Review closed. Tap any part to read why it is fine or flawed.';
     const foundN = FLAWS.length - missed.length;
     slip($('#spot-feedback'), missed.length ? 'wrong' : 'right', null,
-      'You found ' + foundN + ' of ' + FLAWS.length + ' flaws. Final score ' + plain(score) + '. The four fixes, from Chapter 10:',
+      'You found ' + foundN + ' of ' + FLAWS.length + ' flaws. Final score ' + plain(score) + '. The four fixes:',
       FLAWS.map(f => f.name + ': ' + f.flaw.find(r => r.ok).t));
     $('#spot-finish').hidden = true; $('#spot-again').hidden = false;
     paint();

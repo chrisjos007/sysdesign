@@ -4,6 +4,10 @@
 {% block head %}
 {% if request_lesson %}<link rel="stylesheet" href="{% static 'learn/request_lesson.css' %}">{% endif %}
 {% if http_api_lesson %}<link rel="stylesheet" href="{% static 'learn/http_api_lesson.css' %}">{% endif %}
+{% if latency_lesson %}<link rel="stylesheet" href="{% static 'learn/latency_lesson.css' %}">{% endif %}
+{% if concurrency_lesson %}<link rel="stylesheet" href="{% static 'learn/concurrency_lesson.css' %}">{% endif %}
+{% if indexes_lesson %}<link rel="stylesheet" href="{% static 'learn/indexes_lesson.css' %}">{% endif %}
+{% if capacity_lesson %}<link rel="stylesheet" href="{% static 'learn/capacity_lesson.css' %}">{% endif %}
 {% endblock %}
 {% block content %}
 <header class="page-head">
@@ -18,7 +22,7 @@
             {% if request_lesson %}{% include "learn/_request_lesson.html" %}{% elif concept.curriculum %}
             {% with lesson=concept.curriculum %}
             <section class="lesson-brief" aria-labelledby="lesson-brief-title">
-                <p class="meta"><span class="num">{{ lesson.id }}</span> · {{ lesson.stage|capfirst }}{% if lesson.type == 'case_study' %} case study{% endif %} · <span class="num">{{ lesson.minutes }}</span> minutes</p>
+                <p class="meta"><span class="num">{{ lesson.id }}</span> · {{ lesson.level|default:lesson.stage|capfirst }}{% if lesson.type == 'case_study' %} case study{% endif %} · <span class="num">{{ lesson.minutes }}</span> minutes</p>
                 <h2 id="lesson-brief-title" class="lesson-brief__title">What you will be able to do</h2>
                 <ul class="lesson-brief__objectives">{% for objective in lesson.objectives %}<li>{{ objective }}</li>{% endfor %}</ul>
                 {% if lesson.prerequisites %}
@@ -29,6 +33,10 @@
             {% endif %}
 
             {% if http_api_lesson %}{% include "learn/_http_api_lesson.html" %}{% endif %}
+            {% if latency_lesson %}{% include "learn/_latency_lesson.html" %}{% endif %}
+            {% if concurrency_lesson %}{% include "learn/_concurrency_lesson.html" %}{% endif %}
+            {% if indexes_lesson %}{% include "learn/_indexes_lesson.html" %}{% endif %}
+            {% if capacity_lesson %}{% include "learn/_capacity_lesson.html" %}{% endif %}
 
             {% if concept.notes_sections %}
             <div class="notes-toolbar">
@@ -95,6 +103,39 @@
             <div class="card__pad">
                 <h2 id="play-title">Play to learn</h2>
                 <div class="activities">
+                    {% if capacity_lesson %}
+                    <a href="#capacity-demand" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-study"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Estimate the workload</span><span class="activity__sub">Traffic, retention, and failure headroom</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endif %}
+                    {% if indexes_lesson %}
+                    <a href="#indexes-access" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-study"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Compare query paths</span><span class="activity__sub">Filters, ordering, and rows examined</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endif %}
+                    {% if concurrency_lesson %}
+                    <a href="#concurrency-race" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-order"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Reproduce a lost update</span><span class="activity__sub">Two workers, one shared balance</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endif %}
+                    {% if latency_lesson %}
+                    <a href="#latency-queue" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-order"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Build and drain a queue</span><span class="activity__sub">Arrivals, capacity, and waiting work</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    <a href="#latency-tail" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-study"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">Find the slow requests</span><span class="activity__sub">Compare averages and percentiles</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endif %}
                     {% if request_lesson %}
                     <a href="#request-trace-title" class="card activity">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-order"/></svg></span>
@@ -157,6 +198,13 @@
                     <a href="{% url 'learn:ring_challenge' rc.slug %}" class="card activity">
                         <span class="activity__glyph"><svg class="icon"><use href="#i-ring"/></svg></span>
                         <span class="activity__main"><span class="activity__title">{{ rc.title }}</span><span class="activity__sub">Ring Balancer</span></span>
+                        <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
+                    </a>
+                    {% endfor %}
+                    {% for bc in bit_budget_challenges %}
+                    <a href="{% url 'learn:bit_budget_challenge' bc.slug %}" class="card activity">
+                        <span class="activity__glyph"><svg class="icon"><use href="#i-bits"/></svg></span>
+                        <span class="activity__main"><span class="activity__title">{{ bc.title }}</span><span class="activity__sub">Bit Budget</span></span>
                         <svg class="icon icon--sm"><use href="#i-chevron-right"/></svg>
                     </a>
                     {% endfor %}
@@ -223,6 +271,22 @@
 {% endblock %}
 
 {% block scripts %}
+{% if capacity_lesson %}
+<script src="{% static 'learn/capacity_model.js' %}" defer></script>
+<script src="{% static 'learn/capacity_lesson.js' %}" defer></script>
+{% endif %}
+{% if latency_lesson %}
+<script src="{% static 'learn/latency_model.js' %}" defer></script>
+<script src="{% static 'learn/latency_lesson.js' %}" defer></script>
+{% endif %}
+{% if concurrency_lesson %}
+<script src="{% static 'learn/concurrency_model.js' %}" defer></script>
+<script src="{% static 'learn/concurrency_lesson.js' %}" defer></script>
+{% endif %}
+{% if indexes_lesson %}
+<script src="{% static 'learn/indexes_model.js' %}" defer></script>
+<script src="{% static 'learn/indexes_lesson.js' %}" defer></script>
+{% endif %}
 {% if http_api_lesson %}
 <script src="{% static 'learn/http_contract_model.js' %}" defer></script>
 <script src="{% static 'learn/http_api_lesson.js' %}" defer></script>

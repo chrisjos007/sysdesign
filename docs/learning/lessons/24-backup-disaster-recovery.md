@@ -1,6 +1,6 @@
 # Backups, restore drills, and disaster recovery
 
-ID: sd-24 | Stage 4: production | Suggested study: 40 minutes
+ID: sd-24 | Level: Advanced | Stage 4: Operate reliably | Suggested study: 40 minutes
 
 Prerequisites: sd-06, sd-11, sd-16, sd-19
 

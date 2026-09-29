@@ -1,0 +1,53 @@
+<section class="indexes-lesson" id="indexes-lesson" aria-labelledby="indexes-title">
+    <h2 id="indexes-title">Same answer. Less data to read.</h2>
+    <p>An index gives a query another route to its rows. Try three routes, then explain the work each one avoids.</p>
+    <p class="meta">Unscored browser exercise. Reloading resets your choices; the quiz still drives XP and review.</p>
+
+    <section class="indexes-lab" id="indexes-access" aria-labelledby="indexes-access-title">
+        <h3 id="indexes-access-title">Find the newest open orders</h3>
+        <pre><code>SELECT * FROM orders
+WHERE tenant_id = 7 AND status = 'open'
+ORDER BY created_at DESC, id DESC
+LIMIT 20;</code></pre>
+        <p>Our small dataset has 1,000 orders across 10 tenants, with 100 orders per tenant. Predict which path needs a separate sort.</p>
+        <div class="indexes-controls" data-indexes-interactive hidden>
+            <div><label for="indexes-workload">Tenant workload</label><select id="indexes-workload"><option value="sparse">10 open orders per tenant</option><option value="busy">90 open orders per tenant</option></select></div>
+            <div><label for="indexes-path">Access path to explore</label><select id="indexes-path"><option value="scan">Sequential scan</option><option value="tenant">Index on (tenant_id)</option><option value="composite">Index on (tenant_id, status, created_at, id)</option></select></div>
+        </div>
+        <div role="status" aria-live="polite" aria-atomic="true">
+            <p class="indexes-result" id="indexes-summary">Sequential scan: examine 1,000 rows, sort 10 matches, return 10 orders.</p>
+            <p id="indexes-explanation">The limit bounds the answer, but this path still checks the whole table before sorting its matches.</p>
+        </div>
+        <details open><summary>Follow the work</summary><ol id="indexes-steps"><li>Read every table row.</li><li>Filter for tenant 7 and open status.</li><li>Sort the 10 matches.</li><li>Return the 10 orders.</li></ol></details>
+        <details><summary>Check the returned order IDs</summary><p id="indexes-ids">97, 87, 77, 67, 57, 47, 37, 27, 17, 7</p><p>All three paths return the same IDs in the same order. The unique ID breaks ties between equal timestamps.</p></details>
+        <details><summary>Why put these columns together?</summary><p>The equality filters select a tenant and status. Within that range, a backward scan of this ascending B-tree supplies created_at and id in descending order. With enough matches it can stop after 20. An index on tenant_id alone does not supply that ordering.</p></details>
+        <p class="meta">Logical rows or index entries examined, not disk pages, planner costs, or measured milliseconds. Index seek work, heap visibility checks, caching, and alternative plans are omitted. Choosing a path here does not force a real database to choose it.</p>
+        <p>More indexes cost storage and write maintenance. A query returning most of a table may favor a sequential scan. Validate the candidate with representative data and measured plans, including large tenants; fewer entries here is not a latency guarantee.</p>
+    </section>
+
+    <section class="indexes-lab" aria-labelledby="indexes-plan-title">
+        <h3 id="indexes-plan-title">Read the estimate, then the evidence</h3>
+        <p>This invented inner scan from a nested-loop plan completes 50 times, with no LIMIT stopping it early. Compare its estimated output per execution with its measured average.</p>
+        <pre><code id="indexes-plan">Index Scan on orders (rows=1)
+  (actual rows=10 loops=50)</code></pre>
+        <div data-indexes-interactive hidden><label for="indexes-estimate">Estimated rows per execution</label><select id="indexes-estimate"><option value="1">1 — underestimated</option><option value="10">10 — matches this observation</option></select></div>
+        <p id="indexes-plan-result" class="indexes-result" role="status" aria-live="polite">Actual output is 10× the estimate per execution; 500 rows are emitted across 50 loops.</p>
+        <details><summary>What should you investigate?</summary><p>Check statistics freshness and data skew. These row counts describe output, not every row inspected. A cost is not milliseconds. Here actual rows is an average per loop, so multiply it by loops for total output. Matching the estimate does not remove repeated work or prove a query is fast.</p></details>
+        <p><code>EXPLAIN</code> shows a planned strategy. <code>EXPLAIN ANALYZE</code> executes the statement to measure it, including writes and side-effecting functions. Use a disposable environment for experiments with effects.</p>
+    </section>
+
+    <section class="indexes-lab" aria-labelledby="indexes-queries-title">
+        <h3 id="indexes-queries-title">An index cannot remove 51 round trips</h3>
+        <p>A dashboard fetches projects, then fetches each owner separately. Assume each project has one owner and there is no application cache. Predict the query count before changing the fetching strategy.</p>
+        <div class="indexes-controls" data-indexes-interactive hidden>
+            <div><label for="indexes-projects">Projects on the page</label><select id="indexes-projects"><option value="50">50 projects</option><option value="10">10 projects</option><option value="1">1 project</option></select></div>
+            <div><label for="indexes-fetch">Fetch owners using</label><select id="indexes-fetch"><option value="individual">One query per project</option><option value="join">A join in the projects query</option><option value="batch">One extra query for all owner IDs</option></select></div>
+        </div>
+        <p class="indexes-result" id="indexes-query-result" role="status" aria-live="polite">50 projects → 51 queries.</p>
+        <details><summary>Compare your reasoning</summary><p>For 50 projects, separate lookups cost 1 + 50 = 51 queries. A join fetches projects and owners in one query. A bounded batch fetch uses two queries. An owner index may speed up each lookup, but leaves the separate round trips. Inspect query count, join keys, returned data size, and measured plans together.</p></details>
+        <a class="btn btn--primary" href="{% url 'learn:concept_quiz' concept.slug %}">Check your understanding <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg></a>
+    </section>
+    <noscript><p>Enable JavaScript to compare the paths and fetching strategies. The worked examples and explanations above remain available without it.</p></noscript>
+    <p class="meta">Original teaching examples grounded in PostgreSQL’s <a href="https://www.postgresql.org/docs/18/using-explain.html">Using EXPLAIN</a>, <a href="https://www.postgresql.org/docs/18/indexes-multicolumn.html">Multicolumn Indexes</a>, and <a href="https://www.postgresql.org/docs/18/indexes-ordering.html">Indexes and ORDER BY</a>.</p>
+    <h3 class="indexes-notes-heading">Study notes</h3>
+</section>

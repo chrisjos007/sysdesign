@@ -1,6 +1,6 @@
 # Logs, metrics, traces, and useful observability
 
-ID: sd-20 | Stage 4: production | Suggested study: 35 minutes
+ID: sd-20 | Level: Advanced | Stage 4: Operate reliably | Suggested study: 35 minutes
 
 Prerequisites: sd-07, sd-10, sd-19
 

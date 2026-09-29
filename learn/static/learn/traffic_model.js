@@ -7,7 +7,7 @@
 
   var TICKS = 144;
   var TICKS_PER_HOUR = 6;
-  var REPEAT_SHARE_301 = 0.65;
+  var BROWSER_CACHE_SHARE = 0.65;
   var CACHE_MISS = 0.15;
   var CACHE_MISS_HOT = 0.01;
 
@@ -34,21 +34,21 @@
   }
 
   window.TrafficModel = function (params) {
-    function demand(i, redirect) {
+    function demand(i, browserCache) {
       var hr = (i + 0.5) / TICKS_PER_HOUR;
       var f = shape(hr);
       var reads = params.reads_per_sec * f;
-      var viral = spikeAt(hr, params.spike);
+      var hot = spikeAt(hr, params.spike);
       var writes = params.writes_per_sec * f;
-      if (redirect === 301) { reads *= REPEAT_SHARE_301; viral *= REPEAT_SHARE_301; }
-      return { reads: reads, viral: viral, writes: writes, total: reads + viral + writes };
+      if (browserCache) { reads *= BROWSER_CACHE_SHARE; hot *= BROWSER_CACHE_SHARE; }
+      return { reads: reads, hot: hot, writes: writes, total: reads + hot + writes };
     }
 
     function simulateTick(i, cfg) {
-      var d = demand(i, cfg.redirect);
+      var d = demand(i, cfg.browser_cache);
       var cost = params.hourly_cost;
       var uApp = d.total / (cfg.servers * params.app_capacity);
-      var dbReads = cfg.cache ? d.reads * CACHE_MISS + d.viral * CACHE_MISS_HOT : d.reads + d.viral;
+      var dbReads = cfg.cache ? d.reads * CACHE_MISS + d.hot * CACHE_MISS_HOT : d.reads + d.hot;
       var nodes = 1 + cfg.replicas;
       var uDb = (d.writes + dbReads / nodes) / params.db_capacity;
       var touchDb = (dbReads + d.writes) / d.total;
@@ -61,9 +61,9 @@
       return {
         i: i, demand: d.total, capacity: cfg.servers * params.app_capacity, p99: p99, err: err, cost: tickCost,
         uApp: uApp, uDb: uDb, uReplica: cfg.replicas ? (dbReads / nodes) / params.db_capacity : 0,
-        hitRate: cfg.cache ? 1 - dbReads / (d.reads + d.viral) : 0,
+        hitRate: cfg.cache ? 1 - dbReads / (d.reads + d.hot) : 0,
         breach: p99 > params.slo.p99_ms || err > params.slo.error_rate,
-        cfg: { servers: cfg.servers, replicas: cfg.replicas, cache: cfg.cache, redirect: cfg.redirect }
+        cfg: { servers: cfg.servers, replicas: cfg.replicas, cache: cfg.cache, browser_cache: cfg.browser_cache }
       };
     }
 

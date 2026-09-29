@@ -1,6 +1,6 @@
 # Sagas and compensating actions
 
-ID: sd-17 | Stage 3: advanced | Suggested study: 40 minutes
+ID: sd-17 | Level: Advanced | Stage 3: Handle distributed failures | Suggested study: 40 minutes
 
 Prerequisites: sd-14, sd-15, sd-16
 

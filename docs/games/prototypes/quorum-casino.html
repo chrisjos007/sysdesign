@@ -368,7 +368,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-quorum" data-game="quorum" data-stock="3">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 6: Design a Key-Value Store · DDIA Chapter 5: Replication</p>
+        <p class="label src">Idea based on sd-25 Consistency and histories</p>
         <h2>Quorum Casino</h2>
         <p class="lede">Three replicas hold the key x. Step through writes, crashes and partitions. Before each read, bet how likely it is to return the last successful write.</p>
       </div>
@@ -548,7 +548,7 @@ function initQuorum() {
         { t: 'status', set: { C: 'up' }, say: 'C recovers, still holding x = 1.' },
         { t: 'read' },
       ],
-      outro: 'W = N makes writes fragile: one crashed replica turns every write into a failure. Worse, a failed write is not rolled back on the replicas that applied it, so reads can return a value the client was told never saved (DDIA Chapter 5, limitations of quorum consistency).' },
+      outro: 'W = N makes writes fragile: with one replica down, no write can succeed. And a write reported as failed may still sit on the replicas that stored it, since nothing undid it there, so a later read can return a value the client was told was never saved (sd-25).' },
   ];
   let hi, si, reps, ver, latest, score, pending, handDone, finished;
 

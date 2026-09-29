@@ -1,0 +1,27 @@
+/* Continue the lesson pages' ruled card stock, Archivo type, and cobalt actions. */
+.latency-lesson { margin-top: var(--s6); }
+.latency-lesson [hidden] { display: none !important; }
+.latency-lesson h2 { font-size: var(--fs-xl); }
+.latency-lesson h3 { font-size: var(--fs-lg); }
+.latency-lesson p { max-width: 68ch; }
+.latency-lesson > p { margin-top: var(--s3); }
+.latency-lab, .latency-notes-heading { margin-top: var(--s6); padding-top: var(--s5); border-top: 1px solid var(--card-edge); scroll-margin-top: 5rem; }
+.latency-lab > * + *, .latency-lab [role="status"] > * + * { margin-top: var(--s4); }
+.latency-controls { display: grid; gap: var(--s4); }
+.latency-controls label { display: block; font-size: var(--fs-sm); }
+.latency-controls output { font-weight: 600; font-variant-numeric: tabular-nums; }
+.latency-controls input { display: block; width: 100%; min-height: 44px; accent-color: var(--cobalt); cursor: pointer; }
+.latency-lesson :is(input, button, summary):focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+.latency-lab .btn { min-height: 44px; white-space: normal; font-size: var(--fs-sm); }
+.latency-lab [aria-pressed="true"] { background: var(--cobalt); border-color: var(--cobalt); color: var(--card); }
+.latency-lab [aria-pressed="true"]:hover { background: var(--cobalt-press); }
+.latency-equation { padding: var(--s4); background: var(--card-back); font-weight: 600; font-variant-numeric: tabular-nums; }
+.latency-stats { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); }
+.latency-stats dt { color: var(--ink-3); font-size: var(--fs-sm); }
+.latency-stats dd { margin: var(--s1) 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.latency-distribution { display: flex; height: 28px; background: var(--card-back); }
+#latency-fast-bar { width: 99%; background: var(--cobalt); }
+#latency-slow-bar { width: 1%; background: var(--ink); }
+.latency-lesson summary { cursor: pointer; color: var(--cobalt); min-height: 44px; padding: var(--s3) 0; }
+.latency-lesson summary:hover { color: var(--cobalt-press); }
+@media (min-width: 1200px) { .latency-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

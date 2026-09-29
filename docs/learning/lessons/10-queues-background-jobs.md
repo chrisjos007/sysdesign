@@ -1,6 +1,6 @@
 # Queues and background jobs
 
-ID: sd-10 | Stage 2: intermediate | Suggested study: 35 minutes
+ID: sd-10 | Level: Intermediate | Stage 2: Scale a service | Suggested study: 35 minutes
 
 Prerequisites: sd-02, sd-03, sd-04
 

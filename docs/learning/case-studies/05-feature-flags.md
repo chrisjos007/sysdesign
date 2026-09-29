@@ -1,6 +1,6 @@
 # Design a feature-flag service
 
-ID: cs-05 | Stage: production | Suggested study: 75 minutes
+ID: cs-05 | Level: Advanced | Stage: Operate reliably | Suggested study: 75 minutes
 
 Prerequisites: sd-08, sd-14, sd-16, sd-19, sd-20, sd-22, sd-23
 

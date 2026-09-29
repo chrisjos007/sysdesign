@@ -1,6 +1,6 @@
 # Latency, throughput, and queueing
 
-ID: sd-03 | Stage 1: beginner | Suggested study: 30 minutes
+ID: sd-03 | Level: Beginner | Stage 1: Understand a request | Suggested study: 30 minutes
 
 Prerequisites: sd-01
 

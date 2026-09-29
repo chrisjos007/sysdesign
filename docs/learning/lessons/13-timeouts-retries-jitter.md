@@ -1,6 +1,6 @@
 # Timeouts, retries, and jitter
 
-ID: sd-13 | Stage 3: advanced | Suggested study: 35 minutes
+ID: sd-13 | Level: Advanced | Stage 3: Handle distributed failures | Suggested study: 35 minutes
 
 Prerequisites: sd-02, sd-03, sd-10
 

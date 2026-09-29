@@ -24,7 +24,7 @@ TOPIC_TAB_LABELS = {
     'system-design-fundamentals': 'Fundamentals',
     'scale-a-service': 'Scaling',
     'distributed-failures': 'Failures',
-    'operate-reliably': 'Production',
+    'operate-reliably': 'Operations',
     'reason-about-guarantees': 'Guarantees',
     'system-design-case-studies': 'Case Studies',
     'operating-systems-linux': 'OS',
@@ -41,6 +41,7 @@ CHALLENGE_ROUTES = {
     'traffic_challenge': ('TrafficChallenge', 'Traffic Day'),
     'quorum_challenge': ('QuorumChallenge', 'Quorum Casino'),
     'ring_challenge': ('RingChallenge', 'Ring Balancer'),
+    'bit_budget_challenge': ('BitBudgetChallenge', 'Bit Budget'),
 }
 
 
@@ -58,14 +59,15 @@ def _resolve_location(request):
     breadcrumb trail back up to it, from the resolved URL alone, so no view
     has to pass navigation context by hand."""
     from .models import (
-        Chapter, CodingChallenge, Concept, DesignChallenge, FlawChallenge, MatchingChallenge,
-        OrderingChallenge, QuorumChallenge, RingChallenge, Topic, TrafficChallenge,
+        BitBudgetChallenge, Chapter, CodingChallenge, Concept, DesignChallenge, FlawChallenge,
+        MatchingChallenge, OrderingChallenge, QuorumChallenge, RingChallenge, Topic, TrafficChallenge,
     )
     models = {
         'DesignChallenge': DesignChallenge, 'MatchingChallenge': MatchingChallenge,
         'OrderingChallenge': OrderingChallenge, 'CodingChallenge': CodingChallenge,
         'FlawChallenge': FlawChallenge, 'TrafficChallenge': TrafficChallenge,
         'QuorumChallenge': QuorumChallenge, 'RingChallenge': RingChallenge,
+        'BitBudgetChallenge': BitBudgetChallenge,
     }
     match = getattr(request, 'resolver_match', None)
     if not match or match.app_name != 'learn':

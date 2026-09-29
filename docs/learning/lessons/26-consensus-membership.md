@@ -1,6 +1,6 @@
 # Consensus, leader changes, and membership
 
-ID: sd-26 | Stage 5: expert | Suggested study: 50 minutes
+ID: sd-26 | Level: Advanced | Stage 5: Reason about guarantees | Suggested study: 50 minutes
 
 Prerequisites: sd-13, sd-15, sd-25
 

@@ -1,6 +1,6 @@
 # Partitioning, hot keys, and consistent hashing
 
-ID: sd-31 | Stage 2: intermediate | Suggested study: 35 minutes
+ID: sd-31 | Level: Intermediate | Stage 2: Scale a service | Suggested study: 35 minutes
 
 Prerequisites: sd-05, sd-06, sd-08
 

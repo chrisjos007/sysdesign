@@ -377,13 +377,13 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
 </nav>
 
 <main class="page">
-  <p class="lab-note">Seven playable prototypes for new "Play to learn" games. Tab numbers match the idea list. Every game keeps the app's rule that guessing costs points, works by tapping, and names the chapter it teaches.</p>
+  <p class="lab-note">Seven playable prototypes for new "Play to learn" games. Tab numbers match the idea list. Every game keeps the app's rule that guessing costs points, works by tapping, and names the curriculum lesson it teaches.</p>
 
   <!-- ============ SPOT THE FLAW ============ -->
   <section class="game" id="panel-spot" role="tabpanel" aria-labelledby="tab-spot" data-game="spot" data-stock="4">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 10: Design a Notification System</p>
+        <p class="label src">Idea based on sd-10 Queues and background jobs · superseded by the live Spot the Flaw</p>
         <h2>Spot the Flaw</h2>
         <p class="lede">This notification system has four planted design mistakes. Tap each part you think is wrong, then say why.</p>
       </div>
@@ -423,7 +423,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic" data-game="traffic" data-stock="1" hidden>
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 1: Scale From Zero to Millions · Chapter 8: Design a URL Shortener</p>
+        <p class="label src">Idea based on sd-08 Caching and sd-06 Capacity · superseded by the live Traffic Day</p>
         <h2>Traffic Day</h2>
         <p class="lede">Run a URL shortener through one day of traffic: 11,600 reads and 1,160 writes per second on average, and a viral link at 19:00. Change the design at any time, even mid-run. Any design that stays inside the SLO passes.</p>
       </div>
@@ -476,7 +476,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-quorum" role="tabpanel" aria-labelledby="tab-quorum" data-game="quorum" data-stock="3" hidden>
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 6: Design a Key-Value Store · DDIA Chapter 5: Replication</p>
+        <p class="label src">Idea based on sd-25 Consistency and histories</p>
         <h2>Quorum Casino</h2>
         <p class="lede">Three replicas hold the key x. Step through writes, crashes and partitions. Before each read, bet how likely it is to return the last successful write.</p>
       </div>
@@ -518,7 +518,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-ring" role="tabpanel" aria-labelledby="tab-ring" data-game="ring" data-stock="2" hidden>
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 5: Design Consistent Hashing</p>
+        <p class="label src">Idea based on sd-31 Partitioning and consistent hashing</p>
         <h2>Ring Balancer</h2>
         <p class="lede">2,000 cache keys sit on a hash ring. Each key belongs to the first server position clockwise from it. Balance the load, survive a crash, and make room for a bigger machine.</p>
       </div>
@@ -557,9 +557,9 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-bits" role="tabpanel" aria-labelledby="tab-bits" data-game="bits" data-stock="2" hidden>
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 7: Design a Unique ID Generator in Distributed Systems</p>
+        <p class="label src">Idea: time-ordered unique IDs (no curriculum lesson yet)</p>
         <h2>Bit Budget</h2>
-        <p class="lede">A Snowflake ID packs a timestamp, datacenter, machine and sequence number into one integer. Split the bits to meet each spec, or prove the spec can't be met.</p>
+        <p class="lede">A time-ordered 64-bit ID packs a timestamp, datacenter, machine and sequence number into one integer. Split the bits to meet each spec, or prove the spec can't be met.</p>
       </div>
       <div class="tally"><span class="label">Score</span><strong id="score-bits">0</strong></div>
     </div>
@@ -618,7 +618,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-estim" role="tabpanel" aria-labelledby="tab-estim" data-game="estim" data-stock="1" hidden>
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 2: Back-of-the-Envelope Estimation</p>
+        <p class="label src">Idea based on sd-06 Requirements and capacity</p>
         <h2>Estimathon</h2>
         <p class="lede">Give a range, not a single number. You only score if the true answer lands inside it, and narrower ranges score more.</p>
       </div>
@@ -658,7 +658,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-deck" role="tabpanel" aria-labelledby="tab-deck" data-game="deck" data-stock="5" hidden>
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">Boss fight · draws on Chapters 1, 4, 5 and 10</p>
+        <p class="label src">Boss fight · draws on sd-08, sd-10, sd-13, sd-18 and sd-31</p>
         <h2>Pattern Deck</h2>
         <p class="lede">Your cards are design patterns. Cards whose concept is due in Daily Review are rusty and hit at half strength. Answer a review question to sharpen one; miss it and the card is gone for the fight.</p>
       </div>
@@ -994,7 +994,7 @@ function initSpot() {
     $('#spot-msg').textContent = 'Review closed. Tap any part to read why it is fine or flawed.';
     const foundN = FLAWS.length - missed.length;
     slip($('#spot-feedback'), missed.length ? 'wrong' : 'right', null,
-      'You found ' + foundN + ' of ' + FLAWS.length + ' flaws. Final score ' + plain(score) + '. The four fixes, from Chapter 10:',
+      'You found ' + foundN + ' of ' + FLAWS.length + ' flaws. Final score ' + plain(score) + '. The four fixes:',
       FLAWS.map(f => f.name + ': ' + f.flaw.find(r => r.ok).t));
     $('#spot-finish').hidden = true; $('#spot-again').hidden = false;
     paint();
@@ -1150,7 +1150,7 @@ function initTraffic() {
     const lessons = [];
     if (noCacheTicks > 40) lessons.push("Without a cache, every redirect is a database read. A URL shortener serves about 10 reads per write, so the database gives out first.");
     if (spikeBreaches) lessons.push('The viral link needed about 10 app servers for 90 minutes. A cache soaks up that one hot URL, but every request still passes through an app server.');
-    if (used301) lessons.push("301s cut server load because browsers stop asking, but marketing lost click analytics (−250). That's why Chapter 8 prefers 302 when analytics matter.");
+    if (used301) lessons.push("301s cut server load because browsers stop asking, but marketing lost click analytics (−250). Use 302 when clicks must be counted.");
     if (serverSpend > 250) lessons.push('You paid for peak capacity for most of the day. Scaling in overnight is where the budget goes furthest.');
     if (!breaches) lessons.push('No SLO breaches all day.');
     slip($('#tr-result'), breaches ? 'wrong' : 'right', score,
@@ -1282,7 +1282,7 @@ function initQuorum() {
         { t: 'status', set: { C: 'up' }, say: 'C recovers, still holding x = 1.' },
         { t: 'read' },
       ],
-      outro: 'W = N makes writes fragile: one crashed replica turns every write into a failure. Worse, a failed write is not rolled back on the replicas that applied it, so reads can return a value the client was told never saved (DDIA Chapter 5, limitations of quorum consistency).' },
+      outro: 'W = N makes writes fragile: with one replica down, no write can succeed. And a write reported as failed may still sit on the replicas that stored it, since nothing undid it there, so a later read can return a value the client was told was never saved (sd-25).' },
   ];
   let hi, si, reps, ver, latest, score, pending, handDone, finished;
 
@@ -1574,7 +1574,7 @@ function initRing() {
         () => {
           servers[2].alive = true; mode = 'mod'; recompute(false);
           servers[2].alive = false; refresh(true);
-          setTask(1, 'Under hash % N, most keys moved. For a cache, that means most requests miss at once and hit the database: the cache stampede from Chapter 5.');
+          setTask(1, 'Under hash % N, most keys moved. For a cache, that means most requests miss at once and hit the database: a cache stampede (sd-08).');
           $('#ring-next').hidden = false;
         });
       });
@@ -1639,7 +1639,7 @@ function initBits() {
     { k: 'ts', name: 'Timestamp', color: '--srv-1' }, { k: 'dc', name: 'Datacenter', color: '--srv-2' },
     { k: 'm', name: 'Machine', color: '--srv-3' }, { k: 'seq', name: 'Sequence', color: '--srv-4' }];
   const LEVELS = [
-    { name: 'Spec 1: Twitter-style IDs', width: 64, total: 63, start: { ts: 32, dc: 10, m: 10, seq: 11 }, epoch: 1970, lock: false,
+    { name: 'Spec 1: IDs for one busy service', width: 64, total: 63, start: { ts: 32, dc: 10, m: 10, seq: 11 }, epoch: 1970, lock: false,
       req: { dc: 32, m: 32, seq: 4096, until: 2080 }, possible: true,
       intro: ['A signed 64-bit integer. The top bit stays 0 so IDs are positive.'] },
     { name: 'Spec 2: Twenty years of legacy', width: 64, total: 63, start: { ts: 41, dc: 5, m: 5, seq: 12 }, epoch: 1970, lock: true,
@@ -1715,7 +1715,7 @@ function initBits() {
     alloc = { ...lv.start }; epoch = lv.epoch;
     FIELDS.forEach(f => steppers[f.k].set(alloc[f.k], true));
     epochSeg.set(epoch, true); epochSeg.disable(lv.lock);
-    $('#bits-epoch-note').textContent = lv.lock ? 'Locked to 1970 for this spec.' : 'Custom epochs start the clock at your launch, as Twitter did.';
+    $('#bits-epoch-note').textContent = lv.lock ? 'Locked to 1970 for this spec.' : 'A custom epoch starts the clock at your launch.';
     const r = lv.req;
     $('#bits-spec').replaceChildren(h('h3', {}, lv.name), h('p', { class: 'meta', style: 'margin-top: var(--s1)' }, lv.intro[0] + ' ' + lv.total + ' bits to spend.'),
       h('ul', {}, h('li', {}, r.dc + ' datacenters'), h('li', {}, r.m + ' machines in each datacenter'),
@@ -1769,7 +1769,7 @@ function initBits() {
       { t: 'Switch to a random machine ID until the clock catches up.' }]);
     $('#bits-clock-q').replaceChildren(...opts.map(o => h('button', { type: 'button', class: 'reason', onclick: () => {
       $$('#bits-clock-q .reason').forEach(b => { b.disabled = true; });
-      const why = 'Timestamps …809 to …812 were already used with sequence numbers starting at 0, so issuing at …809 can repeat an ID that already exists. Real generators detect the backward step and stall until the clock catches up (the clock-skew deep dive in Chapter 7).';
+      const why = 'Timestamps …809 to …812 were already used with sequence numbers starting at 0, so issuing at …809 can repeat an ID that already exists. Real generators detect the backward step and stall until the clock catches up.';
       if (o.ok) { add(50); slip($('#bits-clock-feedback'), 'right', 50, 'Right. ' + why); }
       else { add(-25); slip($('#bits-clock-feedback'), 'wrong', -25, 'That risks duplicates. ' + why); }
       $('#bits-restart').hidden = false;
@@ -1784,27 +1784,27 @@ function initBits() {
    ===================================================================== */
 function initEstim() {
   const Q = [
-    { q: 'Average tweets posted per second', unit: 'rate', min: 0, max: 8, ans: 300e6 * 0.5 * 2 / 86400,
-      assume: ['300 million monthly active users', '50% of them use the service every day', 'Each daily user posts 2 tweets a day'],
-      why: '300M × 50% = 150M daily users. × 2 = 300M tweets a day. ÷ 86,400 seconds ≈ 3,500 tweets a second.' },
-    { q: 'New media storage per day', unit: 'bytes', min: 9, max: 18, ans: 30e12,
-      assume: ['300 million tweets a day (from the last question)', '10% of tweets carry media', 'Average media file is 1 MB'],
-      why: '300M × 10% = 30M media files a day. × 1 MB = 30 TB a day.' },
-    { q: 'Media storage needed for 5 years', unit: 'bytes', min: 12, max: 20, ans: 30e12 * 365 * 5,
-      assume: ['30 TB of new media a day', 'Nothing is deleted'],
-      why: '30 TB × 365 × 5 ≈ 55 PB.' },
-    { q: 'URL shortener: storage for 10 years of links', unit: 'bytes', min: 9, max: 18, ans: 100e6 * 365 * 10 * 100,
-      assume: ['100 million new short URLs a day', 'Each record averages 100 bytes', 'Keep every link for 10 years'],
-      why: '100M × 365 × 10 = 365 billion records. × 100 bytes = 36.5 TB.' },
+    { q: 'Average quiz answers submitted per second', unit: 'rate', min: 0, max: 8, ans: 2e6 * 0.1 * 30 / 86400,
+      assume: ['2 million registered learners', '10% of them study on a given day', 'Each learner who studies answers 30 questions'],
+      why: '2M × 10% = 200,000 learners a day. × 30 = 6 million answers a day. ÷ 86,400 seconds ≈ 69 answers a second.' },
+    { q: 'New audio storage per day', unit: 'bytes', min: 9, max: 18, ans: 6e6 * 0.05 * 200e3,
+      assume: ['6 million answers a day (from the last question)', '5% of answers are spoken and saved as audio', 'Average recording is 200 KB'],
+      why: '6M × 5% = 300,000 recordings a day. × 200 KB = 60 GB a day.' },
+    { q: 'Audio storage needed for 3 years', unit: 'bytes', min: 9, max: 18, ans: 60e9 * 365 * 3,
+      assume: ['60 GB of new audio a day', 'Nothing is deleted'],
+      why: '60 GB × 365 × 3 ≈ 66 TB, before replicas and backups.' },
+    { q: 'Progress records kept for 5 years', unit: 'bytes', min: 9, max: 18, ans: 200e3 * 40 * 120 * 365 * 5,
+      assume: ['200,000 learners study each day', 'Each writes 40 progress events a day', 'Each event row averages 120 bytes', 'Keep every row for 5 years'],
+      why: '200,000 × 40 = 8 million rows a day. × 120 bytes ≈ 0.96 GB a day. × 365 × 5 ≈ 1.75 TB.' },
     { q: 'One network round trip inside a datacenter', unit: 'time', min: -9, max: 0, ans: 500e-6,
-      assume: ['From the latency numbers table in the chapter notes'],
-      why: 'About 500 µs. That is 5,000 times slower than a RAM reference (about 100 ns).' },
+      assume: ['An order-of-magnitude hardware figure; measure your own network'],
+      why: 'Hundreds of microseconds; take about 500 µs. That is thousands of times slower than a main-memory reference (about 100 ns).' },
     { q: 'One random read from an SSD', unit: 'time', min: -9, max: 0, ans: 100e-6,
-      assume: ['From the latency numbers table in the chapter notes'],
-      why: 'About 100 µs: 1,000 times slower than memory, but 100 times faster than a spinning-disk seek (about 10 ms).' },
-    { q: 'One network round trip between the US and Europe', unit: 'time', min: -9, max: 0, ans: 150e-3,
-      assume: ['From the latency numbers table in the chapter notes'],
-      why: 'About 150 ms, set by the speed of light in fiber. No amount of hardware makes this faster, which is why CDNs exist.' },
+      assume: ['An order-of-magnitude hardware figure; fast NVMe drives do better'],
+      why: 'Tens to a hundred microseconds; take about 100 µs. Around a thousand times slower than memory, and about a hundred times faster than a spinning-disk seek (about 10 ms).' },
+    { q: 'One network round trip between California and western Europe', unit: 'time', min: -9, max: 0, ans: 150e-3,
+      assume: ['Light in optical fiber covers about 200 km per millisecond'],
+      why: 'About 150 ms. The distance and the cable routes set it, so no hardware upgrade removes it, which is why CDNs exist.' },
   ];
   let qi, score, locked;
   function fmtv(v, unit) {
@@ -1897,17 +1897,17 @@ function initDeck() {
   };
   const SCHEDULE = { ring: -3, queue: 0, cache: -1, backoff: 2, replica: 5, limiter: 1, scale: 9 };
   const CARDS = {
-    ring: { name: 'Consistent Hashing', cost: 2, kind: 'Power', src: 'Ch. 5',
+    ring: { name: 'Consistent Hashing', cost: 2, kind: 'Power', src: 'sd-31',
       text: sh => 'Stays in play. A lost cache node only misses its own slice of keys: "Cache node lost" deals ' + (sh ? 75 : 40) + '% less. Deal ' + (sh ? 4 : 2) + '.' },
-    backoff: { name: 'Exponential Backoff', cost: 1, kind: 'Power', src: 'Ch. 10',
+    backoff: { name: 'Exponential Backoff', cost: 1, kind: 'Power', src: 'sd-13',
       text: sh => 'Stays in play. Retries spread out: each retry hit deals ' + (sh ? 50 : 25) + '% less.' },
-    queue: { name: 'Message Queue', cost: 1, kind: 'Skill', src: 'Ch. 10',
+    queue: { name: 'Message Queue', cost: 1, kind: 'Skill', src: 'sd-10',
       text: sh => 'Absorb this turn\'s attack and drain it evenly over ' + (sh ? 3 : 2) + ' turns.' },
-    replica: { name: 'Read Replica', cost: 1, kind: 'Skill', src: 'Ch. 1', text: sh => 'Block ' + (sh ? 10 : 5) + '.' },
-    cache: { name: 'Cache', cost: 1, kind: 'Attack', src: 'Ch. 1',
+    replica: { name: 'Read Replica', cost: 1, kind: 'Skill', src: 'Scaling', text: sh => 'Block ' + (sh ? 10 : 5) + '.' },
+    cache: { name: 'Cache', cost: 1, kind: 'Attack', src: 'sd-08',
       text: sh => 'Deal ' + (sh ? 9 : 5) + '. If a hot key is coming, also block ' + (sh ? 15 : 8) + ': one key fits in memory.' },
-    limiter: { name: 'Rate Limiter', cost: 1, kind: 'Attack', src: 'Ch. 4', text: sh => 'Block ' + (sh ? 6 : 3) + '. Deal ' + (sh ? 4 : 2) + '.' },
-    scale: { name: 'Bigger DB Server', cost: 2, kind: 'Skill', src: 'Ch. 1',
+    limiter: { name: 'Rate Limiter', cost: 1, kind: 'Attack', src: 'sd-18', text: sh => 'Block ' + (sh ? 6 : 3) + '. Deal ' + (sh ? 4 : 2) + '.' },
+    scale: { name: 'Bigger DB Server', cost: 2, kind: 'Skill', src: 'Scaling',
       text: () => 'Restore ' + [12, 6, 0][Math.min(st.scaled, 2)] + ' health. Costs $300. Vertical scaling has a ceiling.' },
   };
   const DECK = ['ring', 'backoff', 'queue', 'replica', 'replica', 'cache', 'cache', 'limiter', 'limiter', 'scale'];

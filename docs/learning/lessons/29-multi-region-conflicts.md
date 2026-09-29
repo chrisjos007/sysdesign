@@ -1,6 +1,6 @@
 # Multi-region replication and conflict resolution
 
-ID: sd-29 | Stage 5: expert | Suggested study: 50 minutes
+ID: sd-29 | Level: Advanced | Stage 5: Reason about guarantees | Suggested study: 50 minutes
 
 Prerequisites: sd-23, sd-24, sd-25, sd-26, sd-28
 

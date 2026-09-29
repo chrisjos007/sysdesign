@@ -368,7 +368,7 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-ring" data-game="ring" data-stock="2">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 5: Design Consistent Hashing</p>
+        <p class="label src">Idea based on sd-31 Partitioning and consistent hashing</p>
         <h2>Ring Balancer</h2>
         <p class="lede">2,000 cache keys sit on a hash ring. Each key belongs to the first server position clockwise from it. Balance the load, survive a crash, and make room for a bigger machine.</p>
       </div>
@@ -677,7 +677,7 @@ function initRing() {
         () => {
           servers[2].alive = true; mode = 'mod'; recompute(false);
           servers[2].alive = false; refresh(true);
-          setTask(1, 'Under hash % N, most keys moved. For a cache, that means most requests miss at once and hit the database: the cache stampede from Chapter 5.');
+          setTask(1, 'Under hash % N, most keys moved. For a cache, that means most requests miss at once and hit the database: a cache stampede (sd-08).');
           $('#ring-next').hidden = false;
         });
       });

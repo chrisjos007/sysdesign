@@ -368,9 +368,9 @@ input[type="range"] { width: 100%; accent-color: var(--cobalt); margin: 0; min-h
   <section class="game" id="panel-bits" data-game="bits" data-stock="2">
     <div class="game-head">
       <div class="game-head__text">
-        <p class="label src">System Design Interview · Chapter 7: Design a Unique ID Generator in Distributed Systems</p>
+        <p class="label src">Idea: time-ordered unique IDs (no curriculum lesson yet)</p>
         <h2>Bit Budget</h2>
-        <p class="lede">A Snowflake ID packs a timestamp, datacenter, machine and sequence number into one integer. Split the bits to meet each spec, or prove the spec can't be met.</p>
+        <p class="lede">A time-ordered 64-bit ID packs a timestamp, datacenter, machine and sequence number into one integer. Split the bits to meet each spec, or prove the spec can't be met.</p>
       </div>
       <div class="tally"><span class="label">Score</span><strong id="score-bits">0</strong></div>
     </div>
@@ -535,7 +535,7 @@ function initBits() {
     { k: 'ts', name: 'Timestamp', color: '--srv-1' }, { k: 'dc', name: 'Datacenter', color: '--srv-2' },
     { k: 'm', name: 'Machine', color: '--srv-3' }, { k: 'seq', name: 'Sequence', color: '--srv-4' }];
   const LEVELS = [
-    { name: 'Spec 1: Twitter-style IDs', width: 64, total: 63, start: { ts: 32, dc: 10, m: 10, seq: 11 }, epoch: 1970, lock: false,
+    { name: 'Spec 1: IDs for one busy service', width: 64, total: 63, start: { ts: 32, dc: 10, m: 10, seq: 11 }, epoch: 1970, lock: false,
       req: { dc: 32, m: 32, seq: 4096, until: 2080 }, possible: true,
       intro: ['A signed 64-bit integer. The top bit stays 0 so IDs are positive.'] },
     { name: 'Spec 2: Twenty years of legacy', width: 64, total: 63, start: { ts: 41, dc: 5, m: 5, seq: 12 }, epoch: 1970, lock: true,
@@ -611,7 +611,7 @@ function initBits() {
     alloc = { ...lv.start }; epoch = lv.epoch;
     FIELDS.forEach(f => steppers[f.k].set(alloc[f.k], true));
     epochSeg.set(epoch, true); epochSeg.disable(lv.lock);
-    $('#bits-epoch-note').textContent = lv.lock ? 'Locked to 1970 for this spec.' : 'Custom epochs start the clock at your launch, as Twitter did.';
+    $('#bits-epoch-note').textContent = lv.lock ? 'Locked to 1970 for this spec.' : 'A custom epoch starts the clock at your launch.';
     const r = lv.req;
     $('#bits-spec').replaceChildren(h('h3', {}, lv.name), h('p', { class: 'meta', style: 'margin-top: var(--s1)' }, lv.intro[0] + ' ' + lv.total + ' bits to spend.'),
       h('ul', {}, h('li', {}, r.dc + ' datacenters'), h('li', {}, r.m + ' machines in each datacenter'),
@@ -665,7 +665,7 @@ function initBits() {
       { t: 'Switch to a random machine ID until the clock catches up.' }]);
     $('#bits-clock-q').replaceChildren(...opts.map(o => h('button', { type: 'button', class: 'reason', onclick: () => {
       $$('#bits-clock-q .reason').forEach(b => { b.disabled = true; });
-      const why = 'Timestamps …809 to …812 were already used with sequence numbers starting at 0, so issuing at …809 can repeat an ID that already exists. Real generators detect the backward step and stall until the clock catches up (the clock-skew deep dive in Chapter 7).';
+      const why = 'Timestamps …809 to …812 were already used with sequence numbers starting at 0, so issuing at …809 can repeat an ID that already exists. Real generators detect the backward step and stall until the clock catches up.';
       if (o.ok) { add(50); slip($('#bits-clock-feedback'), 'right', 50, 'Right. ' + why); }
       else { add(-25); slip($('#bits-clock-feedback'), 'wrong', -25, 'That risks duplicates. ' + why); }
       $('#bits-restart').hidden = false;

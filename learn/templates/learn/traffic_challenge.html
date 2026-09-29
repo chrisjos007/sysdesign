@@ -21,9 +21,9 @@
         <li>Start at <strong class="num">{{ params.score.start|floatformat:"0g" }}</strong></li>
         <li><span class="minus num">&minus;{{ params.score.per_breach }}</span> each 10 minutes over SLO (p99 over {{ params.slo.p99_ms }} ms or errors over {{ error_pct }}%)</li>
         <li><span class="minus num">&minus;1</span> per dollar spent</li>
-        <li><span class="minus num">&minus;{{ params.score.analytics }}</span> if 301 redirects break click analytics</li>
+        <li><span class="minus num">&minus;{{ params.score.stale_pages }}</span> if browser caching shows shoppers stale prices</li>
     </ul>
-    <p class="traffic-xp">Every {{ points_per_xp }} points is 1 XP, and a clean day (inside the SLO all day, analytics intact) adds {{ perfect_bonus }} XP.</p>
+    <p class="traffic-xp">Every {{ points_per_xp }} points is 1 XP, and a clean day (inside the SLO all day, prices kept fresh) adds {{ perfect_bonus }} XP.</p>
 </div>
 
 <section class="card verdict" id="tr-verdict" tabindex="-1" hidden>
@@ -94,7 +94,7 @@
                         <button type="button" data-seg="cache" data-value="false">Off</button>
                         <button type="button" data-seg="cache" data-value="true">On</button>
                     </div>
-                    <span class="meta">${{ params.hourly_cost.cache|floatformat:"2g" }}/h · keeps hot short URLs in memory</span>
+                    <span class="meta">${{ params.hourly_cost.cache|floatformat:"2g" }}/h · keeps hot product pages in memory</span>
                 </div>
                 <div class="ctl">
                     <span class="label" id="tr-l-replicas">Read replicas</span>
@@ -106,12 +106,12 @@
                     <span class="meta">${{ params.hourly_cost.db|floatformat:"2g" }}/h each · {{ params.db_capacity|floatformat:"0g" }} queries/s per DB node. The primary costs ${{ params.hourly_cost.db|floatformat:"2g" }}/h too.</span>
                 </div>
                 <div class="ctl">
-                    <span class="label" id="tr-l-redirect">Redirect</span>
-                    <div class="segmented" role="group" aria-labelledby="tr-l-redirect">
-                        <button type="button" data-seg="redirect" data-value="302">302</button>
-                        <button type="button" data-seg="redirect" data-value="301">301</button>
+                    <span class="label" id="tr-l-browser">Browser cache</span>
+                    <div class="segmented" role="group" aria-labelledby="tr-l-browser">
+                        <button type="button" data-seg="browser_cache" data-value="false">Off</button>
+                        <button type="button" data-seg="browser_cache" data-value="true">5 min</button>
                     </div>
-                    <span class="meta">302 is temporary; browsers cache a 301 permanent redirect. Marketing needs click analytics.</span>
+                    <span class="meta">max-age=300 lets browsers reuse a page for five minutes. Merchandising needs price changes live within 30 seconds.</span>
                 </div>
             </div>
             <p class="meta" id="tr-hourly-cost"></p>
@@ -144,8 +144,8 @@
   var csrf = board.querySelector('[name=csrfmiddlewaretoken]').value;
   var $ = function (id) { return document.getElementById(id); };
 
-  var cfg = { servers: P.start.servers, replicas: P.start.replicas, cache: P.start.cache, redirect: P.start.redirect };
-  var hist = [], tick = 0, timer = null, spent = 0, breaches = 0, used301 = false, ended = false, saving = false;
+  var cfg = { servers: P.start.servers, replicas: P.start.replicas, cache: P.start.cache, browser_cache: P.start.browser_cache };
+  var hist = [], tick = 0, timer = null, spent = 0, breaches = 0, browserCached = false, ended = false, saving = false;
   var hover = null;
 
   var nf = new Intl.NumberFormat('en-US');
@@ -171,7 +171,7 @@
   }
   function tok(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
   function liveScore() {
-    return P.score.start - P.score.per_breach * breaches - Math.round(spent) - (used301 ? P.score.analytics : 0);
+    return P.score.start - P.score.per_breach * breaches - Math.round(spent) - (browserCached ? P.score.stale_pages : 0);
   }
 
   /* ---------- Controls ---------- */
@@ -186,7 +186,7 @@
   board.querySelectorAll('[data-seg]').forEach(function (b) {
     b.addEventListener('click', function () {
       var key = b.dataset.seg;
-      var v = key === 'cache' ? b.dataset.value === 'true' : Number(b.dataset.value);
+      var v = b.dataset.value === 'true';
       if (v !== cfg[key]) { cfg[key] = v; changed(); }
     });
   });
@@ -289,7 +289,7 @@
     var prev = hist[hist.length - 1];
     hist.push(r);
     spent += r.cost;
-    if (cfg.redirect === 301) used301 = true;
+    if (cfg.browser_cache) browserCached = true;
     if (r.breach) breaches++;
     if (P.events[tick]) log(clock(tick) + ' · ' + P.events[tick]);
     if (r.breach && !(prev && prev.breach)) log(clock(tick) + ' · Over SLO: p99 ' + ms(r.p99) + ', errors ' + pct(r.err) + '.', true);
@@ -314,7 +314,7 @@
   }
   function reset() {
     if (timer) clearInterval(timer);
-    timer = null; hist = []; tick = 0; spent = 0; breaches = 0; used301 = false; ended = false; hover = null;
+    timer = null; hist = []; tick = 0; spent = 0; breaches = 0; browserCached = false; ended = false; hover = null;
     events.replaceChildren(el('li', null, P.briefing));
     $('tr-save').replaceChildren();
     $('tr-verdict').hidden = true;
@@ -341,7 +341,7 @@
     saving = true;
     var status = $('tr-save');
     status.replaceChildren(el('p', 'meta', 'Filing your day…'));
-    var plan = hist.map(function (r) { return [r.cfg.servers, r.cfg.replicas, r.cfg.cache, r.cfg.redirect]; });
+    var plan = hist.map(function (r) { return [r.cfg.servers, r.cfg.replicas, r.cfg.cache, r.cfg.browser_cache]; });
     fetch(finishUrl, {
       method: 'POST',
       headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
@@ -375,7 +375,7 @@
     $('tr-verdict-xp').textContent = '+' + f.xp_awarded + ' XP';
     var d = f.detail;
     var line = num(P.score.start) + ' − ' + d.breaches + ' breach' + (d.breaches === 1 ? '' : 'es') + ' × ' + P.score.per_breach
-      + ' − $' + nf.format(d.spent) + ' spent' + (d.used_301 ? ' − ' + P.score.analytics + ' for broken analytics' : '')
+      + ' − $' + nf.format(d.spent) + ' spent' + (d.browser_cached ? ' − ' + P.score.stale_pages + ' for stale prices' : '')
       + ' = ' + num(f.score) + '.';
     if (f.perfect_bonus) line += ' A clean day adds ' + f.perfect_bonus + ' XP.';
     $('tr-verdict-line').textContent = line;
@@ -468,12 +468,12 @@
     var spikeTick = Math.round(P.spike.at_hour * PER_HOUR);
     var vx = Math.round(X(spikeTick)) + 0.5;
     g.strokeStyle = C.edge; line(vx, y1, vx, y1 + h1);
-    g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText('Viral link', vx - 4, y1 + 8);
+    g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText('Newsletter', vx - 4, y1 + 8);
 
     // Forecast for the design as it stands.
     g.setLineDash([4, 4]); g.strokeStyle = C.ink3; g.lineWidth = 1.25;
     var forecast = [];
-    for (var i = 0; i < TICKS; i++) forecast.push([X(i + 0.5), Y1(M.demand(i, cfg.redirect).total)]);
+    for (var i = 0; i < TICKS; i++) forecast.push([X(i + 0.5), Y1(M.demand(i, cfg.browser_cache).total)]);
     polyline(forecast);
     g.setLineDash([]);
 
@@ -542,7 +542,7 @@
                 tipRow(pct(r.err), 'Errors'));
       if (r.breach) rows.push(el('div', 'chart-tip__flag', 'Over SLO'));
     } else {
-      rows.push(tipRow(rate(M.demand(hover, cfg.redirect).total), 'Forecast', 'legend__line--forecast'),
+      rows.push(tipRow(rate(M.demand(hover, cfg.browser_cache).total), 'Forecast', 'legend__line--forecast'),
                 tipRow(rate(cfg.servers * P.app_capacity), 'App capacity now', 'legend__line--capacity'));
     }
     tip.replaceChildren.apply(tip, rows);
